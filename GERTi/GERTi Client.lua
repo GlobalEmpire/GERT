@@ -8,7 +8,9 @@ local tunnel = component.tunnel
 local tier = 100
 local neighbors = {}
 local neighborDex = 1
+local serialTable = ""
 
+-- functions for startup
 local function handleEvent(...)
     if eventName ~= nil then
         storeNeighbors(...)
@@ -58,10 +60,15 @@ end
 
 -- sort table so that the lowest tier connections come first
 table.sort(neighbors, sortTable)
-local function transmitInformation(sendTo)
-    modem.send(sendTo, 4378, tier)
-end
 
+-- functions for normal operation
+local function transmitInformation(sendTo, port, ...)
+    if port ~= 0 then
+        modem.send(sendTo, port, ...)
+    else
+        tunnel.send(...)
+    end
+end
 local function sendPacket(_, finalAddress, packet)
     --do some stuff here to send the packet on to final address
 end
@@ -74,7 +81,18 @@ end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
     -- filter out neighbor requests, and send on packet for further processing
-    
+    if ... == "GERTiStart" and tier < 3 then
+        if port ~= 0 then
+            transmitInformation(sendingModem, 4378, tier)
+        else
+            transmitInformation(sendingModem, 0)
+        end
+    elseif ... == "GERTiForwardTable"
+        transmitInformation(neighbors[neighborDex][1]["address"], 4378, tier)
+    end
 end
-
+-- engage listener so that other computers can connect
 event.listen("modem_message", receivePacket)
+-- forward neighbor table up the line
+serialTable = serialize.serialize(neighbors)
+transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
