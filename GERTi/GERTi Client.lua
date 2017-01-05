@@ -3,17 +3,20 @@ local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
 local modem = component.modem
-local tunnel = component.tunnel
-
-local tier = 100
+if component.isAvailable("tunnel") then
+    local tunnel = component.tunnel
+end
+local tier = 3
 local neighbors = {}
 local neighborDex = 1
 local serialTable = ""
 
 -- functions for startup
 local function handleEvent(...)
+    print("being called")
     if eventName ~= nil then
         storeNeighbors(...)
+        return "not nil"
     else
         return "nillerino"
     end
@@ -29,7 +32,7 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     neighborDex = neighborDex + 1
 end
 local function sortTable(elementOne, elementTwo)
-    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"])
+    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
         return true
     else
         return false
@@ -85,9 +88,9 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         if port ~= 0 then
             transmitInformation(sendingModem, 4378, tier)
         else
-            transmitInformation(sendingModem, 0)
+            transmitInformation(sendingModem, 0, tier)
         end
-    elseif ... == "GERTiForwardTable"
+    elseif ... == "GERTiForwardTable" then
         transmitInformation(neighbors[neighborDex][1]["address"], 4378, tier)
     end
 end
@@ -95,4 +98,6 @@ end
 event.listen("modem_message", receivePacket)
 -- forward neighbor table up the line
 serialTable = serialize.serialize(neighbors)
-transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
+if serialTable ~= "{}" then
+    transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
+end
