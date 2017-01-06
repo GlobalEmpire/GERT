@@ -6,23 +6,15 @@ local modem = component.modem
 if component.isAvailable("tunnel") then
     local tunnel = component.tunnel
 end
-local tier = 3
+local tier = 2
 local neighbors = {}
 local neighborDex = 1
 local serialTable = ""
 
 -- functions for startup
-local function handleEvent(...)
-    print("being called")
-    if eventName ~= nil then
-        storeNeighbors(...)
-        return "not nil"
-    else
-        return "nillerino"
-    end
-end
 local function storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
     -- register neighbors for communication to gateway
+    neighbors[neighborDex] = {}
     neighbors[neighborDex]["address"] = sendingModem
     neighbors[neighborDex]["tier"] = tonumber(package)
     neighbors[neighborDex]["port"] = tonumber(port)
@@ -30,6 +22,14 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
         tier = tonumber(package) + 1
     end
     neighborDex = neighborDex + 1
+end
+local function handleEvent(...)
+    if ... ~= nil then
+        storeNeighbors(...)
+        return "not nil"
+    else
+        return "nillerino"
+    end
 end
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
@@ -54,9 +54,9 @@ end
 modem.broadcast(4378, "GERTiStart")
 while true do
     local isNil = "not nil"
-    isNil = handleEvent(event.pull(1, "modem_message"))
+    isNil = handleEvent(event.pull(3, "modem_message"))
+    print(isNil)
     if isNil == "nillerino" then
-        print(isNil)
         break
     end
 end
@@ -83,6 +83,7 @@ local function processPacket(_, packet)
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
+    print(...)
     -- filter out neighbor requests, and send on packet for further processing
     if ... == "GERTiStart" and tier < 3 then
         if port ~= 0 then
@@ -98,6 +99,7 @@ end
 event.listen("modem_message", receivePacket)
 -- forward neighbor table up the line
 serialTable = serialize.serialize(neighbors)
+print(serialTable)
 if serialTable ~= "{}" then
     transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
 end
