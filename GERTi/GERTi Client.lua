@@ -6,7 +6,7 @@ local modem = component.modem
 if component.isAvailable("tunnel") then
     local tunnel = component.tunnel
 end
-local tier = 2
+local tier = 3
 local neighbors = {}
 local neighborDex = 1
 local serialTable = ""
@@ -86,13 +86,10 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
     print(...)
     -- filter out neighbor requests, and send on packet for further processing
     if ... == "GERTiStart" and tier < 3 then
-        if port ~= 0 then
-            transmitInformation(sendingModem, 4378, tier)
-        else
-            transmitInformation(sendingModem, 0, tier)
-        end
+        storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
+        transmitInformation(sendingModem, port, tier)
     elseif ... == "GERTiForwardTable" then
-        transmitInformation(neighbors[neighborDex][1]["address"], 4378, tier)
+        transmitInformation(neighbors[1]["address"], neighbors[1]["port"], ...)
     end
 end
 -- engage listener so that other computers can connect
@@ -103,3 +100,4 @@ print(serialTable)
 if serialTable ~= "{}" then
     transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
 end
+-- startup procedure is now complete
