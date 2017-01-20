@@ -16,10 +16,14 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     -- register neighbors for communication to gateway
     neighbors[neighborDex] = {}
     neighbors[neighborDex]["address"] = sendingModem
-    neighbors[neighborDex]["tier"] = tonumber(package)
     neighbors[neighborDex]["port"] = tonumber(port)
-    if tonumber(package) < tier then
-        tier = tonumber(package) + 1
+    if package == nil then
+        neighbors[neighborDex]["tier"] = (tier+1)
+    else
+        neighbors[neighborDex]["tier"] = tonumber(package)
+        if tonumber(package) < tier then
+            tier = tonumber(package)+1
+        end
     end
     neighborDex = neighborDex + 1
 end
@@ -54,7 +58,7 @@ end
 modem.broadcast(4378, "GERTiStart")
 while true do
     local isNil = "not nil"
-    isNil = handleEvent(event.pull(3, "modem_message"))
+    isNil = handleEvent(event.pull(1, "modem_message"))
     print(isNil)
     if isNil == "nillerino" then
         break
@@ -85,10 +89,10 @@ end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
     print(...)
     -- filter out neighbor requests, and send on packet for further processing
-    if ... == "GERTiStart" and tier < 3 then
-        storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
+    if (...) == "GERTiStart" and tier < 3 then
+        storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
         transmitInformation(sendingModem, port, tier)
-    elseif ... == "GERTiForwardTable" then
+    elseif (...) == "GERTiForwardTable" then
         transmitInformation(neighbors[1]["address"], neighbors[1]["port"], ...)
     end
 end
@@ -98,6 +102,6 @@ event.listen("modem_message", receivePacket)
 serialTable = serialize.serialize(neighbors)
 print(serialTable)
 if serialTable ~= "{}" then
-    transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", serialTable)
+    transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", modem.address, serialTable)
 end
 -- startup procedure is now complete
