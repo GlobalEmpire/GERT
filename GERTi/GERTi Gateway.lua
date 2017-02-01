@@ -17,10 +17,13 @@ modem.open(4378)
 -- functions to store the children and then sort the table
 local function storeChild(eventName, receivingModem, sendingModem, port, distance, package)
     -- register neighbors for communication to gateway
+    -- parents means the direct connections a computer can make to another computer that is a higher tier than it
+    -- children means the direct connections a comptuer can make to another computer that is a lower tier than it
     childNodes[childNum] = {}
     childNodes[childNum]["address"] = sendingModem
     childNodes[childNum]["tier"] = tonumber(package)
     childNodes[childNum]["port"] = tonumber(port)
+    childNodes[childNum]["parents"] = {}
     childNodes[childNum]["children"]={}
     print("inside store Child")
     print(childNodes[childNum]["address"])
@@ -59,20 +62,27 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         transmitInformation(sendingModem, port, tier)
     elseif (...) == "GERTiForwardTable" then
         
-        local junk, originatorAddress, childTable = ...
+        local junk, originatorAddress, childTier, childTable = ...
         childTable = serialize.unserialize(childTable)
-        local childDex = 1
+        local nodeDex = 1
         
         for key, value in pairs(childNodes) do
             if value["address"] == originatorAddress then
-                childDex = key
+                nodeDex = key
             end
         end
+        local parentDex = 1
+        local subChildDex = 1
         for key, value in pairs(childTable) do
-            if childTable[key]["address"] ~= modem.address then
-                childNodes[childDex]["children"][key] = value
+            if childTable[key]["tier"] < childTier then
+                childNodes[nodeDex]["parents"][parentDex]=value
+                parentDex = parentDex + 1
+            else
+                childNodes[nodeDex]["children"][subChildDex]=value
+                subChildDex = subChildDex + 1
             end
         end
+        
         for key, value in pairs(childNodes) do
             for key2, value2 in pairs(childNodes[key]["children"]) do
                 print("dave")

@@ -1,4 +1,5 @@
 -- Under Construction
+local GERTi = {}
 local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
@@ -12,6 +13,13 @@ local neighborDex = 1
 local serialTable = ""
 
 -- functions for startup
+local function sortTable(elementOne, elementTwo)
+    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
+        return true
+    else
+        return false
+    end
+end
 local function storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
     -- register neighbors for communication to gateway
     neighbors[neighborDex] = {}
@@ -26,6 +34,8 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
         end
     end
     neighborDex = neighborDex + 1
+    -- sort table so that the best connection to the gateway comes first
+    table.sort(neighbors, sortTable)
 end
 local function handleEvent(...)
     if ... ~= nil then
@@ -35,13 +45,7 @@ local function handleEvent(...)
         return "nillerino"
     end
 end
-local function sortTable(elementOne, elementTwo)
-    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
-        return true
-    else
-        return false
-    end
-end
+
 -- startup procedure
 -- check if linked card is available and then attempt to s
 if component.isAvailable("tunnel") then
@@ -65,9 +69,6 @@ while true do
     end
 end
 
--- sort table so that the lowest tier connections come first
-table.sort(neighbors, sortTable)
-
 -- functions for normal operation
 local function transmitInformation(sendTo, port, ...)
     if port ~= 0 then
@@ -75,15 +76,6 @@ local function transmitInformation(sendTo, port, ...)
     else
         tunnel.send(...)
     end
-end
-local function sendPacket(_, finalAddress, packet)
-    --do some stuff here to send the packet on to final address
-end
-
-local function processPacket(_, packet)
-    packet = serialize.unserialize(packet)
-    --local destination
-    -- do some stuff here to process the packet and prepare for sendout
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
@@ -102,6 +94,15 @@ event.listen("modem_message", receivePacket)
 serialTable = serialize.serialize(neighbors)
 print(serialTable)
 if serialTable ~= "{}" then
-    transmitInformation(neighbors[1]["address"], 4378, "GERTiForwardTable", modem.address, serialTable)
+    transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "GERTiForwardTable", modem.address, tier, serialTable)
 end
 -- startup procedure is now complete
+-- begin procedure to allow for data transmission
+-- this function allows a connection to the requested destination device
+function GERTi.openRoute(destination)
+    
+end
+-- this function will allow a program to receive data from a GERTi connection
+function GERTi.receiveData()
+end
+-- There'll be some stuff here to allow a program to create an object they can read/write data from, similar to the internet card's internet.socket().
