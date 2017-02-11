@@ -42,7 +42,7 @@ H. Cell: An Ocranet packet.
     
   C. Gateway Implementation Details
     Startup Procedure:
-    Upon startup, the Ocranet gateway downloads a real-wrold IP address list of GENS servers.
+    Upon startup, the Ocranet gateway downloads a real-world IP address list of GENS servers.
       1a. If download fails, throw error
       1b. If download succeeds, continue
     
