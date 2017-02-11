@@ -7,7 +7,7 @@ has stepped up to the plate for Ocranet. The time has come for GERT - Global Emp
 networking standard built to maximize the potential of Ocranet, while GERTi is an infra-server networking bringing enterprise grade
 failure tolerance and end-user simplicity right into your OC computer.
 
-2. Compatability.
+2. Compatibility.
 GERTe (e for external) can be made compatible with any infra-server networking technology, as long as it is Ocranet/GERTe network
 addressing aware. GERTi (i for internal) can also be made compatible with any inter-server networking technology, as long as it is
 Ocranet/GERTi network addressing aware. While GERT is designed to be a leading standard for Ocranet technology, the Global Empire
@@ -94,14 +94,14 @@ H. Cell: An Ocranet packet.
     distributed, failure-tolerant network for OC computers inside of a minecraft server. GERTi handles the networking of OC computers
     to a gateway outside of the server.
     
-  B. Implementation overwiew
+  B. Implementation overview
     Upon startup, a GERTi enabled computer will use all available communication channels to attempt to reach a gateway through up to 2
     intermediate computers. At a maximum, this allows for 1000 publicly addressable computers on an internal network with good planning,
     and a maximum of 10 publicly addressable computers with no planning.
     
   C. Implementation details
     Startup:
-    1. Upon startup, a GERTi enabled computer checks for tunnel cards andwired/wireless network cards.
+    1. Upon startup, a GERTi enabled computer checks for tunnel cards and wired/wireless network cards.
     2. If it has a linked card, attempt to check for a GERTi computer on the other end.
       2a. If the other computer has GERTi and is Tier 0 (gateway)/Tier 1/Tier 2, store the other computer's UUID, store the other
       computer's network card UUID, store the other computer's tier, and set this computer's tier to other computer's tier+1. Advance to
@@ -122,7 +122,7 @@ H. Cell: An Ocranet packet.
     Communication
     1. Upon inter-server communication requests from within the computer, attempt to connect to lowest tier number connection.
       1a. Upon initial acknowledgement request, continue sending all communications through that node.
-      1a. If ack request fails, attempt to contact gateway through successively higher tier number nodes.
+      1a. If the acknowledgement request fails, attempt to contact gateway through successively higher tier number nodes.
     2. Upon inter-server communication request from a child node, follow step 1.
       2a. If step 1 fails, send a FAIL cell to child node.
       2b. If step 1 succeeds, send a CONNECT cell to child node.
