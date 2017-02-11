@@ -94,8 +94,8 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                 if value["address"] == destination then
                     isNeighbor = true
                     -- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
-                    transmitInformation(neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], "OPENROUTE", destination)
-                    local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(1, "modem_message")
+                    transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination)
+                    local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(2, "modem_message")
                     if payload == "ROUTE OPEN" then
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
                     break
@@ -111,8 +111,6 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                     end
                 end
         end
-    elseif(...) == "ROUTE OPEN" then
-        transmitInformation()
     elseif(...) == "GERTiStart" and tier < 3 then
         storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
         transmitInformation(sendingModem, port, tier)
@@ -145,7 +143,8 @@ function GERTi.openRoute(destination)
     -- if neighbor is local, then open a direct connection
     if isNeighbor == true then
         transmitInformation(neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], "OPENROUTE", destination)
-        local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(1, "modem_message")
+        local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(2, "modem_message")
+        print(payload)
         if payload == "ROUTE OPEN" then
             isOpen = true
         end
