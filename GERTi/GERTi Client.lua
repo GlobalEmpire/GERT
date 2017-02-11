@@ -95,7 +95,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                     isNeighbor = true
                     -- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
                     transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination)
-                    local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(2, "modem_message")
+                    local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
                     if payload == "ROUTE OPEN" then
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
                     break
