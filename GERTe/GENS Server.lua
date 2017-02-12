@@ -10,37 +10,63 @@
 
 --Warning: Designed in Lua 5.1 for compatibilty with LuaForWindows (Developer's Version)
 
+startTime = os.time()
+
 logFile = io.open("log.txt", "a")
-logFile:write("[" .. os.time() .. "] -----     Initializing      -----\n")
+if not logFile then
+	logFile = io.open("log.txt", "w")
+end
+
+logFile:write("[" .. startTime .. "] -----     Initializing      -----\n")
+print("[" .. startTime .. "] -----     Initializing      -----")
 
 function log(str)
-	logFile:write("[" .. os.time() .. "] " .. str .. "\n")
+	formatted = "[" .. os.time() .. "] " .. str .. "\n"
+	logFile:write(formatted)
 	logFile:flush()
+	io.stdout:write(formatted)
 end
 
 socket = require "socket"
 ipSeg = "%d?%d?%d"
 ipPat = ipSeg .. "%." .. ipSeg .. "%." .. ipSeg .. "%." .. ipSeg
+ipSeg = nil
 gertPat = "%d%d%d%-%d%d%d%d"
 fullPat = gertPat .. "%-%d%d%d%d"
 
 vers = "0.0"
 compatible = {}
-compatible["0.0"] = true
+compatible[vers] = true
 
 serv = socket.tcp()
-io.stdout:write("Run Server On Port: ")
+io.stdout:write("[???] Run Server On Port: ")
 port = io.read()
 serv:bind("*", port)
 serv:listen(10)
 serv:settimeout(0) --Allows non-blocking calls
 log("Server Open on " .. port)
+port = nil
 
 function lookup(id)
 	return database[string.match(id, "(" .. gertPat .. ")%-%d%d%d%d")] or nil
 end
 
+function error(str)
+	return log("[E] " .. str)
+end
+
+function warn(str)
+	return log("[W] ".. str)
+end
+
+function info(str)
+	return log("[I] " .. str)
+end
+
 function send(data, sock)
+	if ({sock:receive(0)})[2] == "closed" then
+		return warn("Socket closed unexpectantly")
+	end
 	local str = "GENS " .. vers .. "\r\n"
 	for k, line in pairs(data) do
 		str = str .. line .. "\r\n"
@@ -51,29 +77,30 @@ end
 
 function main()
 	local client = serv:accept() --WARNING: Will block, this code won't close cleanly
-	if not client then return end --If client isn't waiting execute other operations
+	if not client then return end --If client isn't waiting then cancel
 	local header = client:receive() --TODO: Implement something like socket.select or something
 	if string.sub(header, 1, 4) ~= "GENS" then
 		client:send("HTTP/1.1 400 Bad Request\r\n") --Why not? It's universal
 		send({"ERR: NOT GENS"}, client)
-		log("[W] Non-GENS from " .. client:getpeername())
-		return
+		return warn("Non-GENS from " .. client:getpeername())
 	elseif not compatible[string.sub(header, 6)] then
 		send({"ERR: NOT COMPATIBLE"}, client)
-		log("[W] Non-compatible GENS from " .. client:getpeername())
-		return
+		return warn("Non-compatible GENS from " .. client:getpeername())
 	end
 	local request = client:receive()
 	local reqID, origin = string.match(request, "(" .. fullPat .. ") (" .. fullPat .. ")")
+	if not reqID or not origin then
+		error(client:getpeername() .. " sent a malformed request")
+		return send({"ERR: MALFORMED REQUEST"}, client)
+	end
 	local tracker = origin .. " (" .. client:getpeername() ..")"
 	local map = lookup(reqID)
 	if not map then
 		send({"ERR: NOT FOUND"}, client)
-		log("[E] " .. tracker .. " attempted to find " .. reqID .. " but failed")
-		return
+		return error(tracker .. " attempted to find " .. reqID .. " but failed")
 	end
 	send({"FOUND: " .. map}, client)
-	log("[I] " .. tracker .. " found " .. reqID .. " (" .. map .. ")")
+	return info(tracker .. " found " .. reqID .. " (" .. map .. ")")
 end
 
 log("Building Database")
@@ -89,11 +116,12 @@ end
 log("-----Initialization Finished-----")
 
 while true do --Primary execution loop
+	socket.select({serv}) --Idles much nicer if server isn't ready
 	local succ, result = pcall(main)
 	if not succ then
 		local line, err = string.match(result, ".+:(%d+): (.+)")
 		if err == "interrupted!" then
-			log("[I] User requested close")
+			info("User requested close")
 			os.exit(0)
 		end
 		log("[C] Crashed with error: " .. err .. " on line " .. line)
