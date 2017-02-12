@@ -82,7 +82,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
     print(...)
     -- process packet according to what the identifier string is, and potentially perform further processing
     if (...) == "OPENROUTE" then
-        local message, destination, origination = ...
+        local message, destination, intermediary, origination = ...
         -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
         if destination == modem.address then
             transmitInformation(sendingModem, port, "ROUTE OPEN")
@@ -98,18 +98,30 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                     local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
                     if payload == "ROUTE OPEN" then
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
+                    end
                     break
+                end
+            end
+            if isNeighbor == false and intermediary == nil then
+                -- if it is not a neighbor, then contact parent to forward indirect connection request
+                transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, nil, origination)
+                local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
+                if payload == "ROUTE OPEN" then
+                    transmitInformation(sendingModem, port, "ROUTE OPEN")
+                end
+                -- if it is not a neighbor, but an intermediary is found, then attempt to forward request to intermediary
+            elseif isNeighbor == false then
+                for key, value in pairs(neighbors) do
+                    if value["address"] == intermediary then
+                        transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, intermediary, origination)
+                        local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+                        if payload == "ROUTE OPEN" then
+                            transmitInformation(sendingModem, port, "ROUTE OPEN")
+                        end
+                        break
                     end
                 end
             end
-                if isNeighbor == false then
-                -- if it is not a neighbor, then contact parent to forward indirect connection request
-                    transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, origination)
-                    local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(8, "modem_message")
-                    if payload == "ROUTE OPEN" then
-                        transmitInformation(sendingModem, port, "ROUTE OPEN")
-                    end
-                end
         end
     elseif(...) == "GERTiStart" and tier < 3 then
         storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
@@ -138,6 +150,7 @@ function GERTi.openRoute(destination)
         if value["address"] == destination then
             isNeighbor = true
             neighborKey = key
+            break
         end
     end
     -- if neighbor is local, then open a direct connection
@@ -152,7 +165,7 @@ function GERTi.openRoute(destination)
         return isOpen
     else
         -- if neighbor is not local, then attempt to contact parent to open an indirect connection (i.e. routed through multiple computers)
-        transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address)
+        transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, nil, modem.address)
         -- timeout of 8 seconds chosen to ensure that routing request will go through, even if all the way across network (tier 3->2->1->gateway->1->2->3)
         local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(8, "modem_message")
         if payload == "ROUTE OPEN" then

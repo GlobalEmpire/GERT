@@ -44,26 +44,112 @@ local function transmitInformation(sendTo, port, ...)
     end
 end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
+    print(...)
+    if (...) == "OPENROUTE" then
+        local message, destination, origination = ...
+        local childKey = 0
+        -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
+        if destination == modem.address then
+            transmitInformation(sendingModem, port, "ROUTE OPEN")
+            print("opening route")
+        else
+            -- attempt to look up the node and establish a routing path
+            for key, value in pairs(childNodes) do
+                if value["address"] == destination then
+                    childKey = key
+                    break
+                end
+            end
+            -- attempt to determine if the gateway is a direct parent of the intended destination
+            if childKey ~= 0 then
+                local gateParent = false
+                for key, value in pairs(childNodes[childKey]["parents"]) do
+                    if value["address"] == modem.address then
+                        gateParent = true
+                        break
+                    end
+                end
+                -- if gateway is direct parent, open direct connection, otherwise open an indirect connection
+                if gateParent == true then
+                    transmitInformation(childNodes[childKey]["address"], childNodes[childKey]["port"], "OPENROUTE", destination, origination)
+                    local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+                    if payload == "ROUTE OPEN" then
+                        transmitInformation(sendingModem, port, "ROUTE OPEN")
+                    end
+                else
+                    -- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
+                    local parent1Key, parent2Key = 0
+                    for key, value in pairs(childNodes[childKey]["parents"]) do
+                        for key2, value2 in pairs(childNodes) do
+                            if value2["address"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
+                                parent1Key = key2
+                                break
+                            end
+                        end
+                        if parent1Key ~= 0 then
+                            break
+                        end
+                    end
+                    if parent1Key ~= 0 then
+                        -- If an intermediate is found, then use that to open a direct connection
+                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, nil, origination)
+                        local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+                        if payload == "ROUTE OPEN" then
+                            transmitInformation(sendingModem, port, "ROUTE OPEN")
+                        end
+                    else
+                        -- If an intermediate is not found, attempt to do a 2-deep search for hops
+                        local childParents = childNodes[childKey]["parents"]
+                        for key,value in pairs(childNodes) do
+                            for key2, value2 in pairs(value["children"]) do
+                                for key3, value3 in pairs(childParents) do 
+                                    -- so much nesting!
+                                    if value3["address"] == value2["address"] then
+                                        parent2Key = key3
+                                        parent1Key = key
+                                        break
+                                    end
+                                end
+                                if parent2Key ~= 0 then
+                                    break
+                                end
+                            end
+                            if parent2Key ~= 0 then
+                                break
+                            end
+                        end
+                        -- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
+                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, childNodes[parent2Key]["address"], origination)
+                        local eventName, receivingModem, _, port, distance, payload = event.pull(7, "modem_message")
+                        if payload == "ROUTE OPEN" then
+                            transmitInformation(sendingModem, port, "ROUTE OPEN")
+                        end
+                    end
+                end    
+            end
+        end                        
+    elseif (...) == "GERTiStart" then
     local doesExist = false
-    if (...) == "GERTiStart" then
+    local childTier = ...
         print("GERTiStartReceived")
         for key,value in pairs(childNodes) do
             if value["address"] == sendingModem then
                 doesExist = true
-                childNodes[key]["tier"] = ...
+                childNodes[key]["tier"] = childTier
                 childNodes[key]["port"] = port
                 childNodes[key]["children"] = {}
+                childNodes[key]["parents"] = {}
                 break
             end
         end
         if doesExist == false then
-            storeChild(eventName, receivingModem, sendingModem, port, distance, ...)
+            storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
         end
         transmitInformation(sendingModem, port, tier)
     elseif (...) == "GERTiForwardTable" then
         
-        local junk, originatorAddress, childTier, childTable = ...
-        childTable = serialize.unserialize(childTable)
+        local junk, originatorAddress, childTier, neighborTable = ...
+        neighborTable = serialize.unserialize(neighborTable)
         local nodeDex = 1
         
         for key, value in pairs(childNodes) do
@@ -73,20 +159,13 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         end
         local parentDex = 1
         local subChildDex = 1
-        for key, value in pairs(childTable) do
-            if childTable[key]["tier"] < childTier then
+        for key, value in pairs(neighborTable) do
+            if neighborTable[key]["tier"] < childTier then
                 childNodes[nodeDex]["parents"][parentDex]=value
                 parentDex = parentDex + 1
             else
                 childNodes[nodeDex]["children"][subChildDex]=value
                 subChildDex = subChildDex + 1
-            end
-        end
-        
-        for key, value in pairs(childNodes) do
-            for key2, value2 in pairs(childNodes[key]["children"]) do
-                print("dave")
-                print(value2["address"])
             end
         end
     end
