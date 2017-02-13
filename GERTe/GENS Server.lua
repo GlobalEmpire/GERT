@@ -78,7 +78,13 @@ end
 function main()
 	local client = serv:accept() --WARNING: Will block, this code won't close cleanly
 	if not client then return end --If client isn't waiting then cancel
-	local header = client:receive() --TODO: Implement something like socket.select or something
+	client:settimeout(5)
+	local header, err = client:receive() --TODO: Implement something like socket.select or something
+	if err == "timeout" then
+		client:send({"ERR: TIMEDOUT"})
+		return error(client:getpeername .. " is being a slow loris (timedout)")
+	elseif err == "closed" then
+		return error(client:getpeername() .. " caused an unexpected close")
 	if string.sub(header, 1, 4) ~= "GENS" then
 		client:send("HTTP/1.1 400 Bad Request\r\n") --Why not? It's universal
 		send({"ERR: NOT GENS"}, client)
@@ -87,7 +93,12 @@ function main()
 		send({"ERR: NOT COMPATIBLE"}, client)
 		return warn("Non-compatible GENS from " .. client:getpeername())
 	end
-	local request = client:receive()
+	local request, err = client:receive()
+	if err == "timeout" then
+		client:send({"ERR: TIMEOUT"})
+		return error(client:getpeername .. " is being a slow loris (timedout)")
+	elseif err == "closed" then
+		return error(client:getpeername() .. " caused an unexpected close")
 	local reqID, origin = string.match(request, "(" .. fullPat .. ") (" .. fullPat .. ")")
 	if not reqID or not origin then
 		error(client:getpeername() .. " sent a malformed request")
