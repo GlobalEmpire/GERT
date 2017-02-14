@@ -82,10 +82,10 @@ function main()
 	local header, err = client:receive() --TODO: Implement something like socket.select or something
 	if err == "timeout" then
 		client:send({"ERR: TIMEDOUT"})
-		return error(client:getpeername .. " is being a slow loris (timedout)")
+		return error(client:getpeername() .. " is being a slow loris (timedout)")
 	elseif err == "closed" then
 		return error(client:getpeername() .. " caused an unexpected close")
-	if string.sub(header, 1, 4) ~= "GENS" then
+	elseif string.sub(header, 1, 4) ~= "GENS" then
 		client:send("HTTP/1.1 400 Bad Request\r\n") --Why not? It's universal
 		send({"ERR: NOT GENS"}, client)
 		return warn("Non-GENS from " .. client:getpeername())
@@ -99,6 +99,7 @@ function main()
 		return error(client:getpeername .. " is being a slow loris (timedout)")
 	elseif err == "closed" then
 		return error(client:getpeername() .. " caused an unexpected close")
+	end
 	local reqID, origin = string.match(request, "(" .. fullPat .. ") (" .. fullPat .. ")")
 	if not reqID or not origin then
 		error(client:getpeername() .. " sent a malformed request")
@@ -119,9 +120,15 @@ log("Building Database")
 database = {}
 file = io.open("database.txt", "r")
 
+if not file then
+	return error("Database file not found.")
+end
+
 for entry in function() return file:read() end do
 	local id, addr = string.match(entry, "(" .. gertPat .. ") = (" .. ipPat .. ")")
-	database[id] = addr
+	if id and addr then
+		database[id] = addr
+	end
 end
 
 log("-----Initialization Finished-----")
