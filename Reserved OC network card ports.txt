@@ -2,4 +2,4 @@ Centralized repository of reserved OpenComputers network card port numbers to pr
 this list.
 
 Ports 1-10: MGR's chat program
-Ports 4378-4450: Reserved for GERTi use
+Ports 4378-4550: Reserved for GERTi use
