@@ -62,7 +62,7 @@ end
 modem.broadcast(4378, "GERTiStart")
 while true do
     local isNil = "not nil"
-    isNil = handleEvent(event.pull(1, "modem_message"))
+    isNil = handleEvent(event.pull(2, "modem_message"))
     print(isNil)
     if isNil == "nillerino" then
         break

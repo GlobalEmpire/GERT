@@ -11,7 +11,9 @@ end
 local childNodes = {}
 local childNum = 1
 local tier = 0
-
+if modem.isWireless() == true then
+    modem.setStrength(800)
+end
 -- open port
 modem.open(4378)
 -- functions to store the children and then sort the table
@@ -130,7 +132,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         end                        
     elseif (...) == "GERTiStart" then
     local doesExist = false
-    local childTier = ...
+    local childTier = 1
         print("GERTiStartReceived")
         for key,value in pairs(childNodes) do
             if value["address"] == sendingModem then
@@ -150,11 +152,22 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         
         local junk, originatorAddress, childTier, neighborTable = ...
         neighborTable = serialize.unserialize(neighborTable)
-        local nodeDex = 1
+        local nodeDex = 0
         
         for key, value in pairs(childNodes) do
             if value["address"] == originatorAddress then
                 nodeDex = key
+                break
+            end
+        end
+        if nodeDex == 0 then
+            storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
+        end
+        
+        for key, value in pairs(childNodes) do
+            if value["address"] == originatorAddress then
+                nodeDex = key
+                break
             end
         end
         local parentDex = 1
