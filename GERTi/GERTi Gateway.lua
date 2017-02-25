@@ -30,6 +30,7 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
     print("inside store Child")
     print(childNodes[childNum]["address"])
     childNum = childNum + 1
+    return childNum
 end
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
@@ -161,14 +162,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
             end
         end
         if nodeDex == 0 then
-            storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
-        end
-        
-        for key, value in pairs(childNodes) do
-            if value["address"] == originatorAddress then
-                nodeDex = key
-                break
-            end
+            nodeDex = storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
         end
         local parentDex = 1
         local subChildDex = 1
