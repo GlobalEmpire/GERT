@@ -10,8 +10,9 @@ end
 local tier = 3
 local neighbors = {}
 local neighborDex = 1
-local serialTable = ""
-
+-- table of open connections
+local connections = {}
+local connectDex = 1
 -- functions for startup
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
@@ -36,6 +37,15 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     neighborDex = neighborDex + 1
     -- sort table so that the best connection to the gateway comes first
     table.sort(neighbors, sortTable)
+end
+local function storeConnection(destination, origination, nextHop, port)
+    connections[connectDex]["destination"] = destination
+    connections[connectDex]["origination"] = origination
+    connections[connectDex]["nextHop"] = nextHop
+    connections[connectDex]["port"] = port
+    connections[connectDex]["data"] = {}
+    connectDex = connectDex + 1
+    return (connectDex-1)
 end
 local function handleEvent(...)
     if ... ~= nil then
@@ -133,6 +143,7 @@ end
 -- engage listener so that other computers can connect
 event.listen("modem_message", receivePacket)
 -- forward neighbor table up the line
+local serialTable = ""
 serialTable = serialize.serialize(neighbors)
 print(serialTable)
 if serialTable ~= "{}" then
@@ -142,6 +153,7 @@ end
 -- begin procedure to allow for data transmission
 -- this function allows a connection to the requested destination device, should only be used publicly if low-level operation is desired (e.g. another protocol that sits on top of GERTi to further manage networking)
 function GERTi.openRoute(destination)
+    local connectNum = 0
     local isNeighbor = false
     local neighborKey = 0
     local isOpen = false
@@ -162,7 +174,10 @@ function GERTi.openRoute(destination)
             isOpen = true
         end
         print(isOpen)
-        return isOpen
+        if isOpen == true then
+            connectNum = storeConnection(destination, modem.address, nil, port)
+        end
+        return isOpen, connectNum
     else
         -- if neighbor is not local, then attempt to contact parent to open an indirect connection (i.e. routed through multiple computers)
         transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, nil, modem.address)
@@ -171,8 +186,68 @@ function GERTi.openRoute(destination)
         if payload == "ROUTE OPEN" then
             isOpen = true
         end
+        if isOpen == true then
+            connectNum = storeConnection(destination, modem.address, neighbors[1], port)
+        end
         print(isOpen)
-        return isOpen
+        return isOpen, connectNum
     end
 end
--- There'll be some stuff here to allow a program to create an object they can read/write data from, similar to the internet card's internet.socket().
+-- function to write data to an opened connection
+local function writeData(destination, data ...)
+    if ... ~= nil then
+        local connectNum = ...
+        if connections[connectNum]["nextHop"] ~= nil then
+            transmitInformation(destination, connections[connectNum]["port"], "DATA", data, nil, modem.address)
+        else
+            transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], data, destination, modem.address)
+        end
+    else
+        local connectNum = 0
+        for key, value in pairs(connections) do
+            if value == destination then
+                connectNum = key
+                break
+            end
+        end
+        if connectNum ~= 0 then
+            if connections[connectNum]["nextHop"] ~= nil then
+                transmitInformation(destination, connections[connectNum]["port"], "DATA", data, nil, modem.address)
+            else
+                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], data, destination, modem.address)
+            end
+        else
+            print("This destination is not a recognized connection")
+        end
+    end
+end
+-- function to read data from an opened connection
+local function readData(connectNum)
+    local data = connections[connectNum]["data"]
+    connections[connectNum]["data"] = {}
+    return data
+end
+function GERTi.openSocket(destination)
+    local routeDex = 0
+    local isValid = false
+    local socket = {}
+    -- confirm that a route is available, and if so, begin opening a socket.
+    for key, value in pairs(connections) do
+        if value["destination"] == destination then
+            routeDex = key
+            break
+        end
+    end
+    if routeDex ~= 0 then
+        socket.origin = modem.address
+        socket.destination = destination
+        socket.routeDex = routeDex
+        socket.write = writeData
+        socket.read = readData(routeDex)
+        isValid = true
+    else
+        print("route cannot be opened, please confirm destination and that a valid path exists")
+    end
+    return socket, isValid
+end
+return GERTi

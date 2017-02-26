@@ -30,7 +30,7 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
     print("inside store Child")
     print(childNodes[childNum]["address"])
     childNum = childNum + 1
-    return childNum
+    return (childNum-1)
 end
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
