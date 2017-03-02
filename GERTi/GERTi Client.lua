@@ -39,6 +39,7 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     table.sort(neighbors, sortTable)
 end
 local function storeConnection(destination, origination, nextHop, port)
+    print("the destination is "..destination.." the origination is "..origination.." the nextHop is ".."nil".."the port is "..port)
     connections[connectDex]["destination"] = destination
     connections[connectDex]["origination"] = origination
     connections[connectDex]["nextHop"] = nextHop
