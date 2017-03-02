@@ -44,8 +44,18 @@ local function storeConnection(destination, origination, nextHop, port)
     connections[connectDex]["nextHop"] = nextHop
     connections[connectDex]["port"] = port
     connections[connectDex]["data"] = {}
+    connections[connectDex]["dataDex"] = 1
     connectDex = connectDex + 1
     return (connectDex-1)
+end
+local function storeData(connectNum, data)
+    if connections[connectNum]["dataDex"] < 20 then
+        connections[connectNum]["data"][dataDex]=data
+        connections[connectNum]["dataDex"] = connections[connectNum]["dataDex"] + 1
+    else
+        connections[connectNum]["dataDex"] = 1
+        storeData(connectNum, data)
+    end
 end
 local function handleEvent(...)
     if ... ~= nil then
@@ -91,7 +101,24 @@ end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
     print(...)
     -- process packet according to what the identifier string is, and potentially perform further processing
-    if (...) == "OPENROUTE" then
+    if (...) == "DATA" then
+        data, destination, origination = ...
+        local connectNum = 0
+        for key, value in pairs(connections) do
+            if value["destination"] == destination then
+                connectNum = key
+                break
+            end
+        end
+        if connectNum ~= 0 then
+            -- connectNum should never ever be 0, but I don't even know these days.
+            if connections[connectNum]["nextHop"] ~= nil then
+                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
+            elseif connections[connectNum]["destination"] == modem.address then
+                storeData(connectNum, data)
+            end
+        end     
+    elseif (...) == "OPENROUTE" then
         local message, destination, intermediary, origination = ...
         -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
         if destination == modem.address then
@@ -191,20 +218,20 @@ function GERTi.openRoute(destination)
             isOpen = true
         end
         if isOpen == true then
-            connectNum = storeConnection(destination, modem.address, neighbors[1], port)
+            connectNum = storeConnection(destination, modem.address, neighbors[1], neighbors[1]["port"])
         end
         print(isOpen)
         return isOpen, connectNum
     end
 end
 -- function to write data to an opened connection
-local function writeData(destination, data ...)
+local function writeData(destination, data, ...)
     if ... ~= nil then
         local connectNum = ...
         if connections[connectNum]["nextHop"] ~= nil then
-            transmitInformation(destination, connections[connectNum]["port"], "DATA", data, nil, modem.address)
+            transmitInformation(destination, connections[connectNum]["port"], "DATA", data, destination, modem.address)
         else
-            transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], data, destination, modem.address)
+            transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
         end
     else
         local connectNum = 0
@@ -216,9 +243,9 @@ local function writeData(destination, data ...)
         end
         if connectNum ~= 0 then
             if connections[connectNum]["nextHop"] ~= nil then
-                transmitInformation(destination, connections[connectNum]["port"], "DATA", data, nil, modem.address)
+                transmitInformation(destination, connections[connectNum]["port"], "DATA", data, destination, modem.address)
             else
-                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], data, destination, modem.address)
+                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
             end
         else
             print("This destination is not a recognized connection")
@@ -229,6 +256,7 @@ end
 local function readData(connectNum)
     local data = connections[connectNum]["data"]
     connections[connectNum]["data"] = {}
+    connections[connectNum]["dataDex"] = 1
     return data
 end
 -- This is the function that allows end-users to open sockets. It will cache previously opened connections to allow for a faster re-opening. It also allows for the function to be called even when openRoute has not been called previously.
@@ -251,7 +279,7 @@ function GERTi.openSocket(destination)
         socket.destination = destination
         socket.routeDex = routeDex
         socket.write = writeData
-        socket.read = readData(routeDex)
+        socket.read = readData
         isValid = true
     else
         print("route cannot be opened, please confirm destination and that a valid path exists")
