@@ -1,6 +1,5 @@
 Centralized repository of reserved OpenComputers network card port numbers to prevent conflicts of use. Please contact MajGenRelativity or Gavle to register port numbers on
 this list.
 
-Ports 1-10: MGR's chat program
 Port 14: Ethernet over OC : SolraBizna
 Ports 4378-4550: Reserved for GERTi use
