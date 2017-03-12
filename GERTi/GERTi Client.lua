@@ -43,7 +43,11 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     table.sort(neighbors, sortTable)
 end
 local function storeConnection(destination, origination, nextHop, port)
+<<<<<<< HEAD
     connections[connectDex] = {}
+=======
+    print("the destination is "..destination.." the origination is "..origination.." the nextHop is ".."nil".."the port is "..port)
+>>>>>>> origin/master
     connections[connectDex]["destination"] = destination
     connections[connectDex]["origination"] = origination
     connections[connectDex]["nextHop"] = nextHop
@@ -85,7 +89,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         local junk, data, destination, origination = ...
         local connectNum = 0
         for key, value in pairs(connections) do
-            if value["destination"] == destination and value["origination"] == origination then
+            if (value["destination"] == destination and value["origination"] == origination) or (value["destination"] == origination and value["origination"] == destination) then
                 connectNum = key
                 break
             end
