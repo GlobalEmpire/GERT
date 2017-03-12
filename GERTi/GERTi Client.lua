@@ -7,13 +7,17 @@ local modem = component.modem
 if component.isAvailable("tunnel") then
     local tunnel = component.tunnel
 end
-local tier = 3
 local neighbors = {}
+local tier = 3
 local neighborDex = 1
 -- table of open connections
 local connections = {}
 local connectDex = 1
--- functions for startup
+if component.isAvailable("tunnel") then
+    tunnel.send("GERTiStart")
+    handleEvent(event.pull(1, "modem_message"))
+end
+-- internal functions
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
         return true
@@ -39,6 +43,7 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     table.sort(neighbors, sortTable)
 end
 local function storeConnection(destination, origination, nextHop, port)
+    connections[connectDex] = {}
     connections[connectDex]["destination"] = destination
     connections[connectDex]["origination"] = origination
     connections[connectDex]["nextHop"] = nextHop
@@ -50,7 +55,7 @@ local function storeConnection(destination, origination, nextHop, port)
 end
 local function storeData(connectNum, data)
     if connections[connectNum]["dataDex"] < 20 then
-        connections[connectNum]["data"][dataDex]=data
+        connections[connectNum]["data"]["dataDex"]=data
         connections[connectNum]["dataDex"] = connections[connectNum]["dataDex"] + 1
     else
         connections[connectNum]["dataDex"] = 1
@@ -65,31 +70,6 @@ local function handleEvent(...)
         return "nillerino"
     end
 end
-
--- startup procedure
--- check if linked card is available and then attempt to s
-if component.isAvailable("tunnel") then
-    tunnel.send("GERTiStart")
-    handleEvent(event.pull(1, "modem_message"))
-end
--- now attempt to use a network card for finding neighbors
--- open port and prepare for transmission of message
-modem.open(4378)
-if modem.isWireless() then
-    modem.setStrength(500)
-end
--- transmit broadcast to check for neighboring GERTi enabled computers
-modem.broadcast(4378, "GERTiStart")
-while true do
-    local isNil = "not nil"
-    isNil = handleEvent(event.pull(2, "modem_message"))
-    print(isNil)
-    if isNil == "nillerino" then
-        break
-    end
-end
-
--- functions for normal operation
 local function transmitInformation(sendTo, port, ...)
     if port ~= 0 then
         modem.send(sendTo, port, ...)
@@ -102,10 +82,10 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
     print(...)
     -- process packet according to what the identifier string is, and potentially perform further processing
     if (...) == "DATA" then
-        data, destination, origination = ...
+        local junk, data, destination, origination = ...
         local connectNum = 0
         for key, value in pairs(connections) do
-            if value["destination"] == destination then
+            if value["destination"] == destination and value["origination"] == origination then
                 connectNum = key
                 break
             end
@@ -171,8 +151,22 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
         transmitInformation(neighbors[1]["address"], neighbors[1]["port"], ...)
     end
 end
--- engage listener so that other computers can connect
+-- transmit broadcast to check for neighboring GERTi enabled computers
+modem.open(4378)
+if modem.isWireless() then
+    modem.setStrength(500)
+end
+modem.broadcast(4378, "GERTiStart")
+while true do
+    local isNil = "not nil"
+    isNil = handleEvent(event.pull(2, "modem_message"))
+    print(isNil)
+    if isNil == "nillerino" then
+        break
+    end
+end
 event.listen("modem_message", receivePacket)
+
 -- forward neighbor table up the line
 local serialTable = ""
 serialTable = serialize.serialize(neighbors)
@@ -198,7 +192,7 @@ function GERTi.openRoute(destination)
     end
     -- if neighbor is local, then open a direct connection
     if isNeighbor == true then
-        transmitInformation(neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], "OPENROUTE", destination)
+        transmitInformation(neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], "OPENROUTE", destination, nil, modem.address)
         local eventName, receivingModem, sendingModem, port, distance, payload = event.pull(2, "modem_message")
         print(payload)
         if payload == "ROUTE OPEN" then
@@ -228,7 +222,7 @@ end
 local function writeData(destination, data, ...)
     if ... ~= nil then
         local connectNum = ...
-        if connections[connectNum]["nextHop"] ~= nil then
+        if connections[connectNum]["nextHop"] == nil then
             transmitInformation(destination, connections[connectNum]["port"], "DATA", data, destination, modem.address)
         else
             transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
@@ -236,13 +230,13 @@ local function writeData(destination, data, ...)
     else
         local connectNum = 0
         for key, value in pairs(connections) do
-            if value == destination then
+            if value["destination"] == destination then
                 connectNum = key
                 break
             end
         end
         if connectNum ~= 0 then
-            if connections[connectNum]["nextHop"] ~= nil then
+            if connections[connectNum]["nextHop"] == nil then
                 transmitInformation(destination, connections[connectNum]["port"], "DATA", data, destination, modem.address)
             else
                 transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
@@ -260,19 +254,20 @@ local function readData(connectNum)
     return data
 end
 -- This is the function that allows end-users to open sockets. It will cache previously opened connections to allow for a faster re-opening. It also allows for the function to be called even when openRoute has not been called previously.
-function GERTi.openSocket(destination)
+function GERTi.openSocket(origination, destination)
     local routeDex = 0
     local isValid = false
     local socket = {}
     -- confirm that a route is available, and if so, begin opening a socket.
     for key, value in pairs(connections) do
-        if value["destination"] == destination then
+        if (value["destination"] == destination and value["origination"] == origination) or (value["origination"] == destination and value["destination"] == origination) then
+            print("we found a connection!")
             routeDex = key
             break
         end
     end
     if routeDex == 0 then
-        routeDex = GERTi.openRoute(destination)
+        isValid, routeDex = GERTi.openRoute(destination)
     end
     if routeDex ~= 0 then
         socket.origin = modem.address
@@ -283,11 +278,15 @@ function GERTi.openSocket(destination)
         isValid = true
     else
         print("route cannot be opened, please confirm destination and that a valid path exists")
+        isValid = false
     end
     return socket, isValid
 end
 -- This is a simple function that returns the connection table for programs to examine
 function GERTi.getConnections()
-    return serialize.serialize(connections)
+    return connections
+end
+function GERTi.getNeighbors()
+    return neighbors
 end
 return GERTi
