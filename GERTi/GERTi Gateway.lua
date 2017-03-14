@@ -10,6 +10,8 @@ end
 
 local childNodes = {}
 local childNum = 1
+local connections = {}
+local connectDex = 1
 local tier = 0
 if modem.isWireless() == true then
     modem.setStrength(800)
@@ -17,6 +19,13 @@ end
 -- open port
 modem.open(4378)
 -- functions to store the children and then sort the table
+local function sortTable(elementOne, elementTwo)
+    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
+        return true
+    else
+        return false
+    end
+end
 local function storeChild(eventName, receivingModem, sendingModem, port, distance, package)
     -- register neighbors for communication to gateway
     -- parents means the direct connections a computer can make to another computer that is a higher tier than it
@@ -30,14 +39,20 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
     print("inside store Child")
     print(childNodes[childNum]["address"])
     childNum = childNum + 1
+    table.sort(childNodes, sortTable)
     return (childNum-1)
 end
-local function sortTable(elementOne, elementTwo)
-    if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
-        return true
-    else
-        return false
-    end
+local function storeConnection(destination, origination, beforeHop, nextHop, port)
+    connections[connectDex] = {}
+    connections[connectDex]["destination"] = destination
+    connections[connectDex]["origination"] = origination
+    connections[connectDex]["beforeHop"] = beforeHop
+    connections[connectDex]["nextHop"] = nextHop
+    connections[connectDex]["port"] = port
+    connections[connectDex]["data"] = {}
+    connections[connectDex]["dataDex"] = 1
+    connectDex = connectDex + 1
+    return (connectDex-1)
 end
 local function transmitInformation(sendTo, port, ...)
     if port ~= 0 then
@@ -48,11 +63,33 @@ local function transmitInformation(sendTo, port, ...)
 end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, ...)
     print(...)
-    if (...) == "OPENROUTE" then
-        local message, destination, origination = ...
+    if (...) == "DATA" then
+        local junk, data, destination, origination = ...
+        local connectNum = 0
+        for key, value in pairs(connections) do
+            if (value["destination"] == destination and value["origination"] == origination) or (value["destination"] == origination and value["origination"] == destination) then
+                connectNum = key
+                break
+            end
+        end
+        if connectNum ~= 0 then
+            -- connectNum should never ever be 0, but I don't even know these days.
+            if connections[connectNum]["destination"] == origination then
+                transmitInformation(connections[connectNum]["beforeHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
+            else
+                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
+            end
+        end     
+    elseif (...) == "OPENROUTE" then
+        local message, destination, intermediary, intermediary2, origination = ...
         local childKey = 0
         -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
         if destination == modem.address then
+            if intermediary == nil then
+                storeConnection(modem.address, origination, nil, nil, port)
+            else
+                storeConnection(modem.address, origination, intermediary, nil, port)
+            end
             transmitInformation(sendingModem, port, "ROUTE OPEN")
             print("opening route")
         else
@@ -74,9 +111,14 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                 end
                 -- if gateway is direct parent, open direct connection, otherwise open an indirect connection
                 if gateParent == true then
-                    transmitInformation(childNodes[childKey]["address"], childNodes[childKey]["port"], "OPENROUTE", destination, origination)
+                    transmitInformation(childNodes[childKey]["address"], childNodes[childKey]["port"], "OPENROUTE", destination, modem.address, nil, origination)
                     local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
                     if payload == "ROUTE OPEN" then
+                        if intermediary == nil then
+                            storeConnection(destination, origination, origination, destination, port)
+                        else
+                            storeConnection(destination, origination, intermediary, destination, port)
+                        end
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
                     end
                 else
@@ -95,9 +137,14 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                     end
                     if parent1Key ~= 0 then
                         -- If an intermediate is found, then use that to open a direct connection
-                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, nil, origination)
+                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, modem.address, destination, origination)
                         local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
                         if payload == "ROUTE OPEN" then
+                            if intermediary == nil then
+                                storeConnection(destination, origination, origination, childNodes[parent1Key]["address"], port)
+                            else
+                                storeConnection(destination, origination, intermediary, childNodes[parent1Key]["address"], port)
+                            end
                             transmitInformation(sendingModem, port, "ROUTE OPEN")
                         end
                     else
@@ -122,9 +169,14 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
                             end
                         end
                         -- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, childNodes[parent2Key]["address"], origination)
+                        transmitInformation(childNodes[parent1Key]["address"], childNodes[parent1Key]["port"], "OPENROUTE", destination, modem.address, childNodes[parent2Key]["address"], origination)
                         local eventName, receivingModem, _, port, distance, payload = event.pull(7, "modem_message")
                         if payload == "ROUTE OPEN" then
+                            if intermediary == nil then
+                                storeConnection(destination, origination, origination, childNodes[parent1Key]["address"], port)
+                            else
+                                storeConnection(destination, origination, intermediary, childNodes[parent1Key]["address"], port)
+                            end
                             transmitInformation(sendingModem, port, "ROUTE OPEN")
                         end
                     end
