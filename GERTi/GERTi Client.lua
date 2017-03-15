@@ -3,10 +3,15 @@ local GERTi = {}
 local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
-local modem = component.modem
+
 if component.isAvailable("tunnel") then
     local tunnel = component.tunnel
+elseif component.isAvailable("modem") then
+    local modem = component.modem
+else io.stderr:write("This program requires a network card to run.")
+return
 end
+
 local neighbors = {}
 local tier = 3
 local neighborDex = 1
