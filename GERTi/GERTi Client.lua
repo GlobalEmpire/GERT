@@ -4,11 +4,11 @@ local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
 
-if component.isAvailable("tunnel") then
-    local tunnel = component.tunnel
-elseif component.isAvailable("modem") then
-    local modem = component.modem
-else io.stderr:write("This program requires a network card to run.")
+if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
+    io.stderr:write("This program requires a network card to run.")
+end
+local modem = component.modem
+local tunnel = component.tunnel
 return
 end
 
