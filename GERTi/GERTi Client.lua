@@ -3,10 +3,15 @@ local GERTi = {}
 local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
-local modem = component.modem
-if component.isAvailable("tunnel") then
-    local tunnel = component.tunnel
+
+if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
+    io.stderr:write("This program requires a network card to run.")
 end
+local modem = component.modem
+local tunnel = component.tunnel
+modem.setStrength(500)
+modem.open(4378)
+
 local neighbors = {}
 local tier = 3
 local neighborDex = 1
@@ -174,11 +179,6 @@ end
 if component.isAvailable("tunnel") then
     tunnel.send("GERTiStart")
     handleEvent(event.pull(1, "modem_message"))
-end
-
-modem.open(4378)
-if modem.isWireless() then
-    modem.setStrength(500)
 end
 
 modem.broadcast(4378, "GERTiStart")
