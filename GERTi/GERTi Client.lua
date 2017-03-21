@@ -9,8 +9,8 @@ if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")
 end
 local modem = component.modem
 local tunnel = component.tunnel
-return
-end
+modem.setStrength(500)
+modem.open(4378)
 
 local neighbors = {}
 local tier = 3
@@ -179,11 +179,6 @@ end
 if component.isAvailable("tunnel") then
     tunnel.send("GERTiStart")
     handleEvent(event.pull(1, "modem_message"))
-end
-
-modem.open(4378)
-if modem.isWireless() then
-    modem.setStrength(500)
 end
 
 modem.broadcast(4378, "GERTiStart")
