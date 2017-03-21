@@ -18,7 +18,7 @@ local neighborDex = 1
 -- table of open connections
 local connections = {}
 local connectDex = 1
-
+local handlers = {}
 -- internal functions
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
@@ -29,15 +29,18 @@ local function sortTable(elementOne, elementTwo)
 end
 
 local function storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
-    -- register neighbors for communication to gateway
+    -- Register neighbors for communication to gateway
     neighbors[neighborDex] = {}
     neighbors[neighborDex]["address"] = sendingModem
     neighbors[neighborDex]["port"] = tonumber(port)
     if package == nil then
+        --This is used for when a computer receives a new client's GERTiStart message. It stores a neighbor connection with a tier one lower than this computer's tier
         neighbors[neighborDex]["tier"] = (tier+1)
     else
+        -- This is used for when a computer receives replies to its GERTiStart message.
         neighbors[neighborDex]["tier"] = tonumber(package)
         if tonumber(package) < tier then
+            -- attempt to set this computer's tier to one lower than the highest ranked neighbor.
             tier = tonumber(package)+1
         end
     end
@@ -48,10 +51,13 @@ end
 
 local function storeConnection(origination, destination, beforeHop, nextHop, port)
     connections[connectDex] = {}
+    -- Stores destination and origin
     connections[connectDex]["destination"] = destination
     connections[connectDex]["origination"] = origination
+    -- Stores the before and after hops in the connection
     connections[connectDex]["beforeHop"] = beforeHop
     connections[connectDex]["nextHop"] = nextHop
+    -- Stores the port the connection is on (mainly used to tell the difference between modem and tunnel cards).
     connections[connectDex]["port"] = port
     connections[connectDex]["data"] = {}
     connections[connectDex]["dataDex"] = 1
@@ -59,11 +65,13 @@ local function storeConnection(origination, destination, beforeHop, nextHop, por
     return (connectDex-1)
 end
 
+-- Calls storeConnection twice to create a pair of uni-directional connections
 local function storeConnections(origination, destination, beforeHop, nextHop, port)
     storeConnection(origination, destination, beforeHop, nextHop, port)
     storeConnection(destination, origination, nextHop, beforeHop, port)
 end
 
+-- Stores data inside a connection for use by a program
 local function storeData(connectNum, data)
     local dataNum = connections[connectNum]["dataDex"]
     if dataNum < 20 then
@@ -75,6 +83,7 @@ local function storeData(connectNum, data)
     end
 end
 
+-- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
     if port ~= 0 then
         modem.send(sendTo, port, ...)
@@ -82,94 +91,103 @@ local function transmitInformation(sendTo, port, ...)
         tunnel.send(...)
     end
 end
+-- Handlers that manage incoming packets after processing
+handler."DATA" = local function DataHandler(eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
+    local connectNum = 0
+    -- Attempt to determine if host is the destination, else send it on to next hop.
+    for key, value in pairs(connections) do
+        if value["destination"] == destination and value["origination"] == origination then
+            connectNum = key
+            break
+        end
+    end
+    if connectNum ~= 0 then
+        -- connectNum should never ever be 0, but I don't even know these days.
+        if connections[connectNum]["destination"] == modem.address then
+            storeData(connectNum, data)    
+        else
+            transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
+        end
+    end
+end
 
-local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
-    print(code)
-    -- process packet according to what the identifier string is, and potentially perform further processing
-    if (code) == "DATA" then
-        local data, destination, origination = ...
-        local connectNum = 0
-        for key, value in pairs(connections) do
-            if value["destination"] == destination and value["origination"] == origination then
-                connectNum = key
+handler."OPENROUTE" = local function RouteHandler(eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
+    -- Attmpet to determine if the intended destination is this computer
+    if destination == modem.address then
+        transmitInformation(sendingModem, port, "ROUTE OPEN")
+        if intermediary ~= nil then
+            storeConnections(origination, modem.address, intermediary, modem.address, port)
+        else
+            storeConnections(modem.address, origination, sendingModem, modem.address, port)
+        end
+        print("opening route")
+            
+    else
+        -- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
+        local isNeighbor = false
+        for key, value in pairs(neighbors) do
+            if value["address"] == destination then
+                isNeighbor = true
+                -- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
+                transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
+                local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+                if payload == "ROUTE OPEN" then
+                    transmitInformation(sendingModem, port, "ROUTE OPEN")
+                    storeConnections(destination, origination, sendingModem, neighbors[key]["address"], port)
+                end
                 break
             end
         end
-        if connectNum ~= 0 then
-            -- connectNum should never ever be 0, but I don't even know these days.
-            if connections[connectNum]["destination"] == modem.address then
-                storeData(connectNum, data)    
-            else
-                transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
-            end
-        end     
-        
-    elseif (code) == "OPENROUTE" then
-        local destination, intermediary, intermediary2, origination = ...
-        -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
-        if destination == modem.address then
-            transmitInformation(sendingModem, port, "ROUTE OPEN")
-            if intermediary ~= nil then
-                storeConnections(origination, modem.address, intermediary, modem.address, port)
-            else
-                storeConnections(modem.address, origination, sendingModem, modem.address, port)
-            end
-            print("opening route")
             
-        else
-            -- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
-            local isNeighbor = false
+        if isNeighbor == false and intermediary2 == nil then
+            -- if it is not a neighbor, then contact parent to forward indirect connection request
+            transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address, nil, origination)
+            local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
+            if payload == "ROUTE OPEN" then
+                transmitInformation(sendingModem, port, "ROUTE OPEN")
+                storeConnections(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"])
+            end
+                -- If it is not a neighbor, but an intermediary is found (likely because gateway was already contacted), then attempt to forward request to intermediary
+        elseif isNeighbor == false then
             for key, value in pairs(neighbors) do
-                if value["address"] == destination then
-                    isNeighbor = true
-                    -- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
+                if value["address"] == intermediary2 then
                     transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
                     local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
                     if payload == "ROUTE OPEN" then
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
-                        storeConnections(destination, origination, sendingModem, neighbors[key]["address"], port)
+                        storeConnections(destination, origination, sendingModem, intermediary2, neighbors[key]["port"])
                     end
                     break
                 end
             end
-            
-            if isNeighbor == false and intermediary2 == nil then
-                -- if it is not a neighbor, then contact parent to forward indirect connection request
-                transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-                local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
-                if payload == "ROUTE OPEN" then
-                    transmitInformation(sendingModem, port, "ROUTE OPEN")
-                    storeConnections(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"])
-                end
-                -- if it is not a neighbor, but an intermediary is found, then attempt to forward request to intermediary
-            elseif isNeighbor == false then
-                for key, value in pairs(neighbors) do
-                    if value["address"] == intermediary2 then
-                        transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-                        local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
-                        if payload == "ROUTE OPEN" then
-                            transmitInformation(sendingModem, port, "ROUTE OPEN")
-                            storeConnections(destination, origination, sendingModem, intermediary2, neighbors[key]["port"])
-                        end
-                        break
-                    end
-                end
-            end
         end
-        
-    elseif(code) == "GERTiStart" and tier < 3 then
-        storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
-        transmitInformation(sendingModem, port, tier)
-        
-    elseif (code) == "GERTiForwardTable" then
-        transmitInformation(neighbors[1]["address"], neighbors[1]["port"], ...)
     end
 end
 
-local function handleEvent(...)
-    if ... ~= nil then
-        storeNeighbors(...)
-        return true
+handler."GERTiStart" = local function StartHandler(eventName, receivingModem, sendingModem, port, distance, code)
+    -- Process GERTiStart messages and add them as neighbors
+    if tier < 3 then
+        storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
+        transmitInformation(sendingModem, port, "RETURNSTART", tier)
+    end
+end
+ 
+handler."GERTiForwardTable" = local function ForwardHandler(eventName, receivingModem, sendingModem, port, distance, code, serialTable)
+    -- Forward neighbor tables up the chain to the gateway
+    transmitInformation(neighbors[1]["address"], neighbors[1]["port"], serialTable)
+end
+
+handler."RETURNSTART" = local function ReturnHandler(eventName, receivingModem, sendingModem, port, distance, code, tier)
+    -- Store neighbor based on the returning tier
+    storeNeighbors(eventName, receivingModem, sendingModem, port, distance, tier)
+    return true
+end
+
+local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
+    print(code)
+    -- Attempt to call a handler function to further process the packet
+    if handler.code ~= nil then
+        return handler.code(eventName, receivingModem, sendingModem, port, distance, code, ...)
     else
         return false
     end
@@ -186,6 +204,7 @@ local continue = true
 while continue do
     continue = handleEvent(event.pull(2, "modem_message"))
 end
+-- Register event listener to receiv packets from now on
 event.listen("modem_message", receivePacket)
 
 -- forward neighbor table up the line
@@ -195,6 +214,7 @@ print(serialTable)
 if serialTable ~= "{}" then
     transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "GERTiForwardTable", modem.address, tier, serialTable)
 end
+
 -- startup procedure is now complete
 -- begin procedure to allow for data transmission
 -- this function allows a connection to the requested destination device, should only be used publicly if low-level operation is desired (e.g. another protocol that sits on top of GERTi to further manage networking)
@@ -240,6 +260,7 @@ function GERTi.openRoute(destination)
     end
 end
 
+-- Attempts to return a pair of connections between an origin and destination for use in openSocket
 local function getConnectionPair(origination, destination)
     local outgoingRoute = 0
     local incomingRoute = 0
@@ -263,34 +284,16 @@ local function getConnectionPair(origination, destination)
     return outgoingRoute, incomingRoute
 end
 
--- function to write data to an opened connection
-local function writeData(destination, data, ...)
-    if ... ~= nil then
-        local connectNum = ...
-        if connections[connectNum]["destination"] == destination then
-            transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
-        end
-    else
-        local connectNum = 0
-        for key, value in pairs(connections) do
-            if value["destination"] == destination then
-                connectNum = key
-                break
-            end
-        end
-        if connectNum ~= 0 then
-            transmitInformation(connections[connectNum]["beforeHop"], connections[connectNum]["port"], "DATA", data, destination, modem.address)
-        else
-            print("This destination is not a recognized connection")
-        end
-    end
+-- Writes data to an opened connection
+local function writeData(self, data)
+    transmitInformation(connections[self.outgoingRoute]["nextHop"], connections[self.outgoingRoute]["port"], "DATA", data, destination, modem.address)
 end
 
--- function to read data from an opened connection
-local function readData(connectNum)
-    local data = connections[connectNum]["data"]
-    connections[connectNum]["data"] = {}
-    connections[connectNum]["dataDex"] = 1
+-- Reads data from an opened connection
+local function readData(self)
+    local data = connections[self.incomingRoute]["data"]
+    connections[self.incomingRoute]["data"] = {}
+    connections[self.incomingRoute]["dataDex"] = 1
     return data
 end
 
