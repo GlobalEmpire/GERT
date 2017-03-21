@@ -18,7 +18,7 @@ local neighborDex = 1
 -- table of open connections
 local connections = {}
 local connectDex = 1
-local handlers = {}
+local handler = {}
 -- internal functions
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
