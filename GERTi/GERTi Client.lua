@@ -101,10 +101,10 @@ end
 local function transmitInformation(sendTo, port, ...)
     if (port ~= 0) and (modem) then
         modem.send(sendTo, port, ...)
+    elseif (tunnel) then
+        tunnel.send(...)
     else
-        if (tunnel) then
-            tunnel.send(...)
-        end
+        io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
     end
 end
 -- Handlers that manage incoming packets after processing
@@ -216,10 +216,10 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 end
 
 -- transmit broadcast to check for neighboring GERTi enabled computers
-if (tunnel) then
-    tunnel.send("GERTiStart")
-    handleEvent(event.pull(1, "modem_message"))
-end
+--if (tunnel) then
+--    tunnel.send("GERTiStart")
+--    handleEvent(event.pull(1, "modem_message"))
+--end
 
 modem.broadcast(4378, "GERTiStart")
 --local continue = true
@@ -341,7 +341,7 @@ function GERTi.openSocket(destination)
         socket.write = writeData
         socket.read = readData
     else
-        print("route cannot be opened, please confirm destination and that a valid path exists")
+        print("Route cannot be opened, please confirm destination and that a valid path exists.")
     end
     return socket, isValid
 end
