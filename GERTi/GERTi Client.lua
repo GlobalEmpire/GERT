@@ -9,7 +9,7 @@ if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")
 end
 
 if (component.isAvailable("modem")) then
-    modem = component.modem
+    modem = require("modem")
     modem.open(4378)
 
     if (component.modem.isWireless()) then
@@ -20,7 +20,7 @@ else
 end
 
 if (component.isAvailable("tunnel")) then
-    tunnel = component.tunnel
+    tunnel = require("tunnel")
 else
     tunnel = false
 end
@@ -48,7 +48,7 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
     neighbors[neighborDex]["address"] = sendingModem
     neighbors[neighborDex]["port"] = tonumber(port)
     if package == nil then
-        --This is used for when a computer receives a new client's GERTiStart message. It stores a neighbor connection with a tier one higher than this computer's tier
+        --This is used for when a computer receives a new client's GERTiStart message. It stores a neighbor connection with a tier one lower than this computer's tier
         neighbors[neighborDex]["tier"] = (tier+1)
     else
         -- This is used for when a computer receives replies to its GERTiStart message.
@@ -107,6 +107,7 @@ local function transmitInformation(sendTo, port, ...)
         io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
     end
 end
+
 -- Handlers that manage incoming packets after processing
 handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
     local connectNum = 0
@@ -180,8 +181,6 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
             end
         end
     end
-
-    return true
 end
 
 handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
@@ -216,16 +215,18 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 end
 
 -- transmit broadcast to check for neighboring GERTi enabled computers
---if (tunnel) then
---    tunnel.send("GERTiStart")
---    handleEvent(event.pull(1, "modem_message"))
---end
+if (tunnel) then
+    tunnel.send("GERTiStart")
+    receivePacket(event.pull(1, "modem_message"))
+end
 
-modem.broadcast(4378, "GERTiStart")
---local continue = true
---while continue do
---    continue = handleEvent(event.pull(2, "modem_message"))
---end
+if (modem) then
+    modem.broadcast(4378, "GERTiStart")
+    local continue = true
+    while continue do
+        continue = receivePacket(event.pull(1, "modem_message"))
+    end
+end
 
 -- Register event listener to receive packets from now on
 event.listen("modem_message", receivePacket)

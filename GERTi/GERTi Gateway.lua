@@ -15,16 +15,20 @@ if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")
 end
 
 if (component.isAvailable("modem")) then
-    local modem = component.modem
+    modem = require("modem")
     modem.open(4378)
 
     if (component.modem.isWireless()) then
         modem.setStrength(500)
     end
+else
+    modem = false
 end
 
 if (component.isAvailable("tunnel")) then
-    local tunnel = component.tunnel
+    tunnel = require("tunnel")
+else
+    tunnel = false
 end
 
 -- functions to store the children and then sort the table
@@ -72,10 +76,12 @@ local function storeConnections(origination, destination, beforeHop, nextHop, po
 end
 
 local function transmitInformation(sendTo, port, ...)
-    if port ~= 0 then
+    if (port ~= 0) and (modem) then
         modem.send(sendTo, port, ...)
-    else
+    elseif (tunnel) then
         tunnel.send(...)
+    else
+        io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
     end
 end
 
