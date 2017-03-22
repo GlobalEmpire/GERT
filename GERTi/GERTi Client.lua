@@ -15,10 +15,14 @@ if (component.isAvailable("modem")) then
     if (component.modem.isWireless()) then
         modem.setStrength(500)
     end
+else
+    modem = false
 end
 
 if (component.isAvailable("tunnel")) then
-    local tunnel = component.tunnel
+    tunnel = component.tunnel
+else
+    tunnel = false
 end
 
 local neighbors = {}
@@ -95,10 +99,12 @@ end
 
 -- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
-    if port ~= 0 then
+    if (port ~= 0) and (modem) then
         modem.send(sendTo, port, ...)
     else
-        tunnel.send(...)
+        if (tunnel) then
+            tunnel.send(...)
+        end
     end
 end
 -- Handlers that manage incoming packets after processing
@@ -210,7 +216,7 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 end
 
 -- transmit broadcast to check for neighboring GERTi enabled computers
-if (component.isAvailable("tunnel")) then
+if (tunnel) then
     tunnel.send("GERTiStart")
     handleEvent(event.pull(1, "modem_message"))
 end
