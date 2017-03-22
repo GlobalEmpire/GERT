@@ -8,15 +8,24 @@ local childNum = 1
 local connections = {}
 local connectDex = 1
 local tier = 0
-local handlers = {}
+local handler = {}
 
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
     io.stderr:write("This program requires a network card to run.")
 end
-local modem = component.modem
-local tunnel = component.tunnel
-modem.setStrength(500)
-modem.open(4378)
+
+if (component.isAvailable("modem")) then
+    local modem = component.modem
+    modem.open(4378)
+
+    if (component.modem.isWireless()) then
+        modem.setStrength(500)
+    end
+end
+
+if (component.isAvailable("tunnel")) then
+    local tunnel = component.tunnel
+end
 
 -- functions to store the children and then sort the table
 local function sortTable(elementOne, elementTwo)
@@ -70,7 +79,7 @@ local function transmitInformation(sendTo, port, ...)
     end
 end
 
-local handler."DATA" = local function DataHandler(eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
+handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
     local connectNum = 0
         for key, value in pairs(connections) do
             if value["destination"] == destination and value["origination"] == origination then
@@ -86,7 +95,7 @@ local handler."DATA" = local function DataHandler(eventName, receivingModem, sen
         end
 end
 
-handler."OPENROUTE" = local function RouteHandler(eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
+handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
     local childKey = 0
         -- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
     if destination == modem.address then
@@ -174,7 +183,7 @@ handler."OPENROUTE" = local function RouteHandler(eventName, receivingModem, sen
     end  
 end
 
-handler."GERTiStart" = local function StartHandler(eventName, receivingModem, sendingModem, port, distance, code)
+handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
     local doesExist = false
     local childTier = 1
     print("GERTiStartReceived")
@@ -194,7 +203,7 @@ handler."GERTiStart" = local function StartHandler(eventName, receivingModem, se
     transmitInformation(sendingModem, port, tier)
 end
 
-handler."GERTiForwardTable" = local function ForwardHandler(eventName, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
+handler["GERTiForwardTable"] = function (eventName, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
     neighborTable = serialize.unserialize(neighborTable)
     local nodeDex = 0
     for key, value in pairs(childNodes) do
@@ -218,12 +227,14 @@ handler."GERTiForwardTable" = local function ForwardHandler(eventName, sendingMo
         end
     end
 end
+
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
     print(code)
-    if handler.code ~= nil then
-        return handler.code(eventName, receivingModem, sendingModem, port, distance, code, ...)
+    if handler[code] ~= nil then
+        return handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
     else
         return false
     end
 end
+
 event.listen("modem_message", receivePacket)
