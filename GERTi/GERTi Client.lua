@@ -7,10 +7,23 @@ local serialize = require("serialization")
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
     io.stderr:write("This program requires a network card to run.")
 end
-local modem = component.modem
-local tunnel = component.tunnel
-modem.setStrength(500)
-modem.open(4378)
+
+if (component.isAvailable("modem")) then
+    modem = require("modem")
+    modem.open(4378)
+
+    if (component.modem.isWireless()) then
+        modem.setStrength(500)
+    end
+else
+    modem = false
+end
+
+if (component.isAvailable("tunnel")) then
+    tunnel = require("tunnel")
+else
+    tunnel = false
+end
 
 local neighbors = {}
 local tier = 3
@@ -19,6 +32,7 @@ local neighborDex = 1
 local connections = {}
 local connectDex = 1
 local handler = {}
+
 -- internal functions
 local function sortTable(elementOne, elementTwo)
     if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
@@ -85,14 +99,17 @@ end
 
 -- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
-    if port ~= 0 then
+    if (port ~= 0) and (modem) then
         modem.send(sendTo, port, ...)
-    else
+    elseif (tunnel) then
         tunnel.send(...)
+    else
+        io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
     end
 end
+
 -- Handlers that manage incoming packets after processing
-handler."DATA" = local function DataHandler(eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
+handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
     local connectNum = 0
     -- Attempt to determine if host is the destination, else send it on to next hop.
     for key, value in pairs(connections) do
@@ -109,10 +126,12 @@ handler."DATA" = local function DataHandler(eventName, receivingModem, sendingMo
             transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
         end
     end
+
+    return true
 end
 
-handler."OPENROUTE" = local function RouteHandler(eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
-    -- Attmpet to determine if the intended destination is this computer
+handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
+    -- Attempt to determine if the intended destination is this computer
     if destination == modem.address then
         transmitInformation(sendingModem, port, "ROUTE OPEN")
         if intermediary ~= nil then
@@ -164,20 +183,22 @@ handler."OPENROUTE" = local function RouteHandler(eventName, receivingModem, sen
     end
 end
 
-handler."GERTiStart" = local function StartHandler(eventName, receivingModem, sendingModem, port, distance, code)
+handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
     -- Process GERTiStart messages and add them as neighbors
     if tier < 3 then
         storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
         transmitInformation(sendingModem, port, "RETURNSTART", tier)
     end
+    return true
 end
  
-handler."GERTiForwardTable" = local function ForwardHandler(eventName, receivingModem, sendingModem, port, distance, code, serialTable)
+handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, serialTable)
     -- Forward neighbor tables up the chain to the gateway
     transmitInformation(neighbors[1]["address"], neighbors[1]["port"], serialTable)
+    return true
 end
 
-handler."RETURNSTART" = local function ReturnHandler(eventName, receivingModem, sendingModem, port, distance, code, tier)
+handler["RETURNSTART"] = function (eventName, receivingModem, sendingModem, port, distance, code, tier)
     -- Store neighbor based on the returning tier
     storeNeighbors(eventName, receivingModem, sendingModem, port, distance, tier)
     return true
@@ -186,30 +207,32 @@ end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
     print(code)
     -- Attempt to call a handler function to further process the packet
-    if handler.code ~= nil then
-        return handler.code(eventName, receivingModem, sendingModem, port, distance, code, ...)
+    if handler[code] ~= nil then
+        return handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
     else
         return false
     end
 end
 
 -- transmit broadcast to check for neighboring GERTi enabled computers
-if component.isAvailable("tunnel") then
+if (tunnel) then
     tunnel.send("GERTiStart")
-    handleEvent(event.pull(1, "modem_message"))
+    receivePacket(event.pull(1, "modem_message"))
 end
 
-modem.broadcast(4378, "GERTiStart")
-local continue = true
-while continue do
-    continue = handleEvent(event.pull(2, "modem_message"))
+if (modem) then
+    modem.broadcast(4378, "GERTiStart")
+    local continue = true
+    while continue do
+        continue = receivePacket(event.pull(1, "modem_message"))
+    end
 end
--- Register event listener to receiv packets from now on
+
+-- Register event listener to receive packets from now on
 event.listen("modem_message", receivePacket)
 
 -- forward neighbor table up the line
-local serialTable = ""
-serialTable = serialize.serialize(neighbors)
+local serialTable = serialize.serialize(neighbors)
 print(serialTable)
 if serialTable ~= "{}" then
     transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "GERTiForwardTable", modem.address, tier, serialTable)
@@ -311,7 +334,7 @@ function GERTi.openSocket(destination)
             outgoingRoute, incomingRoute = getConnectionPair(modem.address, destination)
         end
     end
-    if isValid = true then
+    if isValid == true then
         socket.origin = modem.address
         socket.destination = destination
         socket.incomingRoute = incomingRoute
@@ -319,7 +342,7 @@ function GERTi.openSocket(destination)
         socket.write = writeData
         socket.read = readData
     else
-        print("route cannot be opened, please confirm destination and that a valid path exists")
+        print("Route cannot be opened, please confirm destination and that a valid path exists.")
     end
     return socket, isValid
 end
