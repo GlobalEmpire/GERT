@@ -9,7 +9,7 @@ if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")
 end
 
 if (component.isAvailable("modem")) then
-    modem = require("modem")
+    modem = component.modem
     modem.open(4378)
 
     if (component.modem.isWireless()) then
@@ -20,7 +20,7 @@ else
 end
 
 if (component.isAvailable("tunnel")) then
-    tunnel = require("tunnel")
+    tunnel = component.tunnel
 else
     tunnel = false
 end
