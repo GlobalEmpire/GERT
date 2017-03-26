@@ -264,7 +264,7 @@ function GERTi.openRoute(destination)
         end
         print(isOpen)
         if isOpen == true then
-            connectNum = storeConnections(destination, modem.address, modem.address, destination, port)
+            connectNum = storeConnections(modem.address, destination, modem.address, destination, port)
         end
         return isOpen, connectNum
     else
@@ -276,7 +276,7 @@ function GERTi.openRoute(destination)
             isOpen = true
         end
         if isOpen == true then
-            connectNum = storeConnections(destination, modem.address, nil, neighbors[1]["address"], neighbors[1]["port"])
+            connectNum = storeConnections(modem.address, destination, modem.address, neighbors[1]["address"], neighbors[1]["port"])
         end
         print(isOpen)
         return isOpen, connectNum
@@ -309,7 +309,7 @@ end
 
 -- Writes data to an opened connection
 local function writeData(self, data)
-    transmitInformation(connections[self.outgoingRoute]["nextHop"], connections[self.outgoingRoute]["port"], "DATA", data, destination, modem.address)
+    transmitInformation(connections[self.outgoingRoute]["nextHop"], connections[self.outgoingRoute]["port"], "DATA", data, self.destination, modem.address)
 end
 
 -- Reads data from an opened connection
