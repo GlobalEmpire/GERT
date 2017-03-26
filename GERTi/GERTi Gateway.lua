@@ -206,10 +206,10 @@ handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port,
     if doesExist == false then
         storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
     end
-    transmitInformation(sendingModem, port, tier)
+    transmitInformation(sendingModem, port, "RETURNSTART", tier)
 end
 
-handler["GERTiForwardTable"] = function (eventName, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
+handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
     neighborTable = serialize.unserialize(neighborTable)
     local nodeDex = 0
     for key, value in pairs(childNodes) do
