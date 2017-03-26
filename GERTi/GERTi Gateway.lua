@@ -99,6 +99,7 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
                 transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
             end
         end
+		return true
 end
 
 handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
@@ -160,7 +161,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
                     local childParents = childNodes[childKey]["parents"]
                     for key,value in pairs(childNodes) do
                         for key2, value2 in pairs(value["children"]) do
-                            for key3, value3 in pairs(childParents) do 
+                            for key3, value3 in pairs(childParents) do
                                 -- so much nesting!
                                 if value3["address"] == value2["address"] then
                                     parent2Key = key3
@@ -184,9 +185,9 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
                         transmitInformation(sendingModem, port, "ROUTE OPEN")
                     end
                 end
-            end    
+            end
         end
-    end  
+    end
 end
 
 handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
