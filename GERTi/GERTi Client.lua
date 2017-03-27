@@ -3,9 +3,12 @@ local GERTi = {}
 local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
+local modem = nil
+local tunnel = nil
 
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network card to run.")
+	return 1
 end
 
 if (component.isAvailable("modem")) then
@@ -15,14 +18,10 @@ if (component.isAvailable("modem")) then
 	if (component.modem.isWireless()) then
 		modem.setStrength(500)
 	end
-else
-	modem = false
 end
 
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
-else
-	tunnel = false
 end
 
 local neighbors = {}
@@ -37,9 +36,8 @@ local handler = {}
 local function sortTable(elementOne, elementTwo)
 	if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
 		return true
-	else
-		return false
 	end
+	return false
 end
 
 local function storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
@@ -140,47 +138,48 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			storeConnections(modem.address, origination, sendingModem, modem.address, port)
 		end
 		print("opening route")
+		return true
+	end
 
+	-- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
+	for key, value in pairs(neighbors) do
+		if value["address"] == destination then
+			-- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
+			transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
+			local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+			if payload == "ROUTE OPEN" then
+				transmitInformation(sendingModem, port, "ROUTE OPEN")
+				storeConnections(destination, origination, sendingModem, neighbors[key]["address"], port)
+			end
+			return true
+		end
+	end
+
+	-- if it is not a neighbor, and no intermediary was found, then contact parent to forward indirect connection request
+	if intermediary2 == nil then
+		transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address, nil, origination)
+		local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
+		if payload == "ROUTE OPEN" then
+			transmitInformation(sendingModem, port, "ROUTE OPEN")
+			storeConnections(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"])
+		end
+		return true
+			-- If an intermediary is found (likely because gateway was already contacted), then attempt to forward request to intermediary
 	else
-		-- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
-		local isNeighbor = false
 		for key, value in pairs(neighbors) do
-			if value["address"] == destination then
-				isNeighbor = true
-				-- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
+			if value["address"] == intermediary2 then
 				transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
 				local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
 				if payload == "ROUTE OPEN" then
 					transmitInformation(sendingModem, port, "ROUTE OPEN")
-					storeConnections(destination, origination, sendingModem, neighbors[key]["address"], port)
+					storeConnections(destination, origination, sendingModem, intermediary2, neighbors[key]["port"])
 				end
-				break
-			end
-		end
-
-		if isNeighbor == false and intermediary2 == nil then
-			-- if it is not a neighbor, then contact parent to forward indirect connection request
-			transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-			local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
-			if payload == "ROUTE OPEN" then
-				transmitInformation(sendingModem, port, "ROUTE OPEN")
-				storeConnections(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"])
-			end
-				-- If it is not a neighbor, but an intermediary is found (likely because gateway was already contacted), then attempt to forward request to intermediary
-		elseif isNeighbor == false then
-			for key, value in pairs(neighbors) do
-				if value["address"] == intermediary2 then
-					transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-					local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
-					if payload == "ROUTE OPEN" then
-						transmitInformation(sendingModem, port, "ROUTE OPEN")
-						storeConnections(destination, origination, sendingModem, intermediary2, neighbors[key]["port"])
-					end
-					break
-				end
+				return true
 			end
 		end
 	end
+
+	return false
 end
 
 handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
@@ -188,8 +187,9 @@ handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port,
 	if tier < 3 then
 		storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
 		transmitInformation(sendingModem, port, "RETURNSTART", tier)
+		return true
 	end
-	return true
+	return false
 end
 
 handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, serialTable)
@@ -209,9 +209,8 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 	-- Attempt to call a handler function to further process the packet
 	if handler[code] ~= nil then
 		return handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
-	else
-		return false
 	end
+	return false
 end
 
 -- transmit broadcast to check for neighboring GERTi enabled computers
