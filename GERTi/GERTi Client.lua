@@ -106,25 +106,16 @@ end
 
 -- Handlers that manage incoming packets after processing
 handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
-	local connectNum = 0
-
 	-- Attempt to determine if host is the destination, else send it on to next hop.
 	for key, value in pairs(connections) do
 		if value["destination"] == destination and value["origination"] == origination then
-			connectNum = key
-			break
+			if connections[key]["destination"] == modem.address then
+				return storeData(key, data)
+			else
+				return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
+			end
 		end
 	end
-
-		-- connectNum should never ever be 0, but I don't even know these days.
-	if connectNum ~= 0 then
-		if connections[connectNum]["destination"] == modem.address then
-			return storeData(connectNum, data)
-		else
-			return transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
-		end
-	end
-
 	return false
 end
 
