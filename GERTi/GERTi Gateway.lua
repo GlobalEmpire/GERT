@@ -2,6 +2,8 @@
 local component = require("component")
 local event = require("event")
 local serialize = require("serialization")
+local modem = nil
+local tunnel = nil
 
 local childNodes = {}
 local childNum = 1
@@ -12,6 +14,7 @@ local handler = {}
 
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network card to run.")
+	return 1
 end
 
 if (component.isAvailable("modem")) then
@@ -21,23 +24,15 @@ if (component.isAvailable("modem")) then
 	if (component.modem.isWireless()) then
 		modem.setStrength(500)
 	end
-else
-	modem = false
 end
 
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
-else
-	tunnel = false
 end
 
 -- functions to store the children and then sort the table
 local function sortTable(elementOne, elementTwo)
-	if tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]) then
-		return true
-	else
-		return false
-	end
+	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
 end
 
 local function storeChild(eventName, receivingModem, sendingModem, port, distance, package)
@@ -77,12 +72,12 @@ end
 
 local function transmitInformation(sendTo, port, ...)
 	if (port ~= 0) and (modem) then
-		modem.send(sendTo, port, ...)
+		return modem.send(sendTo, port, ...)
 	elseif (tunnel) then
-		tunnel.send(...)
-	else
-		io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
+		return tunnel.send(...)
 	end
+	io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
+	return false
 end
 
 handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
@@ -96,10 +91,10 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 		if connectNum ~= 0 then
 			-- connectNum should never ever be 0, but I don't even know these days.
 			if connections[connectNum]["destination"] ~= modem.address then
-				transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
+				return transmitInformation(connections[connectNum]["nextHop"], connections[connectNum]["port"], "DATA", data, destination, origination)
 			end
 		end
-		return true
+		return false
 end
 
 handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
