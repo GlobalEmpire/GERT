@@ -93,7 +93,7 @@ end
 
 -- Used in handler["OPENROUTE"]
 -- Gateway's openRoute and Client's openRoute DIFFER
-local function openRoute(origination, destination, sendingModem, destination2, port, transmitAddress, transmitPort, transmitDestination)
+local function openRoute(origination, destination, sendingModem, destination2, storePort, transmitAddress, transmitPort, transmitDestination)
 	print("Opening Route")
 	if modem.address ~= destination then
 		transmitInformation(transmitAddress, transmitPort, "OPENROUTE", destination, modem.address, transmitDestination, origination)
@@ -102,7 +102,7 @@ local function openRoute(origination, destination, sendingModem, destination2, p
 			return false
 		end
 	end
-	storeConnections(origination, destination, sendingModem, destination2, port)
+	storeConnections(origination, destination, sendingModem, destination2, storePort)
 	return transmitInformation(sendingModem, port, "ROUTE OPEN")
 end
 
