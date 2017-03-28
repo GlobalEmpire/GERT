@@ -122,7 +122,7 @@ end
 -- opens a route using the given information, used in handler["OPENROUTE"]
 -- DIFFERs from Gateway's openRoute
 -- Swap destination & origination, no transmitDestination needed because Client always transmitted nil.
-local function openRoute(destination, origination, sendingModem, destination2, storePort, key1, key2, transmitAddress, transmitPort)
+local function openRoute(destination, origination, sendingModem, destination2, storePort, transmitAddress, transmitPort)
 	print("Opening Route")
 	if modem.address ~= destination then
 		transmitInformation(transmitAddress, transmitPort, "OPENROUTE", destination, modem.address, nil, origination)
