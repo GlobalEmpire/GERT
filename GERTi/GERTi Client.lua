@@ -128,55 +128,54 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 	return false
 end
 
+-- opens a route using the given information, used in handler["OPENROUTE"]
+-- DIFFERs from Gateway's openRoute
+-- Swap destination & origination, no transmitDestination needed because Client always transmitted nil.
+local function openRoute(destination, origination, sendingModem, destination2, storePort, key1, key2, transmitAddress, transmitPort)
+	print("Opening Route")
+	if modem.address ~= destination then
+		transmitInformation(transmitAddress, transmitPort, "OPENROUTE", destination, modem.address, nil, origination)
+		local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
+		if payload ~= "ROUTE OPEN" then
+			return false
+		end
+	end
+	storeConnections(destination, origination, sendingModem, destination2, storePort)
+	return transmitInformation(sendingModem, port, "ROUTE OPEN")
+end
+
 handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
 	-- Attempt to determine if the intended destination is this computer
 	if destination == modem.address then
 		print("Opening Route")
 		if intermediary ~= nil then
-			storeConnections(origination, modem.address, intermediary, modem.address, port)
-		else
-			storeConnections(modem.address, origination, sendingModem, modem.address, port)
+			return openRoute(origination, modem.address, intermediary, modem.address, port, nil, nil)
 		end
-		return transmitInformation(sendingModem, port, "ROUTE OPEN")
+		return openRoute(modem.address, origination, sendingModem, modem.address, port, nil, nil)
 	end
 
 	-- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
-			-- transmit OPENROUTE and then wait to see if ROUTE OPEN response is acquired
-			transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-			local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
-			if payload == "ROUTE OPEN" then
-				storeConnections(destination, origination, sendingModem, neighbors[key]["address"], port)
-				return transmitInformation(sendingModem, port, "ROUTE OPEN")
-			end
+			return openRoute(destination, origination, sendingModem, neighbors[key]["address"], port, neighbors[key]["address"], neighbors[key]["port"])
 		end
 	end
 
 	-- if it is not a neighbor, and no intermediary was found, then contact parent to forward indirect connection request
 	if intermediary2 == nil then
-		transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-		local eventName, receivingModem, _, port, distance, payload = event.pull(8, "modem_message")
-		if payload == "ROUTE OPEN" then
-			storeConnections(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"])
-			return transmitInformation(sendingModem, port, "ROUTE OPEN")
-		end
-			-- If an intermediary is found (likely because gateway was already contacted), then attempt to forward request to intermediary
-	else
-		for key, value in pairs(neighbors) do
-			if value["address"] == intermediary2 then
-				transmitInformation(neighbors[key]["address"], neighbors[key]["port"], "OPENROUTE", destination, modem.address, nil, origination)
-				local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
-				if payload == "ROUTE OPEN" then
-					storeConnections(destination, origination, sendingModem, intermediary2, neighbors[key]["port"])
-					return transmitInformation(sendingModem, port, "ROUTE OPEN")
-				end
-			end
+		return openRoute(destination, origination, sendingModem, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["address"], neighbors[1]["port"])
+	end
+
+	-- If an intermediary is found (likely because gateway was already contacted), then attempt to forward request to intermediary
+	for key, value in pairs(neighbors) do
+		if value["address"] == intermediary2 then
+			return openRoute(destination, origination, sendingModem, intermediary2, neighbors[key]["port"], neighbors[key]["address"], neighbors[key]["port"])
 		end
 	end
 
 	return false
 end
+
 
 handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
 	-- Process GERTiStart messages and add them as neighbors
