@@ -2,6 +2,7 @@
 	This is the primary code for the GEDS server.
 	This file implements platform independent definitions for internet sockets.
 	Supported platforms are currently Linux(/Unix) and Windows
+	To modify the default port change the numbers in the GATEWAY_PORT and PEER_PORT definitions.
 	
 	This code is designed to function with other code from
 	https://github.com/GlobalEmpire/GERT/
@@ -29,10 +30,13 @@ typedef int SOCK; //Define SOCK type as integer
 typedef void* lib; //Define lib type as arbitrary pointer
 #endif
 
+typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
+
 #include <thread> //Include thread type
 #include <string> //Include string type
 #include <map> //Include map type
 #include <signal.h> //Include signal processing API
+#include <stdint.h>
 #include <filesystem> //Include C++ standard filesystem (slightly modified by Windows to make it compatible)
 using namespace std; //Default namespace to std
 using namespace experimental::filesystem::v1; //Shorten C++ standard filesystem namespace
@@ -43,21 +47,25 @@ enum connType { //Define connection types of GATEWAY and GEDS
 };
 
 struct GERTaddr { //Define GERT address number
-	int high;
-	int low;
+	unsigned short high;
+	unsigned short low;
+};
+
+struct GERTkey {
+
 };
 
 class version { //Define what a API version is
 	public:
 		lib* handle; //Store handle to loaded file
-		unsigned char major, minor, patch; //Store three part version
+		UCHAR major, minor, patch; //Store three part version
 		bool processGateway(connection*, string); //Store gateway processing function
 		bool processGEDS(connection*, string); //Store GEDS processing function
 };
 
 struct connection { //Define a connection
 	SOCK * socket; //Store reference to socket
-	bool initiated; //Used for versions, defines if socket is new
+	UCHAR state; //Used for versions, defines what state the socket is in
 	connType type; //What type of connection this is (shouldn't be needed)
 	GERTaddr addr; //Used for versions, defines what the GERTaddr has been determined to be
 	in_addr ip; //Used for versions, defines the connection's remote IPv4 address
@@ -68,6 +76,7 @@ map<int, version> knownVersions; //Create lookup for major version to API mappin
 map<GERTaddr, connection> gateways; //Create lookup for GERTaddr to connection mapping for gateway
 map<in_addr, connection> peers; //Create lookup for IPv4 address to conneciton mapping for GEDS P2P
 map<SOCK, connection> lookup; //Create lookup for socket handle mapping for all sockets
+map<GERTaddr, connection> remoteRoute; //Create lookup for far gateways
 
 volatile bool running = true; //SIGINT tracker
 SOCK gateServer, gedsServer; //Define both server sockets
@@ -146,12 +155,26 @@ void closeSock(SOCK target) { //Close a socket
 }
 
 void closeConnection(connection target) { //Close a full connection
-	lookup.erase(*target.socket);
-	if (target.type == GATEWAY)
-		gateways.erase(target.addr);
-	else
-		peers.erase(target.ip);
-	closeSock(*target.socket);
+	lookup.erase(*target.socket); //Remove connection from universal map
+	if (target.type == GATEWAY) //If connection is a gateway
+		gateways.erase(target.addr); //Remove it from gateway map
+	else //If connection is a GEDS server
+		peers.erase(target.ip); //Remove it from the GEDS map
+	closeSock(*target.socket); //Close the socket
+}
+
+void sendTo(GERTaddr addr, string data) {
+	connection target = gateways[addr];
+	send(*target.socket, data.c_str(), data.length, NULL);
+}
+
+void assign(connection requestee, GERTaddr requested) {
+	requestee.addr = requested;
+	gateways[requested] = requestee;
+}
+
+void addResolution(GERTaddr addr, GERTkey key) {
+
 }
 
 void listen() { //Listen for new connections
@@ -164,18 +187,17 @@ void listen() { //Listen for new connections
 			recv(newSocket, buf, 3, NULL); //Read first 3 bytes, the version data requested by gateway
 			unsigned char major = buf[0]; //Major version number
 			if (knownVersions.count(major) == 0) { //Determine if major number is not supported
-				send(newSocket, "NOT SUPPORTED", 14, NULL); //Notify client we cannot serve this version
+				char error[3] = { 0, 0, 0 };
+				send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
 				closeSock(newSocket); //Close the socket
 			} else { //Major version found
 				version api = knownVersions[major]; //Find API version
 				connection newConnection; //Create new connection
 				newConnection.socket = &newSocket; //Set connection socket handle
 				newConnection.type = GATEWAY; //Set connection type
+				newConnection.api = api;
 				lookup[newSocket] = newConnection; //Create socket to connection map entry
-				char init[256]; //Create new buffer
-				recv(newSocket, init, 256, NULL); //Read 256 bytes for first packet
-				api.processGateway(&newConnection, init); //Initialize socket with first packet (GERTaddr should be set)
-				gateways[newConnection.addr] = newConnection; //Assign GERT number map entry to connection
+				api.processGateway(&newConnection, ""); //Initialize socket with empty packet using processGateway
 			}
 		}
 		if (result2) { //Initialize GEDS P2P connection
