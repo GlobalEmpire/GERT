@@ -51,7 +51,8 @@ enum gedsCommands {
 	RESOLVE,
 	UNRESOLVE,
 	LINK,
-	UNLINK
+	UNLINK,
+	CLOSE
 };
 
 DLLExport UCHAR major = 1;
@@ -73,11 +74,8 @@ DLLExport void processGateway(connection gateway, string packet) {
 			return;
 		}
 		GERTaddr request = rest.data[0];
-		//Blah
-		if (blah worked) {
-			gateway.addr = request;
-			gateway.state = REGISTERED;
-		}
+		rest.erase(0, 4);
+		GERTkey requestkey = rest.data[0];
 	case DATA:
 		GERTaddr target = rest.data[0]; //Assign target address as first 4 bytes
 		(GERTaddr)rest.data[0] = gateway.addr; //Set first 4 bytes to source address
@@ -91,12 +89,55 @@ DLLExport void processGateway(connection gateway, string packet) {
 	}
 }
 
-DLLExport void processGEDS(connection gateway, string packet) {
-
+DLLExport void processGEDS(connection geds, string packet) {
+	if (geds.state == 0) {
+		geds.state = 1;
+		sendTo(geds, string({ (char)major, (char)minor, (char)patch });
+		return;
+	}
+	UCHAR command = packet.data[0];
+	string rest = packet.erase(0, 1);
+	switch (command) {
+		case ROUTE:
+			GERTaddr target = rest.data[0];
+			GERTaddr source = rest.data[0];
+			string cmd = { DATA };
+			cmd += (char)(source.high >> 8);
+			cmd += (char)source.high;
+			cmd += (char)(source.low >> 8);
+			cmd += (char)source.low;
+			cmd += rest.erase(0, 8);
+			sendTo(target, cmd);
+		case REGISTERED:
+			GERTaddr target = rest.data[0];
+			setRoute(target, geds);
+		case UNREGISTERED:
+			GERTaddr target = rest.data[0];
+			removeRoute(target);
+		case RESOLVE:
+			GERTaddr target = rest.data[0];
+			GERTkey key = rest.erase(0, 4).data[0];
+			addResolution(target, key);
+		case UNRESOLVE:
+			GERTaddr target = rest.data[0];
+			removeResolution(target);
+		case LINK:
+			addPeer(rest.data);
+		case UNLINK:
+			removePeer(rest.data);
+		case CLOSE:
+			sendTo(geds, string({ CLOSE }));
+			closeConnection(geds);
+	}
 }
 
 DLLExport void killGateway(connection gateway) {
 	sendTo(gateway.addr, string({ CLOSE }));
 	sendTo(gateway.addr, string({ STATE, CLOSED }));
 	closeConnection(gateway);
+}
+
+DLLExport void killGEDS(connection geds) {
+	sendTo(geds, string({ CLOSE }));
+	closeConnection(geds);
 }

@@ -18,6 +18,17 @@ struct connection { //Define a connection
 	GERTaddr addr; //Define what GERTaddr is associated with this connection, can be empty if GEDS P2P
 };
 
-void sendTo(GERTaddr, string);
+struct GERTkey {
+	char key[20];
+};
 
+void sendTo(GERTaddr, string);
+void sendTo(connection, string);
 void closeConnection(connection);
+bool assign(connection, GERTaddr, GERTkey);
+void addResolution(GERTaddr, GERTkey);
+void removeResolution(GERTaddr);
+void addPeer(char*);
+void removePeer(char*);
+void setRoute(GERTaddr, connection);
+void removeRoute(GERTaddr);
