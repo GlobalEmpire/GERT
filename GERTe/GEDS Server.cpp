@@ -33,7 +33,9 @@ typedef void* lib; //Define lib type as arbitrary pointer
 #endif
 
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
-typedef map<SOCK, connection>::iterator sockiter;
+typedef unsigned short ushort;
+typedef map<GERTaddr, connection<gateway>> iter1;
+typedef map<GERTaddr, connection<geds>> iter2;
 
 #include <thread> //Include thread type
 #include <string> //Include string type
@@ -62,26 +64,50 @@ class version { //Define what a API version is
 	public:
 		lib* handle; //Store handle to loaded file
 		UCHAR major, minor, patch; //Store three part version
-		bool processGateway(connection, string); //Store gateway processing function
-		bool processGEDS(connection, string); //Store GEDS processing function
-		void killGateway(connection);
-		void killGEDS(connection);
+		bool processGateway(gateway, string); //Store gateway processing function
+		bool processGEDS(geds, string); //Store GEDS processing function
+		void killGateway(gateway);
+		void killGEDS(geds);
 };
 
-struct connection { //Define a connection
-	SOCK * socket; //Store reference to socket
+struct gateway { //Define a connection
 	UCHAR state; //Used for versions, defines what state the socket is in
-	connType type; //What type of connection this is (shouldn't be needed)
 	GERTaddr addr; //Used for versions, defines what the GERTaddr has been determined to be
-	in_addr ip; //Used for versions, defines the connection's remote IPv4 address
-	version api; //API version used for this connection
 };
+
+struct geds {
+	bool initialized;
+	in_addr ip;
+	ushort gateport;
+	ushort gedsport;
+};
+
+template<class STATE>
+class connection {
+	SOCK * socket;
+	public:
+		connType type;
+		STATE info;
+		connection (SOCK*, connType, version);
+		version api;
+};
+
+template<class STATE>
+connection::connection(SOCK * sock, connType which, version vers) : type(which), socket(sock), api(vers) {
+	if (which == GEDS) {
+	} else if (which == GATEWAY) {
+		info.state = 0;
+		GERTaddr addr;
+		addr.high = 0;
+		addr.low = 0;
+		info.addr = addr;
+	}
+}
 
 map<UCHAR, version> knownVersions; //Create lookup for major version to API mapping
-map<GERTaddr, connection> gateways; //Create lookup for GERTaddr to connection mapping for gateway
-map<in_addr, connection> peers; //Create lookup for IPv4 address to conneciton mapping for GEDS P2P
-map<SOCK, connection> lookup; //Create lookup for socket handle mapping for all sockets
-map<GERTaddr, connection> remoteRoute; //Create lookup for far gateways
+map<GERTaddr, connection<gateway>> gateways; //Create lookup for GERTaddr to connection mapping for gateway
+map<in_addr, connection<geds>> peers; //Create lookup for IPv4 address to conneciton mapping for GEDS P2P
+map<GERTaddr, connection<geds>> remoteRoute; //Create lookup for far gateways
 map<GERTaddr, GERTkey> resolutions; //Create name resolution lookup table
 
 int iplen = 14;
@@ -163,18 +189,16 @@ void closeSock(SOCK target) { //Close a socket
 void closeConnection(connection target) { //Close a full connection
 	lookup.erase(*target.socket); //Remove connection from universal map
 	if (target.type == GATEWAY) //If connection is a gateway
-		gateways.erase(target.addr); //Remove it from gateway map
+		gateway gate = *(gateway*)target.ptr;
 	else {//If connection is a GEDS server
-		connection empty;
-		empty.ip = target.ip;
-		empty.type = GEDS;
+		
 		peers[target.ip] = empty;
 	}
 	closeSock(*target.socket); //Close the socket
 }
 
 void sendTo(GERTaddr addr, string data) {
-	connection target = gateways[addr];
+	gateway target = gateways[addr];
 	send(*target.socket, data.c_str(), data.length, NULL);
 }
 
@@ -182,7 +206,7 @@ void sendTo(connection conn, string data) {
 	send(*conn.socket, data.c_str(), data.length, NULL);
 }
 
-bool assign(connection requestee, GERTaddr requested, GERTkey key) {
+bool assign(gateway requestee, GERTaddr requested, GERTkey key) {
 	if (resolutions[requested].key == key.key) {
 		requestee.addr = requested;
 		gateways[requested] = requestee;
@@ -199,25 +223,32 @@ void removeResolution(GERTaddr addr) {
 	resolutions.erase(addr);
 }
 
-void addPeer(char* ip) {
+void addPeer(char* ip, ushort gatePort, ushort gedsPort) {
 	in_addr peer = { ip[0], ip[1], ip[2], ip[3] };
-	connection peerConn;
+	geds peerConn;
 	peerConn.ip = peer;
-	peerConn.type = GEDS;
+	peerConn.gateport = gatePort;
+	peerConn.gedsport = gedsPort;
 	peers[peer] = peerConn;
 }
 
 void removePeer(char* ip) {
 	in_addr peer = { ip[0], ip[1], ip[2], ip[3] };
+	geds target = peers[peer];
+	target.api.killGEDS(target);
 	peers.erase(peer);
 }
 
-void setRoute(GERTaddr target, connection remote) {
+void setRoute(GERTaddr target, geds remote) {
 	remoteRoute[target] = remote;
 }
 
 void removeRoute(GERTaddr target) {
 	remoteRoute.erase(target);
+}
+
+connection getConnection(SOCK * sock) {
+	return lookup[sock];
 }
 
 void process() {
@@ -232,70 +263,79 @@ void process() {
 			if (result = 0)
 				continue;
 			else if (conn.type == GATEWAY)
-				conn.api.processGateway(conn, buf);
+				conn.api.processGateway(*(gateway*)conn.ptr, buf);
 			else if (conn.type == GEDS)
-				conn.api.processGEDS(conn, buf);
+				conn.api.processGEDS(*(geds*)conn.ptr, buf);
 		}
 		this_thread::yield();
 	}
 }
 
+void initGERT(SOCK newSocket) {
+#ifdef _WIN32
+	ioctlsocket(newSocket, FIONBIO, &nonZero);
+#else
+	fcntl(newSocket, F_SETFL, O_NONBLOCK);
+#endif
+	char buf[3];
+	recv(newSocket, buf, 3, NULL); //Read first 3 bytes, the version data requested by gateway
+	UCHAR major = buf[0]; //Major version number
+	if (knownVersions.count(major) == 0) { //Determine if major number is not supported
+		char error[3] = { 0, 0, 0 };
+		send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
+		closeSock(newSocket); //Close the socket
+	}
+	else { //Major version found
+		version api = knownVersions[major]; //Find API version
+		connection<gateway> newConnection{ newSocket, GATEWAY, api }; //Create new connection
+		//FIX THIS
+		lookup[newSocket] = newConnection; //Create socket to connection map entry
+		api.processGateway(newConnection, ""); //Initialize socket with empty packet using processGateway
+	}
+}
+
+void initGEDS(SOCK newSocket) {
+#ifdef _WIN32
+	ioctlsocket(newSocket, FIONBIO, &nonZero);
+#else
+	fcntl(newSocket, F_SETFL, O_NONBLOCK);
+#endif
+	char buf[3];
+	recv(newSocket, buf, 3, NULL);
+	UCHAR major = buf[0]; //Major version number
+	if (knownVersions.count(major) == 0) { //Determine if major number is not supported
+		char error[3] = { 0, 0, 0 };
+		send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
+		closeSock(newSocket); //Close the socket
+	}
+	else { //Major version found
+		version api = knownVersions[major]; //Find API version
+		connection<geds> newConnection{newSocket, GEDS, api}; //Create new connection
+		sockaddr* remotename;
+		getpeername(newSocket, remotename, &iplen);
+		sockaddr_in remoteip = *(sockaddr_in*)remotename;
+		if (peers.count(remoteip.sin_addr) == 0) {
+			char error[3] = { 0, 0, 1 };
+			send(newSocket, error, 3, NULL);
+		}
+		geds peer = peers[remoteip.sin_addr];
+		peer.api = api;
+		peer.socket = &newSocket;
+		newConnection.ptr = &peer;
+		lookup[newSocket] = newConnection;
+		api.processGEDS(peer, ""); //Initialize socket with empty packet using processGateway
+	}
+}
+
 void listen() { //Listen for new connections
 	while (running) { //Dies on SIGINT
-		int result1 = select(0, gateTest, nullSet, nullSet, nonBlock); //Tests gateway inbound socket
-		int result2 = select(0, gedsTest, nullSet, nullSet, nonBlock); //Tests GEDS P2P inbound socket
-		if (result1) { //Initialize connection from gateway
-			SOCK newSocket = accept(gateServer, NULL, NULL); //Accept connetion from gateway inbound socket
-#ifdef _WIN32
-			ioctlsocket(newSocket, FIONBIO, &nonZero);
-#else
-			fcntl(newSocket, F_SETFL, O_NONBLOCK);
-#endif
-			char buf[3];
-			recv(newSocket, buf, 3, NULL); //Read first 3 bytes, the version data requested by gateway
-			UCHAR major = buf[0]; //Major version number
-			if (knownVersions.count(major) == 0) { //Determine if major number is not supported
-				char error[3] = { 0, 0, 0 };
-				send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
-				closeSock(newSocket); //Close the socket
-			} else { //Major version found
-				version api = knownVersions[major]; //Find API version
-				connection newConnection; //Create new connection
-				newConnection.socket = &newSocket; //Set connection socket handle
-				newConnection.type = GATEWAY; //Set connection type
-				newConnection.api = api;
-				lookup[newSocket] = newConnection; //Create socket to connection map entry
-				api.processGateway(newConnection, ""); //Initialize socket with empty packet using processGateway
-			}
+		if (select(0, gateTest, nullSet, nullSet, nonBlock) > 0) {
+			SOCK newSock = accept(gateServer, NULL, NULL);
+			initGERT(newSock);
 		}
-		if (result2) { //Initialize GEDS P2P connection
+		if (select(0, gedsTest, nullSet, nullSet, nonBlock) > 0) {//Tests GEDS P2P inbound socket
 			SOCK newSocket = accept(gedsServer, NULL, NULL); //Accept connection from GEDS P2P inbound socket
-#ifdef _WIN32
-			ioctlsocket(newSocket, FIONBIO, &nonZero);
-#else
-			fcntl(newSocket, F_SETFL, O_NONBLOCK);
-#endif
-			char buf[3];
-			recv(newSocket, buf, 3, NULL);
-			UCHAR major = buf[0]; //Major version number
-			if (knownVersions.count(major) == 0) { //Determine if major number is not supported
-				char error[3] = { 0, 0, 0 };
-				send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
-				closeSock(newSocket); //Close the socket
-			}
-			else { //Major version found
-				version api = knownVersions[major]; //Find API version
-				connection newConnection; //Create new connection
-				newConnection.socket = &newSocket; //Set connection socket handle
-				newConnection.type = GEDS; //Set connection type
-				newConnection.api = api;
-				lookup[newSocket] = newConnection; //Create socket to connection map entry
-				sockaddr* remotename;
-				getpeername(newSocket, remotename, &iplen);
-				sockaddr_in remoteip = *(sockaddr_in*)remotename;
-				peers[remoteip.sin_addr] = newConnection;
-				api.processGateway(newConnection, ""); //Initialize socket with empty packet using processGateway
-			}
+			initGEDS(newSocket);
 		}
 		this_thread::yield(); //Release CPU
 	}

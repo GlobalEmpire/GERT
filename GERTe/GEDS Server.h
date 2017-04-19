@@ -1,6 +1,7 @@
 #include <string> //Required for processing inputs
 
 typedef unsigned char UCHAR;
+typedef unsigned short ushort;
 
 enum connType { //Define the connection types
 	GATEWAY,
@@ -28,7 +29,7 @@ void closeConnection(connection);
 bool assign(connection, GERTaddr, GERTkey);
 void addResolution(GERTaddr, GERTkey);
 void removeResolution(GERTaddr);
-void addPeer(char*);
+void addPeer(char*, ushort, ushort);
 void removePeer(char*);
 void setRoute(GERTaddr, connection);
 void removeRoute(GERTaddr);

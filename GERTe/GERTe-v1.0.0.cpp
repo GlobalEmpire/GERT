@@ -122,6 +122,7 @@ DLLExport void processGEDS(connection geds, string packet) {
 			GERTaddr target = rest.data[0];
 			removeResolution(target);
 		case LINK:
+
 			addPeer(rest.data);
 		case UNLINK:
 			removePeer(rest.data);
