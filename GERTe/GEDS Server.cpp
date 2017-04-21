@@ -14,42 +14,18 @@
 #define GATEWAY_PORT "43780" //Define inbound gateway port
 #define PEER_PORT "59474" //Define inbound GEDS P2P port
 
-#define WIN32_LEAN_AND_MEAN //Reduce included windows API (removes incompatible Winsock v1)
-
-#ifdef _WIN32 //If compiled for windows
-#include <Windows.h> //Include windows API
-#include <ws2tcpip.h> //Include windows TCP API
-#include <iphlpapi.h> //Include windows IP helper API
-#include <winsock2.h> //Include Winsock v2
-typedef SOCKET SOCK; //Define SOCK type as Winsock SOCKET
-typedef HMODULE lib; //Define lib type as Windows HMODULE
-#else //If not compiled for windows (assumed linux)
-#include <socket.h> //Load C++ standard socket API
-#include <dlfcn.h> //Load C++ standard dynamic library API
-#include <unistd.h>
-#include <fcntl.h>
-typedef int SOCK; //Define SOCK type as integer
-typedef void* lib; //Define lib type as arbitrary pointer
-#endif
-
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort;
-typedef map<GERTaddr, connection<gateway>> iter1;
-typedef map<GERTaddr, connection<geds>> iter2;
+typedef map<GERTaddr, connection<gateway>>::iterator iter1;
+typedef map<GERTaddr, connection<geds>>::iterator iter2;
 
 #include <thread> //Include thread type
 #include <string> //Include string type
 #include <map> //Include map type
 #include <signal.h> //Include signal processing API
 #include <stdint.h>
-#include <filesystem> //Include C++ standard filesystem (slightly modified by Windows to make it compatible)
+#include "netDefs"
 using namespace std; //Default namespace to std
-using namespace experimental::filesystem::v1; //Shorten C++ standard filesystem namespace
-
-enum connType { //Define connection types of GATEWAY and GEDS
-	GATEWAY,
-	GEDS
-};
 
 enum status {
 	NORMAL,
@@ -57,60 +33,10 @@ enum status {
 	LIB_LOAD_ERR
 }
 
-struct GERTaddr { //Define GERT address number
-	unsigned short high; //First 3 bytes of address
-	unsigned short low; //Last 4 bytes of address
-};
-
 struct GERTkey {
 	char key[20]; //20 character long keystring
 };
 
-class version { //Define what a API version is
-	public:
-		lib* handle; //Store handle to loaded file
-		UCHAR major, minor, patch; //Store three part version
-		bool processGateway(gateway, string); //Store gateway processing function
-		bool processGEDS(geds, string); //Store GEDS processing function
-		void killGateway(gateway); //Safely destroy gateway connection
-		void killGEDS(geds); //Safely destroy peer connection
-};
-
-struct gateway { //Define a connection
-	UCHAR state; //Used for versions, defines what state the socket is in
-	GERTaddr addr; //Used for versions, defines what the GERTaddr has been determined to be
-};
-
-struct geds {
-	bool initialized;
-	in_addr ip;
-	ushort gateport;
-	ushort gedsport;
-};
-
-template<class STATE>
-class connection {
-	SOCK * socket;
-	public:
-		connType type;
-		STATE info;
-		connection (SOCK*, connType, version);
-		version api;
-};
-
-template<class STATE>
-connection::connection(SOCK * sock, connType which, version vers) : type(which), socket(sock), api(vers) { //Create connection constructor
-	if (which == GEDS) {
-	} else if (which == GATEWAY) {
-		info.state = 0;
-		GERTaddr addr;
-		addr.high = 0;
-		addr.low = 0;
-		info.addr = addr;
-	}
-}
-
-map<UCHAR, version> knownVersions; //Create lookup for major version to API mapping
 map<GERTaddr, connection<gateway>> gateways; //Create lookup for GERTaddr to connection mapping for gateway
 map<in_addr, connection<geds>> peers; //Create lookup for IPv4 address to conneciton mapping for GEDS P2P
 map<GERTaddr, connection<geds>> remoteRoute; //Create lookup for far gateways
@@ -123,68 +49,15 @@ u_long nonZero = 1;
 #endif
 
 volatile bool running = true; //SIGINT tracker
-SOCK gateServer, gedsServer; //Define both server sockets
+SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set *gateTest, *gedsTest, *nullSet, allGates, allGEDS; //Define test sets and null set
 TIMEVAL *nonBlock; //Define 0 duration timer
-
-void registerVersion(version registee) {
-	if (knownVersions.count(registee.major)) {
-		version test = knownVersions[registee.major];
-		if (test.minor < registee.minor) {
-			knownVersions[registee.major] = registee;
-		}
-		else if (test.patch < registee.patch && test.minor == registee.patch){
-			knownVersions[registee.major] = registee;
-		}
-		return;
-	}
-	knownVersions[registee.major] = registee;
-}
 
 void shutdownProceedure(int param) { //SIGINT handler function
 	running = false; //Flip tracker to disable threads and trigger main thread's cleanup
 };
 
-lib loadLib(path libPath) { //Load gelib file
-#ifdef _WIN32 //If compiled for Windows
-	return LoadLibrary(libPath.c_str()); //Load using Windows API
-#else //If not compiled for Windows
-	return dlload(libPath.c_str(), RTLD_LAZY); //Load using C++ standard API
-#endif
-}
-
-void* getValue(lib* handle, string value) { //Retrieve gelib value
-#ifdef _WIN32 //If compiled for Windows
-	return GetProcAddress(*handle, value.c_str()); //Retrieve using Windows API
-#else //If not compiled for Windows
-	return dlsym(handle, value.c_str()); //Retrieve using C++ standard API
-#endif
-}
-
-void loadLibs() { //Load gelib files from api subfolder
-	path libDir = "./apis/"; //Define relative path to subfolder
-	directory_iterator iter(libDir), end; //Define file list and empty list
-	while (iter != end) { //Continue until file list is equal to empty list
-		directory_entry testFile = *iter; //Get file from list
-		path testPath = testFile.path(); //Get path of file from list
-		if (testPath.extension == "gelib") { //Test that file is a gelib file via file extension
-			lib handle = loadLib(testPath); //Load gelib file
-			version api; //Create new API version
-			api.handle = &handle; //Set API handle
-			api.major = (UCHAR)getValue(&handle, "major"); //Set API major version
-			api.minor = (UCHAR)getValue(&handle, "minor"); //Set API minor version
-			api.patch = (UCHAR)getValue(&handle, "patch"); //Set API patch version
-			api.processGateway = getValue(&handle, "processGateway"); //Set API processGateway function
-			api.processGEDS = getValue(&handle, "processGEDS"); //Set API processGEDS function
-			api.killGateway = getValue(&handle, "killGateway");
-			api.killGEDS = getValue(&handle, "killGEDS");
-			registerVersion(api); //Register API and map API
-		}
-		iter++; //Move to next file
-	}
-}
-
-void closeSock(SOCK target) { //Close a socket
+void closeSock(SOCKET target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
 	closesocket(target); //Close socket using WinSock API
 #else //If not compiled for Windows
@@ -254,7 +127,7 @@ void removeRoute(GERTaddr target) {
 	remoteRoute.erase(target);
 }
 
-connection getConnection(SOCK * sock) {
+connection getConnection(SOCKET * sock) {
 	return lookup[sock];
 }
 
@@ -264,7 +137,7 @@ void process() {
 		sockiter end = lookup.end();
 		for (sockiter iter = lookup.begin(); iter != lookup.end(); iter++) {
 			char buf[256];
-			SOCK sock = iter->first;
+			SOCKET sock = iter->first;
 			connection conn = iter->second;
 			int result = recv(sock, buf, 256, NULL);
 			if (result = 0)
@@ -278,7 +151,7 @@ void process() {
 	}
 }
 
-void initGERT(SOCK newSocket) {
+void initGERT(SOCKET newSocket) {
 #ifdef _WIN32
 	ioctlsocket(newSocket, FIONBIO, &nonZero);
 #else
@@ -301,7 +174,7 @@ void initGERT(SOCK newSocket) {
 	}
 }
 
-void initGEDS(SOCK newSocket) {
+void initGEDS(SOCKET newSocket) {
 #ifdef _WIN32
 	ioctlsocket(newSocket, FIONBIO, &nonZero);
 #else
@@ -337,11 +210,11 @@ void initGEDS(SOCK newSocket) {
 void listen() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		if (select(0, gateTest, nullSet, nullSet, nonBlock) > 0) {
-			SOCK newSock = accept(gateServer, NULL, NULL);
+			SOCKET newSock = accept(gateServer, NULL, NULL);
 			initGERT(newSock);
 		}
 		if (select(0, gedsTest, nullSet, nullSet, nonBlock) > 0) {//Tests GEDS P2P inbound socket
-			SOCK newSocket = accept(gedsServer, NULL, NULL); //Accept connection from GEDS P2P inbound socket
+			SOCKET newSocket = accept(gedsServer, NULL, NULL); //Accept connection from GEDS P2P inbound socket
 			initGEDS(newSocket);
 		}
 		this_thread::yield(); //Release CPU
@@ -362,8 +235,26 @@ void loadResolutions() {
 
 }
 
-void loadPeers() {
+string readableIP(in_addr ip) {
+	UCHAR * seg = &ip;
+	string high = to_string(seg[0]) + "." + to_string(seg[1]);
+	string low = to_string(seg[2]) + "." + to_string(seg[3]);
+	return high + "." + low;
+}
 
+void loadPeers() {
+	FILE peerFile = fopen("peers.geds", "rb");
+	while (true) {
+		in_addr ip;
+		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2?
+		portComplex ports;
+		fread(&ports, 2, 2, peerFile);
+		cout << "Imported peer " << readableIP(ip) << ":" << ports.gatePort << ":" << ports.gedsPort << "\n";
+		geds peer;
+		peer.ip = ip;
+		peer.ports = ports;
+		initalized = false;
+	}
 }
 
 int main() {
@@ -372,30 +263,46 @@ int main() {
 	WSADATA socketConfig; //Construct WSA configuration destination
 	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
 #endif
+
+	//Define some needed variables
 	addrinfo *resultgate = NULL, *ptr = NULL, hints, *resultgeds; //Define some IP addressing
 	ZeroMemory(&hints, sizeof(hints)); //Clear IP variables
 	hints.ai_family = AF_INET; //Set to IPv4
 	hints.ai_socktype = SOCK_STREAM; //Set to stream sockets
 	hints.ai_protocol = IPPROTO_TCP; //Set to TCP
 	hints.ai_flags = AI_PASSIVE; //Set to inbound socket
+
+	//Request internal addressing and port
 	getaddrinfo(NULL, GATEWAY_PORT, &hints, &resultgate); //Fill gateway inbound socket information
 	getaddrinfo(NULL, PEER_PORT, &hints, &resultgeds); //Fille GEDS P2P inbound socket information
-	gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
-	gedsServer = socket(resultgeds->ai_family, resultgeds->ai_socktype, resultgeds->ai_protocol); //Construct GEDS P2P inbound socket
+
+	//Construct server sockets
+	SOCKET gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
+	SOCKET gedsServer = socket(resultgeds->ai_family, resultgeds->ai_socktype, resultgeds->ai_protocol); //Construct GEDS P2P inbound socket
+
+	//Bind servers to addresses
 	bind(gateServer, resultgate->ai_addr, (int)resultgate->ai_addrlen); //Initialize gateway inbound socket
 	bind(gedsServer, resultgeds->ai_addr, (int)resultgeds->ai_addrlen); //Initialize GEDS P2P inbound socket
+
+	//Destroy some used variables
 	freeaddrinfo(resultgate); //Clear RAM
 	freeaddrinfo(resultgeds); //Clear RAM
+
+	//Activate servers
 	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
 	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
+	//Servers consructed and started
+
+	//Construct some socket sets for testing serves
 	FD_ZERO(gateTest); //Clear gateway inbound test set
 	FD_ZERO(gedsTest); //Clear GEDS P2P inbound test set
 	FD_ZERO(nullSet); //Clear empty test set
 	FD_SET(gateServer, &gateTest); //Assign inbound gateway socket to inbound gateway test set
 	FD_SET(gedsServer, &gedsTest); //Assign GEDS P2P inbound socket to GEDS P2P test set
+
+	//Set nonblock's timer duration to 0
 	nonBlock->tv_sec = 0; //Set 0 duration timer to 0 seconds
 	nonBlock->tv_usec = 0; //Set 0 duration timer to 0 microseconds
-	//Servers constructed and started
 
 	loadLibs(); //Load gelib files
 
@@ -417,5 +324,7 @@ int main() {
 	close(gateServer);
 	close(gedsServer);
 #endif
+
+	//Return with exit state "NORMAL" (0)
 	return NORMAL;
 }
