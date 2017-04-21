@@ -51,13 +51,19 @@ enum connType { //Define connection types of GATEWAY and GEDS
 	GEDS
 };
 
+enum status {
+	NORMAL,
+	NO_LIBS,
+	LIB_LOAD_ERR
+}
+
 struct GERTaddr { //Define GERT address number
-	unsigned short high;
-	unsigned short low;
+	unsigned short high; //First 3 bytes of address
+	unsigned short low; //Last 4 bytes of address
 };
 
 struct GERTkey {
-	char key[20];
+	char key[20]; //20 character long keystring
 };
 
 class version { //Define what a API version is
@@ -66,8 +72,8 @@ class version { //Define what a API version is
 		UCHAR major, minor, patch; //Store three part version
 		bool processGateway(gateway, string); //Store gateway processing function
 		bool processGEDS(geds, string); //Store GEDS processing function
-		void killGateway(gateway);
-		void killGEDS(geds);
+		void killGateway(gateway); //Safely destroy gateway connection
+		void killGEDS(geds); //Safely destroy peer connection
 };
 
 struct gateway { //Define a connection
@@ -93,7 +99,7 @@ class connection {
 };
 
 template<class STATE>
-connection::connection(SOCK * sock, connType which, version vers) : type(which), socket(sock), api(vers) {
+connection::connection(SOCK * sock, connType which, version vers) : type(which), socket(sock), api(vers) { //Create connection constructor
 	if (which == GEDS) {
 	} else if (which == GATEWAY) {
 		info.state = 0;
@@ -186,6 +192,7 @@ void closeSock(SOCK target) { //Close a socket
 #endif
 }
 
+//MARKED FOR UPDATING
 void closeConnection(connection target) { //Close a full connection
 	lookup.erase(*target.socket); //Remove connection from universal map
 	if (target.type == GATEWAY) //If connection is a gateway
@@ -360,6 +367,7 @@ void loadPeers() {
 }
 
 int main() {
+	//Server construction
 #ifdef _WIN32 //If compiled for Windows
 	WSADATA socketConfig; //Construct WSA configuration destination
 	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
@@ -387,11 +395,27 @@ int main() {
 	FD_SET(gedsServer, &gedsTest); //Assign GEDS P2P inbound socket to GEDS P2P test set
 	nonBlock->tv_sec = 0; //Set 0 duration timer to 0 seconds
 	nonBlock->tv_usec = 0; //Set 0 duration timer to 0 microseconds
+	//Servers constructed and started
+
 	loadLibs(); //Load gelib files
+
+	//System processing
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 	thread processor(process);
-	listen();
-	processor.join();
-	killConnections();
-	return 0;
+	listen(); //Server fully active
+
+	//Shutdown and Cleanup sequence
+	processor.join(); //Cleanup processor (wait for it to die)
+	killConnections(); //Kill any remaining connections
+
+	//Cleanup servers
+#ifdef _WIN32
+	shutdown(gateServer, SD_BOTH);
+	shutdown(gedsServer, SD_BOTH);
+	WSACleanup();
+#else
+	close(gateServer);
+	close(gedsServer);
+#endif
+	return NORMAL;
 }
