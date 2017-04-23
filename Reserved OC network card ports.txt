@@ -1,5 +1,7 @@
-Centralized repository of reserved OpenComputers network card port numbers to prevent conflicts of use. Please contact MajGenRelativity or Gavle to register port numbers on
+Centralized repository of reserved OpenComputers network card port numbers to prevent conflicts of use. Please contact MajGenRelativity or
+Gavle to register port numbers on
 this list.
 
 Port 14: Ethernet over OC : SolraBizna
+Port 4096: MultICE Networking: Izaya
 Ports 4378-4550: Reserved for GERTi use
