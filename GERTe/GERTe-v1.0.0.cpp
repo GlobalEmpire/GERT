@@ -45,9 +45,9 @@ enum gatewayErrors {
 };
 
 enum gedsCommands {
-	ROUTE,
 	REGISTERED,
 	UNREGISTERED,
+	ROUTE,
 	RESOLVE,
 	UNRESOLVE,
 	LINK,

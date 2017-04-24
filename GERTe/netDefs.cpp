@@ -39,6 +39,7 @@ class gateway: public connection {
 	public:
 		GERTaddr addr;
 		void process(string data) { (void)(api.procGate)(*this, data); };
+		void kill() { (void)(api.killGate)(*this); };
 		gateway(void* socket, version vers) : connection(socket, vers) {};
 };
 
@@ -47,6 +48,7 @@ class peer : public connection {
 	public:
 		in_addr addr;
 		void process(string data) { (void)(api.procPeer)(*this, data); };
+		void kill() { (void)(api.killPeer)(*this); };
 		peer(void* socket, version vers, in_addr source) : connection(socket, vers), addr(source) {};
 };
 

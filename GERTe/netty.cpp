@@ -6,18 +6,29 @@
 #include <iphlpapi.h> //Include windows IP helper API
 #include <winsock2.h> //Include Winsock v2
 #else //If not compiled for windows (assumed linux)
-#include <socket.h> //Load C++ standard socket API
-#include <unistd.h>
+#include <sys/socket.h> //Load C++ standard socket API
+#include <netinet/ip.h>
 #include <fcntl.h>
+#include <netdb.h>
+#include <unistd.h>
 typedef int SOCKET; //Define SOCK type as integer
+typedef timeval TIMEVAL;
 #endif
 #include "netDefs.h"
 #include "config.h"
 #include <thread>
 #include <map>
 #include <forward_list>
+#include <cstring>
 #include "keyMngr.h"
 using namespace std;
+
+typedef unsigned int UINT;
+typedef unsigned long ULONG;
+typedef unsigned char UCHAR;
+typedef map<GERTaddr, gateway>::iterator gateIter;
+typedef map<in_addr, peer>::iterator peerIter;
+typedef map<GERTaddr, peer>::iterator remoteIter;
 
 //WARNING: DOES NOT HANDLE NETWORK PROCESSING INTERNALLY!!!
 
@@ -43,7 +54,7 @@ TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
 u_long nonZero = 1;
 #endif
 
-int iplen = 14;
+UINT iplen = 14;
 
 extern volatile bool running;
 
@@ -57,13 +68,54 @@ void closeSock(SOCKET target) { //Close a socket
 
 
 void killConnections() {
-	for (sockiter iter = lookup.begin(); iter != lookup.end(); iter++) {
-		connection conn = iter->second;
-		if (conn.type == GATEWAY)
-			conn.api.killGateway(conn);
-		else if (conn.type == GEDS)
-			conn.api.killGEDS(conn);
+	for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
+		iter->second.kill();
 	}
+	for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
+		iter->second.kill();
+	}
+}
+
+//PUBLIC
+void closeTarget(gateway target) { //Close a full connection
+	gateways.erase(target.addr); //Remove connection from universal map
+	target.kill();
+	closeSock(*(SOCKET*)target.sock); //Close the socket
+}
+
+//PUBLIC
+void closeTarget(peer target) {
+	for (remoteIter iter = remoteRoutes.begin(); iter != remoteRoutes.end(); iter++) {
+		if (iter->second.addr == target.addr)
+			peers.erase((in_addr)iter->first);
+	}
+	peers.erase(target.addr);
+	target.kill();
+	closeSock(*(SOCKET*)target.sock);
+}
+
+//PUBLIC
+void process() {
+	while (running) {
+		for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
+			char buf[256];
+			gateway conn = iter->second;
+			int result = recv(*(SOCKET*)conn.sock, buf, 256, NULL);
+			if (result == 0)
+				continue;
+			conn.process(buf);
+		}
+		for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
+			char buf[256];
+			peer conn = iter->second;
+			int result = recv(*(SOCKET*)conn.sock, buf, 256, NULL);
+			if (result == 0)
+				continue;
+			conn.process(buf);
+		}
+		this_thread::yield();
+	}
+	killConnections();
 }
 
 //PUBLIC
@@ -76,7 +128,7 @@ void startup() {
 
 	//Define some needed variables
 	addrinfo *resultgate = NULL, *ptr = NULL, hints, *resultgeds; //Define some IP addressing
-	ZeroMemory(&hints, sizeof(hints)); //Clear IP variables
+	memset(&hints, 0, sizeof(hints)); //Clear IP variables
 	hints.ai_family = AF_INET; //Set to IPv4
 	hints.ai_socktype = SOCK_STREAM; //Set to stream sockets
 	hints.ai_protocol = IPPROTO_TCP; //Set to TCP
@@ -159,8 +211,8 @@ void initPeer(SOCKET newSocket) {
 		sockaddr* remotename;
 		getpeername(newSocket, remotename, &iplen);
 		sockaddr_in remoteip = *(sockaddr_in*)remotename;
-		if (peers.count(remoteip.sin_addr) == 0) {
-			char error[3] = { 0, 0, 1 };
+		if (peerList.count(remoteip.sin_addr) == 0) {
+			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
 			send(newSocket, error, 3, NULL);
 		}
 		peer newConnection(&newSocket, *api, remoteip.sin_addr); //Create new connection
@@ -203,10 +255,44 @@ void removePeer(in_addr addr) {
 	peerList.erase(addr);
 }
 
+//PUBLIC
 void setRoute(GERTaddr target, peer route) {
 	remoteRoutes[target] = route;
 }
 
+//PUBLIC
 void removeRoute(GERTaddr target) {
 	remoteRoutes.erase(target);
+}
+
+//PUBLIC COMPAT
+bool isRemote(GERTaddr target) {
+	return (bool)remoteRoutes.count(target);
+}
+
+//PUBLIC
+bool sendTo(GERTaddr addr, string data) {
+	if (gateways.count(addr) != 0)
+		send(*(SOCKET*)gateways[addr], data.c_str(), (ULONG)data.length, 0);
+	else if (remoteRoutes.count(addr) != 0)
+		send(*(SOCKET*)remoteRoutes[addr], data.c_str(), (ULONG)data.length, 0); //ENSURE ROUTE AND DATA ARE SAME COMMAND CODE
+	else
+		return false;
+	return true;
+}
+
+//PUBLIC
+void sendTo(in_addr addr, string data) {
+	peer target = peers[*(in_addr*)&addr];
+	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
+}
+
+//PUBLIC
+void sendTo(gateway target, string data) {
+	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
+}
+
+//PUBLIC
+void sendTo(peer target, string data) {
+	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
 }
