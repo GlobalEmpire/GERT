@@ -1,24 +1,25 @@
+#include <string>
+using namespace std;
+
 enum libErrors {
 	NORMAL,
 	UNKNOWN,
 	EMPTY
-}
+};
 
 struct versioning {
 	UCHAR major, minor, patch;
-}
+};
 
 class version {
 	public:
+		bool(*procGate)(gateway, string);
+		bool(*procPeer)(peer, string);
+		void(*killGate)(gateway);
+		void(*killPeer)(peer);
 		versioning vers;
-		lib* handle;
-		bool processGateway(gateway, string);
-		bool processGEDS(geds, string);
-		void killGateway(gateway);
-		void killGEDS(geds);
-	private:
-		version(void);
-}
+		void* handle;
+};
 
 int loadLibs();
 version* getVersion(UCHAR);

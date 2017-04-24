@@ -22,7 +22,7 @@ using namespace std;
 
 typedef unsigned char UCHAR;
 
-enum gatewayCommands{
+enum gatewayCommands {
 	STATE,
 	REGISTER,
 	DATA,
@@ -92,13 +92,13 @@ DLLExport void processGateway(connection gateway, string packet) {
 DLLExport void processGEDS(connection geds, string packet) {
 	if (geds.state == 0) {
 		geds.state = 1;
-		sendTo(geds, string({ (char)major, (char)minor, (char)patch });
+		sendTo(geds, string({ (char)major, (char)minor, (char)patch }));
 		return;
 	}
 	UCHAR command = packet.data[0];
 	string rest = packet.erase(0, 1);
 	switch (command) {
-		case ROUTE:
+		case ROUTE: {
 			GERTaddr target = rest.data[0];
 			GERTaddr source = rest.data[0];
 			string cmd = { DATA };
@@ -108,6 +108,7 @@ DLLExport void processGEDS(connection geds, string packet) {
 			cmd += (char)source.low;
 			cmd += rest.erase(0, 8);
 			sendTo(target, cmd);
+		}
 		case REGISTERED:
 			GERTaddr target = rest.data[0];
 			setRoute(target, geds);

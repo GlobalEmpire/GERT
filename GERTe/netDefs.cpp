@@ -1,52 +1,57 @@
-#include "libLoad"
+#include "libLoad.h"
+#include <string>
 typedef unsigned char UCHAR;
 typedef unsigned short USHORT;
+
+struct in_addr {
+	UCHAR seg[4];
+};
 
 //CAN BE PUBLIC
 struct portComplex {
 	USHORT gate, peer;
-}
+};
 
 //PUBLIC
-class peer {
+class peerAddr {
 	in_addr ip;
 	portComplex ports;
-}
+};
 
 //PUBLIC
-struct gateway {
-	USHORT high, low;
-}
+struct GERTaddr {
+	USHORT high = 0;
+	USHORT low = 0;
+};
 
 //PUBLIC
-template<class STATE>
 class connection {
-	void* sock;
-	public:
-		STATE info;
-		UCHAR state;
+	protected:
+		void* sock;
 		version api;
-}
+		connection(void* socket, version vers) : sock(socket), api(vers) {};
+	public:
+		UCHAR state = 0;
+};
 
 //PUBLIC
-template<>
-connection::connection(void* sock, version vers)<gateway> : socket(sock), api(vers) { //Create connection constructor
-	info.state = 0;
-	gateway addr;
-	addr.high = 0;
-	addr.low = 0;
-	info = addr;
-}
+class gateway: public connection {
+	public:
+		GERTaddr addr;
+		void process(string data) { (void)(api.procGate)(*this, data); };
+		gateway(void* socket, version vers) : connection(socket, vers) {};
+};
 
 //PUBLIC
-template<>
-connection::connection(void* sock, version vers, peer geds)<peer> : socket(sock), api(vers), info(geds), state(0) {}
+class peer : public connection {
+	public:
+		in_addr addr;
+		void process(string data) { (void)(api.procPeer)(*this, data); };
+		peer(void* socket, version vers, in_addr source) : connection(socket, vers), addr(source) {};
+};
 
-peer::peer(remote, gate, geds) ip(remote) {
-	portComplex pair;
-	pair.gate = gate;
-	pair.peer = geds;
-	ports = pair;
-}
-
-
+//PUBLIC
+struct knownPeer {
+	in_addr addr;
+	portComplex ports;
+};

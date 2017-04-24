@@ -8,7 +8,10 @@ typedef void* lib;
 #endif
 #include <filesystem>
 #include <map>
+#include <string>
+#include "netDefs.h"
 typedef unsigned char UCHAR;
+using namespace std;
 using namespace experimental::filesystem::v1;
 
 map<UCHAR, version> registered;
@@ -18,40 +21,29 @@ enum libErrors {
 	NORMAL,
 	UNKNOWN,
 	EMPTY
-}
+};
 
 //CAN BE PUBLIC
 struct versioning {
 	UCHAR major, minor, patch;
-}
+};
 
 //PUBLIC
 class version {
 	public:
+		bool (*procGate)(gateway, string);
+		bool (*procPeer)(peer, string);
+		void (*killGate)(gateway);
+		void (*killPeer)(peer);
 		versioning vers;
-		lib* handle;
-		bool processGateway(gateway, string);
-		bool processGEDS(geds, string);
-		void killGateway(gateway);
-		void killGEDS(geds);
-}
+		void* handle;
+};
 
-//PUBLIC
-version::version(lib loaded) : handle(&loaded) {
-	vers.major = (UCHAR)getValue(handle, "major");
-	vers.minor = (UCHAR)getValue(handle, "minor");
-	vers.patch = (UCHAR)getValue(handle, "patch");
-	processGateway = getValue(handle, "processGateway");
-	processGEDS = getValue(handle, "processGEDS");
-	killGateway = getValue(handle, "killGateway");
-	killGEDS = getValue(handle, "killGEDS");
-}
-
-void* getValue(lib* handle, string value) { //Retrieve gelib value
+void* getValue(void* handle, string value) { //Retrieve gelib value
 #ifdef _WIN32 //If compiled for Windows
-	return GetProcAddress(*handle, value.c_str()); //Retrieve using Windows API
+	return GetProcAddress(*(lib*)handle, value.c_str()); //Retrieve using Windows API
 #else //If not compiled for Windows
-	return dlsym(handle, value.c_str()); //Retrieve using C++ standard API
+	return dlsym(*(lib*)handle, value.c_str()); //Retrieve using C++ standard API
 #endif
 }
 
@@ -64,17 +56,17 @@ lib loadLib(path libPath) { //Load gelib file
 }
 
 void registerVersion(version registee) {
-	if (registered.count(registee.major)) {
-		version test = knownVersions[registee.major];
-		if (test.minor < registee.minor) {
-			registered[registee.major] = registee;
+	if (registered.count(registee.vers.major)) {
+		version test = registered[registee.vers.major];
+		if (test.vers.minor < registee.vers.minor) {
+			registered[registee.vers.major] = registee;
 		}
-		else if (test.patch < registee.patch && test.minor == registee.minor){
-			registered[registee.major] = registee;
+		else if (test.vers.patch < registee.vers.patch && test.vers.minor == registee.vers.minor){
+			registered[registee.vers.major] = registee;
 		}
 		return;
 	}
-	registered[registee.major] = registee;
+	registered[registee.vers.major] = registee;
 }
 
 //PUBLIC
@@ -86,7 +78,14 @@ int loadLibs() { //Load gelib files from api subfolder
 		path testPath = testFile.path(); //Get path of file from list
 		if (testPath.extension == "gelib") { //Test that file is a gelib file via file extension
 			lib handle = loadLib(testPath); //Load gelib file
-			version api(handle);
+			version api;
+			api.vers.major = (UCHAR)getValue(handle, "major");
+			api.vers.minor = (UCHAR)getValue(handle, "minor");
+			api.vers.patch = (UCHAR)getValue(handle, "patch");
+			api.procGate = (bool(*)(gateway, string))getValue(handle, "processGateway");
+			api.procPeer = (bool(*)(peer, string))getValue(handle, "processPeer");
+			api.killGate = (void(*)(gateway))getValue(handle, "killGateway");
+			api.killPeer = (void(*)(peer))getValue(handle, "killGEDS");
 			registerVersion(api); //Register API and map API
 		}
 		iter++; //Move to next file
@@ -98,8 +97,8 @@ int loadLibs() { //Load gelib files from api subfolder
 
 //PUBLIC
 version* getVersion(UCHAR major) {
-	if (registered.count(major)) {
-		return &registered[major]
+	if (registered.count(major) != 0) {
+		return &(registered[major]);
 	}
 	return nullptr;
 }
