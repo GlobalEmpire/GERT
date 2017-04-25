@@ -2,11 +2,12 @@
 #ifdef _WIN32
 typedef HMODULE lib;
 #include <Windows.h>
+#include <filesystem>
 #else
 #include <dlfcn.h>
+#include <experimental/filesystem>
 typedef void* lib;
 #endif
-#include <filesystem>
 #include <map>
 #include <string>
 #include "netDefs.h"
@@ -15,29 +16,6 @@ using namespace std;
 using namespace experimental::filesystem::v1;
 
 map<UCHAR, version> registered;
-
-//PUBLIC
-enum libErrors {
-	NORMAL,
-	UNKNOWN,
-	EMPTY
-};
-
-//CAN BE PUBLIC
-struct versioning {
-	UCHAR major, minor, patch;
-};
-
-//PUBLIC
-class version {
-	public:
-		bool (*procGate)(gateway, string);
-		bool (*procPeer)(peer, string);
-		void (*killGate)(gateway);
-		void (*killPeer)(peer);
-		versioning vers;
-		void* handle;
-};
 
 void* getValue(void* handle, string value) { //Retrieve gelib value
 #ifdef _WIN32 //If compiled for Windows
@@ -51,7 +29,7 @@ lib loadLib(path libPath) { //Load gelib file
 #ifdef _WIN32 //If compiled for Windows
 	return LoadLibrary(libPath.c_str()); //Load using Windows API
 #else //If not compiled for Windows
-	return dlload(libPath.c_str(), RTLD_LAZY); //Load using C++ standard API
+	return dlopen(libPath.c_str(), RTLD_LAZY); //Load using C++ standard API
 #endif
 }
 
@@ -72,27 +50,29 @@ void registerVersion(version registee) {
 //PUBLIC
 int loadLibs() { //Load gelib files from api subfolder
 	path libDir = "./apis/"; //Define relative path to subfolder
+	if (not exists(libDir))
+		return EMPTY;
 	directory_iterator iter(libDir), end; //Define file list and empty list
 	while (iter != end) { //Continue until file list is equal to empty list
 		directory_entry testFile = *iter; //Get file from list
 		path testPath = testFile.path(); //Get path of file from list
-		if (testPath.extension == "gelib") { //Test that file is a gelib file via file extension
+		if (testPath.extension() == "gelib") { //Test that file is a gelib file via file extension
 			lib handle = loadLib(testPath); //Load gelib file
 			version api;
-			api.vers.major = (UCHAR)getValue(handle, "major");
-			api.vers.minor = (UCHAR)getValue(handle, "minor");
-			api.vers.patch = (UCHAR)getValue(handle, "patch");
-			api.procGate = (bool(*)(gateway, string))getValue(handle, "processGateway");
-			api.procPeer = (bool(*)(peer, string))getValue(handle, "processPeer");
-			api.killGate = (void(*)(gateway))getValue(handle, "killGateway");
-			api.killPeer = (void(*)(peer))getValue(handle, "killGEDS");
+			api.vers.major = *(UCHAR*)getValue(handle, "major");
+			api.vers.minor = *(UCHAR*)getValue(handle, "minor");
+			api.vers.patch = *(UCHAR*)getValue(handle, "patch");
+			api.procGate = (bool(*)(gateway*, string))getValue(handle, "processGateway");
+			api.procPeer = (bool(*)(peer*, string))getValue(handle, "processPeer");
+			api.killGate = (void(*)(gateway*))getValue(handle, "killGateway");
+			api.killPeer = (void(*)(peer*))getValue(handle, "killGEDS");
 			registerVersion(api); //Register API and map API
 		}
 		iter++; //Move to next file
 	}
 	if (registered.empty())
 		return EMPTY;
-	return NORMAL;
+	return NO_ERR;
 }
 
 //PUBLIC

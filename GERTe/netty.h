@@ -1,20 +1,25 @@
 #include "netDefs.h"
+#include "keyMngr.h"
 
 typedef unsigned char UCHAR;
+typedef unsigned long ULONG;
+typedef unsigned short USHORT;
 
 void startup();
 void shutdown();
 void runServer();
-void addPeer(in_addr, portComplex);
-void removePeer(in_addr);
-void setRoute(GERTaddr, peer);
+void addPeer(ipAddr, portComplex);
+void removePeer(ipAddr);
+void setRoute(GERTaddr, peer*);
 void removeRoute(GERTaddr);
 void killConnections();
 bool sendTo(GERTaddr, string);
-void sendTo(in_addr, string);
-void sendTo(gateway, string);
-void sendTo(peer, string);
+void sendTo(ipAddr, string);
+void sendTo(gateway*, string);
+void sendTo(peer*, string);
 bool isRemote(GERTaddr);
 void process();
-void closeTarget(gateway);
-void closeTarget(peer);
+void closeTarget(gateway*);
+void closeTarget(peer*);
+bool assign(gateway*, GERTaddr, GERTkey);
+

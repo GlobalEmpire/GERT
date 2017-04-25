@@ -10,6 +10,9 @@
 #include <netinet/ip.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/select.h>
 #include <unistd.h>
 typedef int SOCKET; //Define SOCK type as integer
 typedef timeval TIMEVAL;
@@ -26,9 +29,11 @@ using namespace std;
 typedef unsigned int UINT;
 typedef unsigned long ULONG;
 typedef unsigned char UCHAR;
-typedef map<GERTaddr, gateway>::iterator gateIter;
-typedef map<in_addr, peer>::iterator peerIter;
-typedef map<GERTaddr, peer>::iterator remoteIter;
+typedef map<GERTaddr, gateway*>::iterator gateIter;
+typedef map<GERTaddr, peer*>::iterator remoteIter;
+typedef forward_list<gateway*>::iterator noAddrIter;
+typedef map<ipAddr, peer*>::iterator peerIter;
+
 
 //WARNING: DOES NOT HANDLE NETWORK PROCESSING INTERNALLY!!!
 
@@ -39,12 +44,12 @@ typedef map<GERTaddr, peer>::iterator remoteIter;
 #error Peer port not defined. The configuration file is corrupted.
 #endif
 
-map<in_addr, knownPeer> peerList;
-map<in_addr, peer> peers;
-map<GERTaddr, gateway> gateways;
-map<GERTaddr, peer> remoteRoutes;
+map<ipAddr, knownPeer> peerList;
+map<ipAddr, peer*> peers;
+map<GERTaddr, gateway*> gateways;
+map<GERTaddr, peer*> remoteRoutes;
 
-forward_list<SOCKET> sockets;
+forward_list<gateway*> noAddr;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set *gateTest, *gedsTest, *nullSet, allGates, allGEDS; //Define test sets and null set
@@ -69,29 +74,30 @@ void closeSock(SOCKET target) { //Close a socket
 
 void killConnections() {
 	for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
-		iter->second.kill();
+		iter->second->kill();
 	}
 	for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
-		iter->second.kill();
+		iter->second->kill();
 	}
 }
 
 //PUBLIC
-void closeTarget(gateway target) { //Close a full connection
-	gateways.erase(target.addr); //Remove connection from universal map
-	target.kill();
-	closeSock(*(SOCKET*)target.sock); //Close the socket
+void closeTarget(gateway* target) { //Close a full connection
+	gateways.erase(target->addr); //Remove connection from universal map
+	target->kill();
+	closeSock(*(SOCKET*)target->sock); //Close the socket
 }
 
 //PUBLIC
-void closeTarget(peer target) {
+void closeTarget(peer* target) {
 	for (remoteIter iter = remoteRoutes.begin(); iter != remoteRoutes.end(); iter++) {
-		if (iter->second.addr == target.addr)
-			peers.erase((in_addr)iter->first);
+		if (iter->second->addr == target->addr)
+			remoteRoutes.erase(iter->first);
 	}
-	peers.erase(target.addr);
-	target.kill();
-	closeSock(*(SOCKET*)target.sock);
+	peerIter iter = peers.find(target->addr);
+	peers.erase(iter);
+	target->kill();
+	closeSock(*(SOCKET*)target->sock);
 }
 
 //PUBLIC
@@ -99,19 +105,27 @@ void process() {
 	while (running) {
 		for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
 			char buf[256];
-			gateway conn = iter->second;
-			int result = recv(*(SOCKET*)conn.sock, buf, 256, NULL);
+			gateway* conn = iter->second;
+			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
 			if (result == 0)
 				continue;
-			conn.process(buf);
+			conn->process(buf);
 		}
 		for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
 			char buf[256];
-			peer conn = iter->second;
-			int result = recv(*(SOCKET*)conn.sock, buf, 256, NULL);
+			peer* conn = iter->second;
+			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
 			if (result == 0)
 				continue;
-			conn.process(buf);
+			conn->process(buf);
+		}
+		for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+			char buf[256];
+			gateway* conn = *iter;
+			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
+			if (result == 0)
+				continue;
+			conn->process(buf);
 		}
 		this_thread::yield();
 	}
@@ -127,7 +141,7 @@ void startup() {
 #endif
 
 	//Define some needed variables
-	addrinfo *resultgate = NULL, *ptr = NULL, hints, *resultgeds; //Define some IP addressing
+	addrinfo *resultgate = NULL, hints, *resultgeds; //Define some IP addressing
 	memset(&hints, 0, sizeof(hints)); //Clear IP variables
 	hints.ai_family = AF_INET; //Set to IPv4
 	hints.ai_socktype = SOCK_STREAM; //Set to stream sockets
@@ -136,7 +150,7 @@ void startup() {
 
 	//Request internal addressing and port
 	getaddrinfo(NULL, GATEWAY_PORT, &hints, &resultgate); //Fill gateway inbound socket information
-	getaddrinfo(NULL, PEER_PORT, &hints, &resultgeds); //Fille GEDS P2P inbound socket information
+	getaddrinfo(NULL, PEER_PORT, &hints, &resultgeds); //Fill GEDS P2P inbound socket information
 
 	//Construct server sockets
 	SOCKET gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
@@ -159,8 +173,8 @@ void startup() {
 	FD_ZERO(gateTest); //Clear gateway inbound test set
 	FD_ZERO(gedsTest); //Clear GEDS P2P inbound test set
 	FD_ZERO(nullSet); //Clear empty test set
-	FD_SET(gateServer, &gateTest); //Assign inbound gateway socket to inbound gateway test set
-	FD_SET(gedsServer, &gedsTest); //Assign GEDS P2P inbound socket to GEDS P2P test set
+	FD_SET(gateServer, gateTest); //Assign inbound gateway socket to inbound gateway test set
+	FD_SET(gedsServer, gedsTest); //Assign GEDS P2P inbound socket to GEDS P2P test set
 }
 
 //PUBLIC
@@ -177,17 +191,17 @@ void initGate(SOCKET newSocket) {
 	fcntl(newSocket, F_SETFL, O_NONBLOCK);
 #endif
 	char buf[3];
-	recv(newSocket, buf, 3, NULL); //Read first 3 bytes, the version data requested by gateway
+	recv(newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
 	UCHAR major = buf[0]; //Major version number
 	version* api = getVersion(major);
 	if (api == nullptr) {
 		char error[3] = { 0, 0, 0 };
-		send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
+		send(newSocket, error, 3, 0); //Notify client we cannot serve this version
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
-		gateway newConnection(&newSocket, *api);
-		sockets.push_front(newSocket);
+		gateway newConnection(&newSocket, api);
+		noAddr.push_front(&newConnection);
 		newConnection.process("");
 	}
 }
@@ -199,12 +213,12 @@ void initPeer(SOCKET newSocket) {
 	fcntl(newSocket, F_SETFL, O_NONBLOCK);
 #endif
 	char buf[3];
-	recv(newSocket, buf, 3, NULL);
+	recv(newSocket, buf, 3, 0);
 	UCHAR major = buf[0]; //Major version number
 	version* api = getVersion(major); //Find API version
 	if (api == nullptr) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
-		send(newSocket, error, 3, NULL); //Notify client we cannot serve this version
+		send(newSocket, error, 3, 0); //Notify client we cannot serve this version
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
@@ -213,10 +227,10 @@ void initPeer(SOCKET newSocket) {
 		sockaddr_in remoteip = *(sockaddr_in*)remotename;
 		if (peerList.count(remoteip.sin_addr) == 0) {
 			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
-			send(newSocket, error, 3, NULL);
+			send(newSocket, error, 3, 0);
 		}
-		peer newConnection(&newSocket, *api, remoteip.sin_addr); //Create new connection
-		peers[remoteip.sin_addr] = newConnection;
+		peer newConnection(&newSocket, api, remoteip.sin_addr); //Create new connection
+		peers[remoteip.sin_addr] = &newConnection;
 		newConnection.process("");
 	}
 }
@@ -236,27 +250,40 @@ void runServer() { //Listen for new connections
 	}
 }
 
-bool assign(gateway requestee, GERTaddr requested, GERTkey key) {
+bool assign(gateway* requestee, GERTaddr requested, GERTkey key) {
 	if (checkKey(requested, key)) {
-		requestee.addr = requested;
+		requestee->addr = requested;
 		gateways[requested] = requestee;
+		noAddrIter last = noAddr.begin();
+		if (*last == requestee) {
+			noAddr.pop_front();
+			return true;
+		}
+		for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+			if (*iter == requestee) {
+				noAddr.erase_after(last);
+				break;
+			}
+			last++;
+		}
 		return true;
 	}
 	return false;
 }
 
 //PUBLIC
-void addPeer(in_addr addr, portComplex ports) {
-	peerList[addr] = { addr, ports };
+void addPeer(ipAddr addr, portComplex ports) {
+	peerList[addr] = knownPeer(addr, ports);
 }
 
 //PUBLIC
-void removePeer(in_addr addr) {
-	peerList.erase(addr);
+void removePeer(ipAddr addr) {
+	map<ipAddr, knownPeer>::iterator iter = peerList.find(addr);
+	peerList.erase(iter);
 }
 
 //PUBLIC
-void setRoute(GERTaddr target, peer route) {
+void setRoute(GERTaddr target, peer* route) {
 	remoteRoutes[target] = route;
 }
 
@@ -273,26 +300,25 @@ bool isRemote(GERTaddr target) {
 //PUBLIC
 bool sendTo(GERTaddr addr, string data) {
 	if (gateways.count(addr) != 0)
-		send(*(SOCKET*)gateways[addr], data.c_str(), (ULONG)data.length, 0);
+		send(*(SOCKET*)gateways[addr]->sock, data.c_str(), (ULONG)data.length(), 0);
 	else if (remoteRoutes.count(addr) != 0)
-		send(*(SOCKET*)remoteRoutes[addr], data.c_str(), (ULONG)data.length, 0); //ENSURE ROUTE AND DATA ARE SAME COMMAND CODE
+		send(*(SOCKET*)remoteRoutes[addr]->sock, data.c_str(), (ULONG)data.length(), 0); //ENSURE ROUTE AND DATA ARE SAME COMMAND CODE
 	else
 		return false;
 	return true;
 }
 
 //PUBLIC
-void sendTo(in_addr addr, string data) {
-	peer target = peers[*(in_addr*)&addr];
-	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
+void sendTo(ipAddr addr, string data) {
+	send(*(SOCKET*)((peer*)peers[addr])->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 //PUBLIC
-void sendTo(gateway target, string data) {
-	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
+void sendTo(gateway* target, string data) {
+	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 //PUBLIC
-void sendTo(peer target, string data) {
-	send(*(SOCKET*)target.sock, data.c_str(), (ULONG)data.length, 0);
+void sendTo(peer* target, string data) {
+	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }

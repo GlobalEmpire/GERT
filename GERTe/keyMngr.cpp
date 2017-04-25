@@ -1,8 +1,11 @@
 #include "netDefs.h"
 #include <map>
+using namespace std;
 
-struct GERTkey {
-	char key[20] = { 0 };
+class GERTkey {
+	public:
+		char key[20] = {0};
+		bool operator = (const GERTkey comp) const { return (key == comp.key); };
 };
 
 map<GERTaddr, GERTkey> resolutions;

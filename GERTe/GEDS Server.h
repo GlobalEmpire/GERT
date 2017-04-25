@@ -12,15 +12,3 @@ typedef unsigned char UCHAR;
 struct GERTkey {
 	char key[20];
 };
-
-void startup() {};
-void shutdown() {};
-void runServer() {};
-void killConnections() {};
-void process() {};
-
-struct knownPeer {};
-
-enum libErrors{};
-void loadLibs() {};
-void getVersion(UCHAR) {};
