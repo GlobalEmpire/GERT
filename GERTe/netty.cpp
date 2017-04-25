@@ -84,7 +84,6 @@ void killConnections() {
 //PUBLIC
 void closeTarget(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
-	target->kill();
 	closeSock(*(SOCKET*)target->sock); //Close the socket
 }
 
@@ -96,7 +95,6 @@ void closeTarget(peer* target) {
 	}
 	peerIter iter = peers.find(target->addr);
 	peers.erase(iter);
-	target->kill();
 	closeSock(*(SOCKET*)target->sock);
 }
 

@@ -42,10 +42,12 @@ void shutdownProceedure(int param) { //SIGINT handler function
 void loadResolutions() {
 	FILE* resolutionFile = fopen("resolutions.geds", "rb");
 	while (true) {
-		GERTaddr addr;
-		fread(&addr, 2, 2, resolutionFile);
-		GERTkey key;
-		fread(&addr, 20, 1, resolutionFile);
+		USHORT buf[2];
+		GERTaddr addr = {buf[0], buf[1]};
+		fread(&buf, 2, 2, resolutionFile);
+		char buff[20];
+		fread(&buff, 20, 1, resolutionFile);
+		GERTkey key(buff);
 		cout << "Imported resolution for " << to_string(addr.high) << "-" << to_string(addr.low) << "\n";
 		addResolution(addr, key);
 		if (feof(resolutionFile) != 0)

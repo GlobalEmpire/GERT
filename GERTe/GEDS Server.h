@@ -6,9 +6,3 @@
  */
 
 #include "netty.h" //Also loads netDefs which loads libLoad
-
-typedef unsigned char UCHAR;
-
-struct GERTkey {
-	char key[20];
-};

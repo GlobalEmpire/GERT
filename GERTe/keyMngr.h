@@ -4,8 +4,11 @@
 
 class GERTkey {
 	public:
-		char key[20] = {0};
+		string key{20, 0};
 		bool operator = (const GERTkey comp) const { return (key == comp.key); };
+		GERTkey (string keyin) : key(keyin) {
+			key.resize(20);
+		};
 };
 
 bool checkKey(GERTaddr, GERTkey);
