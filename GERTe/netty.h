@@ -1,3 +1,5 @@
+#ifndef __NETTY__
+#define __NETTY__
 #include "netDefs.h"
 #include "keyMngr.h"
 
@@ -22,4 +24,5 @@ void process();
 void closeTarget(gateway*);
 void closeTarget(peer*);
 bool assign(gateway*, GERTaddr, GERTkey);
-
+void buildWeb();
+#endif

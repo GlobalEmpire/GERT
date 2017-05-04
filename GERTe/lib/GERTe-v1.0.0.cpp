@@ -17,7 +17,7 @@ https://github.com/GlobalEmpire/GERT/blob/master/License.md
 #define DLLExport
 #endif
 
-#include "GEDS Server.h"
+#include "libHelper.h"
 using namespace std;
 
 typedef unsigned char UCHAR;
@@ -92,7 +92,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			}
 			GERTaddr request = {restShort[0], restShort[1]};
 			rest.erase(0, 4);
-			GERTkey requestkey = rest;
+			GERTkey requestkey(rest);
 			if (assign(gate, request, requestkey)) {
 				sendTo(gate, string({ STATE, ASSIGNED }));
 				gate->state = REGISTERED;
@@ -215,7 +215,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 		}
 		case LINK: {
 			char* restRaw = (char*)rest.c_str();
-			char ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
+			UCHAR ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
 			ipAddr target(ipaddr);
 			rest.erase(0, 4);
 			restShort = (USHORT*)rest.c_str();
@@ -225,7 +225,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 		}
 		case UNLINK: {
 			char* restRaw = (char*)rest.c_str();
-			char ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
+			UCHAR ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
 			ipAddr target(ipaddr);
 			removePeer(target);
 			return;
