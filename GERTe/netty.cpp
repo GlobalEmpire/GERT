@@ -107,6 +107,8 @@ void closeTarget(peer* target) {
 void process() {
 	while (running) {
 		for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
+			if (iter->second == nullptr)
+				break;
 			char buf[256];
 			gateway* conn = iter->second;
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
@@ -115,14 +117,22 @@ void process() {
 			conn->process(buf);
 		}
 		for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
+			if (iter->second == nullptr)
+				break;
 			char buf[256];
 			peer* conn = iter->second;
-			int result = recv(*((SOCKET*)(conn->sock)), buf, 256, 0);
+			if (conn == nullptr || (SOCKET*)(conn->sock) == nullptr) {
+				error("WHAT THE HECK. IT'S NULL!");
+				abort();
+			}
+			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
 			if (result == 0)
 				continue;
 			conn->process(buf);
 		}
 		for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+			if (*iter == nullptr)
+				break;
 			char buf[256];
 			gateway* conn = *iter;
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
@@ -204,9 +214,9 @@ void initGate(SOCKET newSocket) {
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
-		gateway newConnection(&newSocket, api);
-		noAddr.push_front(&newConnection);
-		newConnection.process("");
+		gateway * newConnection = new gateway(&newSocket, api);
+		noAddr.push_front(newConnection);
+		newConnection->process("");
 	}
 }
 
@@ -234,10 +244,10 @@ void initPeer(SOCKET newSocket) {
 			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
 			send(newSocket, error, 3, 0);
 		}
-		peer newConnection(&newSocket, api, remoteip.sin_addr); //Create new connection
-		peers[remoteip.sin_addr] = &newConnection;
-		log("Peer connected from " + newConnection.addr.stringify());
-		newConnection.process("");
+		peer* newConnection = new peer(&newSocket, api, remoteip.sin_addr); //Create new connection
+		peers[remoteip.sin_addr] = newConnection;
+		log("Peer connected from " + newConnection->addr.stringify());
+		newConnection->process("");
 	}
 }
 
@@ -245,12 +255,14 @@ void initPeer(SOCKET newSocket) {
 void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		if (select(0, &gateTest, &nullSet, &nullSet, &nonBlock) > 0) {
-			SOCKET newSock = accept(gateServer, NULL, NULL);
-			initGate(newSock);
+			SOCKET * newSock = new SOCKET;
+			*newSock = accept(gateServer, NULL, NULL);
+			initGate(*newSock);
 		}
 		if (select(0, &gedsTest, &nullSet, &nullSet, &nonBlock) > 0) {//Tests GEDS P2P inbound socket
-			SOCKET newSocket = accept(gedsServer, NULL, NULL); //Accept connection from GEDS P2P inbound socket
-			initPeer(newSocket);
+			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
+			*newSocket = accept(gedsServer, NULL, NULL);
+			initPeer(*newSocket);
 		}
 		this_thread::yield(); //Release CPU
 	}
@@ -343,7 +355,8 @@ void buildWeb() {
 	for (knownIter iter = peerList.begin(); iter != peerList.end(); iter++) {
 		if (iter->second.ports.peer == 0)
 			continue;
-		SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
+		SOCKET * newSock = new SOCKET;
+		*newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = iter->second.addr.addr;
 		if (remoteIP.s_addr == local.s_addr)
 			continue;
@@ -352,28 +365,28 @@ void buildWeb() {
 		addrFormat.sin_addr = remoteIP;
 		addrFormat.sin_port = peerPort;
 		addrFormat.sin_family = AF_INET;
-		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);
+		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
 		if (result != 0) {
 			warn("Failed to connect to " + iter->second.addr.stringify() + " " + to_string(errno));
 			continue;
 		}
-		send(newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
+		send(*newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
 		char death[3];
-		recv(newSock, death, 3, 0);
+		recv(*newSock, death, 3, 0);
 		ipAddr ip = remoteIP;
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
-			closeSock(newSock);
+			closeSock(*newSock);
 			continue;
 		}
 #ifdef _WIN32
-		ioctlsocket(newSock, FIONBIO, &nonZero);
+		ioctlsocket(*newSock, FIONBIO, &nonZero);
 #else
-		fcntl(newSock, F_SETFL, O_NONBLOCK);
+		fcntl(*newSock, F_SETFL, O_NONBLOCK);
 #endif
-		peer newConn((void*)(&newSock), best, remoteIP);
-		newConn.state = 1;
-		peers[ip] = &newConn;
+		peer* newConn = new peer((void*)newSock, best, remoteIP);
+		newConn->state = 1;
+		peers[ip] = newConn;
 		log("Connected to " + ip.stringify());
 	}
 }

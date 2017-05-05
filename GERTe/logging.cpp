@@ -1,6 +1,7 @@
 #include <string>
 #include <iostream>
 #include <time.h>
+#include "config.h"
 using namespace std;
 
 string timeOut() {
@@ -20,4 +21,10 @@ void warn(string msg) {
 
 void error(string msg) {
 	cout << "[E][" << timeOut() << "] " << msg << "\n";
+}
+
+void debug(string msg) {
+#if DEBUG == true
+	cout << "[D][" << timeOut() << "] " << msg << "\n";
+#endif
 }

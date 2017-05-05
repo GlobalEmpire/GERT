@@ -50,12 +50,16 @@ void OHCRAPOHCRAP(int param) {
 	cout << "Well, this is the end\n";
 	cout << "I've read too much, and written so far\n";
 	cout << "But here I am, faulting to death\n";
-	cout << "\n\nSIGSEGV THROWN: SEGMENTATION FAULT. GOODBYE\n";
-	abort();
+	cout << "\nSIGSEGV THROWN: SEGMENTATION FAULT.\n";
+	cout << "SIGSEGV is a critical error thrown by the operating system\n";
+	cout << "It signifies a MASSIVE error that won't correct itself and probably can't be fixed without changing the code.\n";
+	cout << "Please post a bug report including any potentially useful logs.\n";
+	exit(UNKNOWN_CRITICAL);
 }
 
 void errHandler() {
 	cout << "CRTICIAL ERROR: ABNORMAL TERMINATION\n";
+	cout << to_string(errno) << "\n";
 	exit(UNKNOWN_CRITICAL);
 }
 

@@ -16,7 +16,7 @@ typedef unsigned char UCHAR;
 using namespace std;
 using namespace experimental::filesystem::v1;
 
-map<UCHAR, version> registered;
+map<UCHAR, version*> registered;
 
 enum libErrors {
 	NO_ERR,
@@ -28,7 +28,13 @@ void* getValue(void* handle, string value) { //Retrieve gelib value
 #ifdef _WIN32 //If compiled for Windows
 	return GetProcAddress(*(lib*)handle, value.c_str()); //Retrieve using Windows API
 #else //If not compiled for Windows
-	return dlsym(*(lib*)handle, value.c_str()); //Retrieve using C++ standard API
+	void * test = dlsym(*(lib*)handle, value.c_str());
+	char * err = dlerror();
+	if (err != nullptr) {
+		error(err);
+		return nullptr;
+	}
+	return test; //Retrieve using C++ standard API
 #endif
 }
 
@@ -36,41 +42,28 @@ lib loadLib(path libPath) { //Load gelib file
 #ifdef _WIN32 //If compiled for Windows
 	return LoadLibrary(libPath.c_str()); //Load using Windows API
 #else //If not compiled for Windows
-	return dlopen(libPath.c_str(), RTLD_LAZY); //Load using C++ standard API
+	lib handle = dlopen(libPath.c_str(), RTLD_LAZY);
+	if (handle == NULL) {
+		error(dlerror());
+		return nullptr;
+	}
+	return handle; //Load using C++ standard API
 #endif
 }
 
-void registerVersion(version registee) {
-	if (registered.count(registee.vers.major)) {
-		version test = registered[registee.vers.major];
-		if (test.vers.minor < registee.vers.minor) {
-			registered[registee.vers.major] = registee;
+void registerVersion(version* registee) {
+	if (registered.count(registee->vers.major)) {
+		version* test = registered[registee->vers.major];
+		if (test->vers.minor < registee->vers.minor) {
+			registered[registee->vers.major] = registee;
 		}
-		else if (test.vers.patch < registee.vers.patch && test.vers.minor == registee.vers.minor){
-			registered[registee.vers.major] = registee;
+		else if (test->vers.patch < registee->vers.patch && test->vers.minor == registee->vers.minor){
+			registered[registee->vers.major] = registee;
 		}
 		return;
 	}
-	registered[registee.vers.major] = registee;
+	registered[registee->vers.major] = registee;
 }
-
-/*void* genPointers() {
-	void* pointers = new [13];
-	(bool ()(GERTaddr, string))pointers[0] = sendTo;
-	(void (*)(gateway*, string))pointers[1] = sendTo;
-	(void (*)(peer*, string))pointers[2] = sendTo;
-	pointers[3] = assign;
-	pointers[4] = isRemote;
-	(void (*)(gateway*))pointers[5] = closeTarget;
-	(void (*)(peer*))pointers[6] = closeTarget;
-	pointers[7] = setRoute;
-	pointers[8] = removeRoute;
-	pointers[9] = addResolution;
-	pointers[10] = removeResolution;
-	pointers[11] = addPeer;
-	pointers[12] = removePeer;
-	return pointers;
-}*/
 
 //PUBLIC
 int loadLibs() { //Load gelib files from api subfolder
@@ -80,26 +73,34 @@ int loadLibs() { //Load gelib files from api subfolder
 		error("Can't find apis directory. DUMP: " + libDir.string());
 		return EMPTY;
 	}
-	directory_iterator iter(libDir), end; //Define file list and empty list
-	while (iter != end) { //Continue until file list is equal to empty list
+	for (directory_iterator iter(libDir); iter != end(iter); iter++) { //Continue until file list is equal to empty list
 		directory_entry testFile = *iter; //Get file from list
 		path testPath = testFile.path(); //Get path of file from list
 		if (testPath.extension() == ".gelib") { //Test that file is a gelib file via file extension
 			lib handle = loadLib(testPath); //Load gelib file
-			version api;
-			api.vers.major = *(UCHAR*)getValue(&handle, "major");
-			api.vers.minor = *(UCHAR*)getValue(&handle, "minor");
-			api.vers.patch = *(UCHAR*)getValue(&handle, "patch");
-			api.procGate = (bool(*)(gateway*, string))getValue(&handle, "processGateway");
-			api.procPeer = (bool(*)(peer*, string))getValue(&handle, "processPeer");
-			api.killGate = (void(*)(gateway*))getValue(&handle, "killGateway");
-			api.killPeer = (void(*)(peer*))getValue(&handle, "killGEDS");
+			if (handle == nullptr) {
+				error("Failed to load " + testPath.filename().string());
+				continue;
+			}
+			version* api = new version();
+			api->vers.major = *(UCHAR*)getValue(&handle, "major");
+			api->vers.minor = *(UCHAR*)getValue(&handle, "minor");
+			api->vers.patch = *(UCHAR*)getValue(&handle, "patch");
+			api->procGate = (bool(*)(gateway*, string))getValue(&handle, "processGateway");
+			api->procPeer = (bool(*)(peer*, string))getValue(&handle, "processGEDS");
+			api->killGate = (void(*)(gateway*))getValue(&handle, "killGateway");
+			api->killPeer = (void(*)(peer*))getValue(&handle, "killGEDS");
+			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) {
+				error("Failed to load " + testPath.filename().string());
+				delete api;
+				continue;
+			}
+
 			//void (*importFunc)(void*) = (void (*)(void*)) getValue(handle, "importFuncs");
 			//importFunc(genPointers());
 			registerVersion(api); //Register API and map API
-			log("Loaded " + testPath.string() + " with version " + api.vers.stringify());
+			log("Loaded " + testPath.stem().string() + " with version " + api->vers.stringify());
 		}
-		iter++; //Move to next file
 	}
 	if (registered.empty())
 		return EMPTY;
@@ -108,12 +109,12 @@ int loadLibs() { //Load gelib files from api subfolder
 
 version* getVersion(UCHAR major) {
 	if (registered.count(major) != 0) {
-		return &(registered[major]);
+		return registered[major];
 	}
 	return nullptr;
 }
 
 UCHAR highestVersion() {
-	map<UCHAR, version>::iterator last = registered.end();
+	map<UCHAR, version*>::iterator last = registered.end();
 	return (--last)->first;
 }

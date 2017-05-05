@@ -7,4 +7,5 @@ using namespace std;
 void log(string);
 void warn(string);
 void error(string);
+void debug(string);
 #endif

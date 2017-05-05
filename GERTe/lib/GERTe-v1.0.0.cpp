@@ -17,6 +17,9 @@ https://github.com/GlobalEmpire/GERT/blob/master/License.md
 #define DLLExport
 #endif
 
+#define STARTEXPORT extern "C" {
+#define ENDEXPORT }
+
 #include "libHelper.h"
 using namespace std;
 
@@ -56,6 +59,8 @@ enum gedsCommands {
 	UNLINK,
 	CLOSEPEER
 };
+
+STARTEXPORT
 
 DLLExport UCHAR major = 1;
 DLLExport UCHAR minor = 0;
@@ -248,3 +253,5 @@ DLLExport void killGEDS(peer* geds) {
 	sendTo(geds, string({ CLOSEPEER })); //SEND CLOSE REQUEST
 	closeTarget(geds);
 }
+
+ENDEXPORT

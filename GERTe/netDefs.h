@@ -37,8 +37,7 @@ class ipAddr {
 		ipAddr(in_addr target) : addr(target) {};
 		ipAddr(UCHAR target[4]) {
 			string ip = to_string(target[0]) + "." + to_string(target[1]) + "." + to_string(target[2]) + "." + to_string(target[3]);
-			log(ip);
-			log(to_string(inet_aton(ip.c_str(), &addr)));
+			inet_aton(ip.c_str(), &addr);
 		};
 		string stringify() {
 			UCHAR* rep = (UCHAR*)&addr.s_addr;
