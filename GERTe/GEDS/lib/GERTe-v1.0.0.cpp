@@ -37,7 +37,6 @@ enum gatewayStates {
 	FAILURE,
 	CONNECTED,
 	ASSIGNED,
-	DENIED,
 	CLOSED,
 	SENT
 };
@@ -131,7 +130,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			GERTaddr target = {restShort[0], restShort[1]}; //Assign target address as first 4 bytes
 			restShort[0] = gate->addr.high; //Set first 4 bytes to source address
 			restShort[1] = gate->addr.low;
-			rest.insert(0, { DATA }); //Readd the original command byte
+			rest.insert(0, { DATA }); //Read the original command byte
 			if (isRemote(target)) { //Target is remote
 				rest.insert(4, string({target.high, target.low})); //Insert target for routing
 			}
@@ -174,7 +173,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			/*
 			 * Response to close request.
 			 * CMD STATE (0)
-			 * STATE CLOSED (4)
+			 * STATE CLOSED (3)
 			 */
 			closeTarget(gate);
 		}
@@ -256,7 +255,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 
 DLLExport void killGateway(gateway* gate) {
 	sendTo(gate, string({ CLOSE })); //SEND CLOSE REQUEST
-	sendTo(gate, string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 4)
+	sendTo(gate, string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	closeTarget(gate);
 }
 
