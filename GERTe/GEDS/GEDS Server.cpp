@@ -27,6 +27,8 @@ typedef unsigned short ushort;
 #include "netty.h"
 #include "libLoad.h"
 #include "logging.h"
+#include "overwatch.h"
+#include "fileMngr.h"
 #include <exception>
 using namespace std; //Default namespace to std
 
@@ -36,7 +38,8 @@ enum status {
 	LIB_LOAD_ERR,
 	PEER_LOAD_ERR,
 	KEY_LOAD_ERR,
-	UNKNOWN_CRITICAL
+	UNKNOWN_CRITICAL,
+	UNKNOWN_MINOR
 };
 
 volatile bool running = false; //SIGINT tracker
@@ -47,11 +50,23 @@ char * peerPort = "59474";
 char * gatewayPort = "43780";
 
 void shutdownProceedure(int param) { //SIGINT handler function
-	warn("Killing program.");
-	running = false; //Flip tracker to disable threads and trigger main thread's cleanup
+	if (running) {
+		warn("User requested shutdown. Flipping the switch!");
+		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
+	} else {
+		error("Server wasn't in running state when SIGINT was raised.");
+		error("!!! Forcing termination of server. !!!");
+		exit(UNKNOWN_MINOR);
+	}
 };
 
 void OHCRAPOHCRAP(int param) {
+	int errs = emergencyScan();
+	if (errs == 0) {
+		savePeers();
+		saveResolutions();
+		debug("I did manage to salvage and save peers and resolutions.");
+	}
 	cout << "Well, this is the end\n";
 	cout << "I've read too much, and written so far\n";
 	cout << "But here I am, faulting to death\n";
@@ -63,53 +78,18 @@ void OHCRAPOHCRAP(int param) {
 }
 
 void errHandler() {
-	cout << "CRTICIAL ERROR: ABNORMAL TERMINATION\n";
-	cout << to_string(errno) << "\n";
+	int errs = emergencyScan();
+	if (errs == 0) {
+		savePeers();
+		saveResolutions();
+		debug("I did manage to salvage and save peers and resolutions.");
+	}
+	cout << "Unknown error, system called terminate() with code " << to_string(errno) << "\n";
 	exit(UNKNOWN_CRITICAL);
 }
 
-int loadResolutions() {
-	FILE* resolutionFile = fopen("resolutions.geds", "rb");
-	if (resolutionFile == nullptr)
-		return KEY_LOAD_ERR;
-	while (true) {
-		USHORT buf[2];
-		GERTaddr addr = {buf[0], buf[1]};
-		fread(&buf, 2, 2, resolutionFile);
-		if (feof(resolutionFile) != 0)
-			break;
-		char buff[20];
-		fread(&buff, 1, 20, resolutionFile);
-		GERTkey key(buff);
-		log("Imported resolution for " + to_string(addr.high) + "-" + to_string(addr.low));
-		addResolution(addr, key);
-	}
-	fclose(resolutionFile);
-	return NORMAL;
-}
-
-int loadPeers() {
-	FILE* peerFile = fopen("peers.geds", "rb");
-	if (peerFile == nullptr)
-		return PEER_LOAD_ERR;
-	while (true) {
-		UCHAR ip[4];
-		fread(&ip, 1, 4, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2?
-		if (feof(peerFile) != 0)
-			break;
-		USHORT rawPorts[2];
-		fread(&rawPorts, 2, 2, peerFile);
-		portComplex ports = {rawPorts[0], rawPorts[1]};
-		ipAddr ipClass = ip;
-		log("Importing peer " + ipClass.stringify() + ":" + ports.stringify());
-		addPeer(ipClass, ports);
-	}
-	fclose(peerFile);
-	return NORMAL;
-}
-
 void printHelp() {
-	cout << "Requires atleast one parameter: -a publicIP\n";
+	cout << "Requires atleast the -a parameter\n";
 	cout << "-a publicIP   Specifies the public IP to prevent loops.\n";
 	cout << "-p port       Specifies the port for GEDS servers to connect to (default 59474)\n";
 	cout << "-g port       Specifies the port for Gateways to connect to (default 43780)\n";
@@ -148,9 +128,15 @@ void processArgs(int argc, char* argv[]) {
 int main( int argc, char* argv[] ) {
 
 	processArgs(argc, argv);
+	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " Debug mode: " + to_string(debugMode) + " (should be 1)");
+
+	startLog();
 
 	set_terminate(errHandler);
+	signal(SIGSEGV, &OHCRAPOHCRAP);
+	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 
+	debug("Loading libraries");
 	int libErr = loadLibs(); //Load gelib files
 
 	switch (libErr) { //Test for errors loading libraries
@@ -162,33 +148,48 @@ int main( int argc, char* argv[] ) {
 			return LIB_LOAD_ERR;
 	}
 
+	debug("Loading peers");
 	int result = loadPeers();
 
 	if (result != NORMAL)
-		return result;
+		return PEER_LOAD_ERR;
 
+	debug("Loading resolutions");
 	int result2 = loadResolutions();
 
 	if (result2 != NORMAL)
-		return result2;
+		return KEY_LOAD_ERR;
 
+	debug("Starting servers");
 	startup(); //Startup servers
+
+	debug("Building peer web");
 	buildWeb();
 
 	running = true;
 
-	//System processing
-	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
-	signal(SIGSEGV, &OHCRAPOHCRAP);
+	debug("Starting message processor");
 	thread processor(process);
+
+	debug("Starting main server loop");
 	runServer();
 	warn("Primary server killed.");
 
 	//Shutdown and Cleanup sequence
+	debug("Waiting for message processor to exit");
 	processor.join(); //Cleanup processor (wait for it to die)
 	warn("Processor killed, program ending.");
 
+	debug("Cleaning up servers");
 	shutdown();//Cleanup servers
 	
+	debug("Saving peers");
+	savePeers();
+
+	debug("Saving resolutions");
+	saveResolutions();
+
+	stopLog();
+
 	return NORMAL; //Return with exit state "NORMAL" (0)
 }

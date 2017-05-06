@@ -5,6 +5,12 @@ using namespace std;
 
 extern bool debugMode;
 
+FILE * logFile;
+
+void startLog() {
+	logFile = fopen("errors.log", "a");
+}
+
 string timeOut() {
 	time_t rawtime;
 	time(&rawtime);
@@ -21,10 +27,16 @@ void warn(string msg) {
 }
 
 void error(string msg) {
-	cout << "[E][" << timeOut() << "] " << msg << "\n";
+	string log = "[E][" + timeOut() + "] " + msg + "\n";
+	cout << log;
+	fputs(log.c_str(), logFile);
 }
 
 void debug(string msg) {
 	if (debugMode)
 		cout << "[D][" << timeOut() << "] " << msg << "\n";
+}
+
+void stopLog() {
+	fclose(logFile);
 }

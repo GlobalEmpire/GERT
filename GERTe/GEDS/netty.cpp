@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <poll.h>
 typedef int SOCKET; //Define SOCK type as integer
 typedef timeval TIMEVAL;
 #endif
@@ -60,12 +61,13 @@ extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
 
-void closeSock(SOCKET target) { //Close a socket
+void closeSock(SOCKET * target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
-	closesocket(target); //Close socket using WinSock API
+	closesocket(*target); //Close socket using WinSock API
 #else //If not compiled for Windows
-	close(target); //Close socket using C++ standard API
+	close(*target); //Close socket using C++ standard API
 #endif
+	delete target;
 }
 
 
@@ -81,7 +83,7 @@ void killConnections() {
 //PUBLIC
 void closeTarget(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
-	closeSock(*(SOCKET*)target->sock); //Close the socket
+	closeSock((SOCKET*)target->sock); //Close the socket
 	log("Disassociation from " + target->addr.stringify());
 }
 
@@ -93,7 +95,7 @@ void closeTarget(peer* target) {
 	}
 	peerIter iter = peers.find(target->addr);
 	peers.erase(iter);
-	closeSock(*(SOCKET*)target->sock);
+	closeSock((SOCKET*)target->sock);
 	log("Peer " + target->addr.stringify() + " disconnected");
 }
 
@@ -187,56 +189,61 @@ void startup() {
 //PUBLIC
 void shutdown() {
 	//KillConnections()
-	closeSock(gateServer);
-	closeSock(gedsServer);
+#ifdef _WIN32
+	closesocket(gedsServer);
+	closesocket(gateServer);
+#else
+	close(gedsServer);
+	close(gateServer);
+#endif
 }
 
-void initGate(SOCKET newSocket) {
+void initGate(SOCKET * newSocket) {
 #ifdef _WIN32
-	ioctlsocket(newSocket, FIONBIO, &nonZero);
+	ioctlsocket(*newSocket, FIONBIO, &nonZero);
 #else
-	fcntl(newSocket, F_SETFL, O_NONBLOCK);
+	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
 #endif
 	char buf[3];
-	recv(newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
+	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
 	log((string)"Gateway using " + buf[0] + "." + buf[1] + "." + buf[2]);
 	UCHAR major = buf[0]; //Major version number
 	version* api = getVersion(major);
 	if (api == nullptr) {
 		char error[3] = { 0, 0, 0 };
-		send(newSocket, error, 3, 0); //Notify client we cannot serve this version
+		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
-		gateway * newConnection = new gateway(&newSocket, api);
+		gateway * newConnection = new gateway(newSocket, api);
 		noAddr.push_front(newConnection);
 		newConnection->process("");
 	}
 }
 
-void initPeer(SOCKET newSocket) {
+void initPeer(SOCKET * newSocket) {
 #ifdef _WIN32
-	ioctlsocket(newSocket, FIONBIO, &nonZero);
+	ioctlsocket(*newSocket, FIONBIO, &nonZero);
 #else
-	fcntl(newSocket, F_SETFL, O_NONBLOCK);
+	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
 #endif
 	char buf[3];
-	recv(newSocket, buf, 3, 0);
+	recv(*newSocket, buf, 3, 0);
 	log((string)"GEDS using " + buf[0] + "." + buf[1] + "." + buf[2]);
 	UCHAR major = buf[0]; //Major version number
 	version* api = getVersion(major); //Find API version
 	if (api == nullptr) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
-		send(newSocket, error, 3, 0); //Notify client we cannot serve this version
+		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
 		sockaddr* remotename;
-		getpeername(newSocket, remotename, &iplen);
+		getpeername(*newSocket, remotename, &iplen);
 		sockaddr_in remoteip = *(sockaddr_in*)remotename;
 		if (peerList.count(remoteip.sin_addr) == 0) {
 			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
-			send(newSocket, error, 3, 0);
+			send(*newSocket, error, 3, 0);
 		}
 		peer* newConnection = new peer(&newSocket, api, remoteip.sin_addr); //Create new connection
 		peers[remoteip.sin_addr] = newConnection;
@@ -251,12 +258,12 @@ void runServer() { //Listen for new connections
 		if (select(0, &gateTest, &nullSet, &nullSet, &nonBlock) > 0) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
-			initGate(*newSock);
+			initGate(newSock);
 		}
 		if (select(0, &gedsTest, &nullSet, &nullSet, &nonBlock) > 0) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
-			initPeer(*newSocket);
+			initPeer(newSocket);
 		}
 		this_thread::yield(); //Release CPU
 	}
@@ -366,11 +373,17 @@ void buildWeb() {
 		}
 		send(*newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
 		char death[3];
+		pollfd pollReq = {*newSock, POLLIN};
+		int result2 = poll(&pollReq, 1, 5);
+		if (result2 < 1) {
+			closeSock(newSock);
+			error("Connection to " + iter->second.addr.stringify() + " dropped during negotiation");
+		}
 		recv(*newSock, death, 3, 0);
 		ipAddr ip = remoteIP;
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
-			closeSock(*newSock);
+			closeSock(newSock);
 			continue;
 		}
 #ifdef _WIN32
