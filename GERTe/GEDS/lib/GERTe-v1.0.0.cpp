@@ -46,6 +46,7 @@ enum gatewayErrors {
 	VERSION,
 	BAD_KEY,
 	ALREADY_REGISTERED,
+	NOT_REGISTERED,
 	NO_ROUTE
 };
 
@@ -91,7 +92,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 * Response to registration attempt when gateway has address assigned.
 				 * CMD STATE (0)
 				 * STATE FAILURE (0)
-				 * REASON ALREADY_REGISTERED (3)
+				 * REASON ALREADY_REGISTERED (2)
 				 */
 				return;
 			}
@@ -117,6 +118,16 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			return;
 		}
 		case DATA: {
+			if (gate->state == CONNECTED) {
+				sendTo(gate, string({STATE, FAILURE, NOT_REGISTERED}));
+				/*
+				 * Response to data before registration
+				 * CMD STATE (0)
+				 * STATE FAILURE (0)
+				 * REASON NOT_REGISTERED (3)
+				 */
+				break;
+			}
 			GERTaddr target = {restShort[0], restShort[1]}; //Assign target address as first 4 bytes
 			restShort[0] = gate->addr.high; //Set first 4 bytes to source address
 			restShort[1] = gate->addr.low;
@@ -144,7 +155,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 * Response to failed data send request.
 				 * CMD STATE (0)
 				 * STATE FAILURE (0)
-				 * REASON NO_ROUTE (3)
+				 * REASON NO_ROUTE (4)
 				 */
 			return;
 		}
