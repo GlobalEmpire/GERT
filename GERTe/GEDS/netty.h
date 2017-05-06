@@ -25,4 +25,5 @@ void closeTarget(gateway*);
 void closeTarget(peer*);
 bool assign(gateway*, GERTaddr, GERTkey);
 void buildWeb();
+void broadcast(string);
 #endif

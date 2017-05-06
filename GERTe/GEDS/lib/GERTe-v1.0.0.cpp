@@ -106,6 +106,15 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 * CMD STATE (0)
 				 * STATE REGISTERED (2)
 				 */
+				string cmd = {REGISTERED};
+				cmd += restShort[0];
+				cmd += restShort[1];
+				broadcast(cmd);
+				/*
+				 * Broadcast to all peers registration
+				 * CMD REGISTERED (0)
+				 * GERTaddr (4 bytes)
+				 */
 			} else
 				sendTo(gate, string({ STATE, FAILURE, BAD_KEY }));
 				/*
@@ -175,6 +184,18 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			 * CMD STATE (0)
 			 * STATE CLOSED (3)
 			 */
+			if (gate->state == REGISTERED) {
+				string cmd = {UNREGISTERED};
+				cmd += gate->addr.high;
+				cmd += gate->addr.low;
+				broadcast(cmd);
+				removeResolution(gate->addr);
+				/*
+				 * Broadcast that registered gateway left.
+				 * CMD UNREGISTERED (1)
+				 * GERTaddr (4 bytes)
+				 */
+			}
 			closeTarget(gate);
 		}
 	}

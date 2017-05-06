@@ -348,6 +348,12 @@ void sendTo(peer* target, string data) {
 	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
+void broadcast(string data) {
+	for (peerIter iter = peers.begin(); iter != peers.end(); iter++) {
+		sendTo(iter->second, data);
+	}
+}
+
 void buildWeb() {
 	version* best = getVersion(highestVersion());
 	versioning vers = best->vers;

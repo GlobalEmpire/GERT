@@ -16,3 +16,4 @@ extern void removeResolution(GERTaddr);
 extern void addPeer(ipAddr, portComplex);
 extern void removePeer(ipAddr);
 extern void importFuncs(void*);
+extern void broadcast(string);
