@@ -40,6 +40,11 @@ enum status {
 };
 
 volatile bool running = false; //SIGINT tracker
+bool debugMode = false;
+
+char * LOCAL_IP = nullptr;
+char * peerPort = "59474";
+char * gatewayPort = "43780";
 
 void shutdownProceedure(int param) { //SIGINT handler function
 	warn("Killing program.");
@@ -103,7 +108,46 @@ int loadPeers() {
 	return NORMAL;
 }
 
-int main() {
+void printHelp() {
+	cout << "Requires atleast one parameter: -a publicIP\n";
+	cout << "-a publicIP   Specifies the public IP to prevent loops.\n";
+	cout << "-p port       Specifies the port for GEDS servers to connect to (default 59474)\n";
+	cout << "-g port       Specifies the port for Gateways to connect to (default 43780)\n";
+	cout << "-h            Displays this message\n";
+	cout << "-d            Prints out extra debug information\n";
+	exit(0);
+}
+
+void processArgs(int argc, char* argv[]) {
+	if (argc < 2) {
+		printHelp();
+	}
+	for (int i = 1; i < argc; i++) {
+		string curArg = argv[i];
+		if (curArg == "-d") {
+			debugMode = true;
+		} else if (curArg == "-a") {
+			if (argc == i)
+				printHelp();
+			LOCAL_IP = argv[++i];
+		} else if (curArg  == "-p") {
+			if (argc == i)
+				printHelp();
+			peerPort = argv[++i];
+		} else if (curArg == "-g") {
+			if (argc == i)
+				printHelp();
+			gatewayPort = argv[++i];
+		} else if (curArg == "-h")
+				printHelp();
+	}
+	if (LOCAL_IP == nullptr)
+		printHelp();
+}
+
+int main( int argc, char* argv[] ) {
+
+	processArgs(argc, argv);
 
 	set_terminate(errHandler);
 

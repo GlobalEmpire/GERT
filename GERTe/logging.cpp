@@ -1,8 +1,9 @@
 #include <string>
 #include <iostream>
 #include <time.h>
-#include "config.h"
 using namespace std;
+
+extern bool debugMode;
 
 string timeOut() {
 	time_t rawtime;
@@ -24,7 +25,6 @@ void error(string msg) {
 }
 
 void debug(string msg) {
-#if DEBUG == true
-	cout << "[D][" << timeOut() << "] " << msg << "\n";
-#endif
+	if (debugMode)
+		cout << "[D][" << timeOut() << "] " << msg << "\n";
 }

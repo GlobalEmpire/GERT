@@ -18,7 +18,6 @@ typedef int SOCKET; //Define SOCK type as integer
 typedef timeval TIMEVAL;
 #endif
 #include "netDefs.h"
-#include "config.h"
 #include <thread>
 #include <map>
 #include <forward_list>
@@ -37,15 +36,7 @@ typedef forward_list<gateway*>::iterator noAddrIter;
 typedef map<ipAddr, peer*>::iterator peerIter;
 typedef map<ipAddr, knownPeer>::iterator knownIter;
 
-
 //WARNING: DOES NOT HANDLE NETWORK PROCESSING INTERNALLY!!!
-
-#ifndef GATEWAY_PORT
-#error Gateway port not defined. Either the configuration file is missing or corrupted.
-#endif
-#ifndef PEER_PORT
-#error Peer port not defined. The configuration file is corrupted.
-#endif
 
 map<ipAddr, knownPeer> peerList;
 map<ipAddr, peer*> peers;
@@ -65,6 +56,9 @@ u_long nonZero = 1;
 UINT iplen = 16;
 
 extern volatile bool running;
+extern char * gatewayPort;
+extern char * peerPort;
+extern char * LOCAL_IP;
 
 void closeSock(SOCKET target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
@@ -162,8 +156,8 @@ void startup() {
 	hints.ai_flags = AI_PASSIVE; //Set to inbound socket
 
 	//Request internal addressing and port
-	getaddrinfo(NULL, GATEWAY_PORT, &hints, &resultgate); //Fill gateway inbound socket information
-	getaddrinfo(NULL, PEER_PORT, &hints, &resultgeds); //Fill GEDS P2P inbound socket information
+	getaddrinfo(NULL, gatewayPort, &hints, &resultgate); //Fill gateway inbound socket information
+	getaddrinfo(NULL, peerPort, &hints, &resultgeds); //Fill GEDS P2P inbound socket information
 
 	//Construct server sockets
 	SOCKET gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
