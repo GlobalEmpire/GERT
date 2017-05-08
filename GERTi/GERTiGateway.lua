@@ -13,8 +13,8 @@ local tier = 0
 local handler = {}
 
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
-	io.stderr:write("This program requires a network card to run.")
-	return 1
+	io.stderr:write("This program requires a network or linked card to run.")
+	os.exit(1)
 end
 
 if (component.isAvailable("modem")) then
@@ -66,8 +66,8 @@ local function storeConnection(destination, origination, beforeHop, nextHop, por
 end
 
 local function storeConnections(origination, destination, beforeHop, nextHop, port)
-	storeConnection(origination, destination, beforeHop, nextHop, port)
-	storeConnection(destination, origination, nextHop, beforeHop, port)
+	storeConnection(origination, destination, nextHop, beforeHop, port)
+	storeConnection(destination, origination, beforeHop, nextHop, port)
 end
 
 local function transmitInformation(sendTo, port, ...)
@@ -93,23 +93,23 @@ end
 
 -- Used in handler["OPENROUTE"]
 -- Gateway's openRoute and Client's openRoute DIFFER
-local function openRoute(origination, destination, sendingModem, destination2, storePort, transmitAddress, transmitPort, transmitDestination)
+local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort)
 	print("Opening Route")
 	if modem.address ~= destination then
-		transmitInformation(transmitAddress, transmitPort, "OPENROUTE", destination, modem.address, transmitDestination, origination)
+		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination)
 		local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
 		if payload ~= "ROUTE OPEN" then
 			return false
 		end
 	end
-	storeConnections(origination, destination, sendingModem, destination2, storePort)
-	return transmitInformation(sendingModem, port, "ROUTE OPEN")
+	storeConnections(origination, destination, beforeHop, hopOne, receivedPort)
+	return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN")
 end
 
-handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, intermediary2, origination)
+handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination)
 	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
 	if destination == modem.address then
-		return openRoute(origination, modem.address, sendingModem, modem.address, port, nil, nil, nil)
+		return orController(destination, origination, sendingModem, modem.address, port, nil)
 	end
 
 	local childKey = nil
@@ -117,38 +117,39 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	for key, value in pairs(childNodes) do
 		if value["address"] == destination then
 			childKey = key
-			-- attempt to determine if the gateway is a direct parent of the intended destination
-			for key2, value2 in pairs(childNodes[childKey]["parents"]) do
-				if value2["address"] == modem.address then
-					return openRoute(origination, destination, sendingModem, destination, port, childNodes[childKey]["address"], childNodes[childKey]["port"], nil)
+			if childNodes[childKey]["parents"][1]["address"] == modem.address then
+				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"])
+			end
+			break
+		end
+	end
+	if (childKey) then
+		-- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
+		for key, value in pairs(childNodes[childKey]["parents"]) do
+			for key2, value2 in pairs(childNodes) do
+				if value2["address"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
+					-- If an intermediate is found, then use that to open a connection
+					return orController(destination, origination, sendingModem, value2["address"], value2["address"], port, value2["port"])
 				end
 			end
 		end
-	end
-		-- if gateway is direct parent, open direct connection, otherwise open an indirect connection
-			-- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
-	for key, value in pairs(childNodes[childKey]["parents"]) do
-		for key2, value2 in pairs(childNodes) do
-			if value2["address"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
-				-- If an intermediate is found, then use that to open a direct connection
-				return openRoute(origination, destination, sendingModem, childNodes[key2]["address"], port, childNodes[key2]["address"], childNodes[key2]["port"], destination)
-			end
-		end
-	end
 
-	-- If an intermediate is not found, attempt to do a 2-deep search for hops
-	local parent1Key, parent2Key = nil
-	local childParents = childNodes[childKey]["parents"]
-	for key,value in pairs(childNodes) do
-		for key2, value2 in pairs(value["children"]) do
-			for key3, value3 in pairs(childParents) do
-				-- so much nesting!
-				if value3["address"] == value2["address"] then
-					-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-					return openRoute(origination, destination, sendingModem, childNodes[key]["address"], port, childNodes[key3]["address"], childNodes[key]["port"], childNodes[key3]["address"])
+		-- If an intermediate is not found, attempt to do a 2-deep search for hops
+		local parent1Key, parent2Key = nil
+		local childParents = childNodes[childKey]["parents"]
+		for key,value in pairs(childNodes) do
+			for key2, value2 in pairs(value["children"]) do
+				for key3, value3 in pairs(childParents) do
+					-- so much nesting!
+					if value3["address"] == value2["address"] then
+						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
+						return orController(destination, origination, sendingModem, value["address"], value2["address"], port, childNodes[key]["port"])
+					end
 				end
 			end
-		end
+		end 
+	else
+		return false
 	end
 end
 
@@ -200,9 +201,7 @@ end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
 	print(code)
 	if handler[code] ~= nil then
-		return handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
-	else
-		return false
+		handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
 	end
 end
 

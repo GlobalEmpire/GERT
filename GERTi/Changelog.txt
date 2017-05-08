@@ -1,3 +1,9 @@
+v0.10
+Changed: Instead of calling socket.read/write, socket:read()/write must be used, but they do not need to be provided with information now
+
+Lots of bugfixes
+
+
 v0.9.2
 Changed:
 1. Replaced previous system of attempting to use a single connection for bi-directional data transfer. Now GERTi automatically adds and utilizes two uni-directional connections.
