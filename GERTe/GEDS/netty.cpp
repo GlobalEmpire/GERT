@@ -357,24 +357,25 @@ void broadcast(string data) {
 void buildWeb() {
 	version* best = getVersion(highestVersion());
 	versioning vers = best->vers;
-	in_addr local;
-	inet_aton(LOCAL_IP, &local);
 	for (knownIter iter = peerList.begin(); iter != peerList.end(); iter++) {
-		if (iter->second.ports.peer == 0)
+		ipAddr ip = iter->first;
+		portComplex ports = iter->second.ports;
+		if (ports.peer == 0) {
+			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
+			continue;
+		} else if (ip.stringify() == LOCAL_IP)
 			continue;
 		SOCKET * newSock = new SOCKET;
 		*newSock = socket(AF_INET, SOCK_STREAM, 0);
-		in_addr remoteIP = iter->second.addr.addr;
-		if (remoteIP.s_addr == local.s_addr)
-			continue;
-		in_port_t peerPort = iter->second.ports.peer;
+		in_addr remoteIP = ip.addr;
+		in_port_t peerPort = ports.peer;
 		sockaddr_in addrFormat;
 		addrFormat.sin_addr = remoteIP;
 		addrFormat.sin_port = peerPort;
 		addrFormat.sin_family = AF_INET;
 		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
 		if (result != 0) {
-			warn("Failed to connect to " + iter->second.addr.stringify() + " " + to_string(errno));
+			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
 		send(*newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
@@ -383,10 +384,9 @@ void buildWeb() {
 		int result2 = poll(&pollReq, 1, 5);
 		if (result2 < 1) {
 			closeSock(newSock);
-			error("Connection to " + iter->second.addr.stringify() + " dropped during negotiation");
+			error("Connection to " + ip.stringify() + " dropped during negotiation");
 		}
 		recv(*newSock, death, 3, 0);
-		ipAddr ip = remoteIP;
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
 			closeSock(newSock);

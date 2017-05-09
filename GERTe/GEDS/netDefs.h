@@ -34,11 +34,8 @@ class ipAddr {
 		in_addr addr;
 		bool operator< (ipAddr comp) const { return (addr.s_addr < comp.addr.s_addr); };
 		bool operator== (ipAddr comp) const { return (addr.s_addr == comp.addr.s_addr); };
+		ipAddr(unsigned long target) : addr(*(in_addr*)&target) {};
 		ipAddr(in_addr target) : addr(target) {};
-		ipAddr(UCHAR target[4]) {
-			string ip = to_string(target[0]) + "." + to_string(target[1]) + "." + to_string(target[2]) + "." + to_string(target[3]);
-			inet_aton(ip.c_str(), &addr);
-		};
 		string stringify() {
 			UCHAR* rep = (UCHAR*)&addr.s_addr;
 			return to_string(rep[0]) + "." + to_string(rep[1]) + "." + to_string(rep[2]) + "." + to_string(rep[3]);
@@ -82,6 +79,6 @@ class knownPeer {
 		ipAddr addr;
 		portComplex ports;
 		knownPeer(ipAddr target, portComplex pair) : addr(target), ports(pair) {};
-		knownPeer() : addr((UCHAR*)"\0\0\0\0"), ports((USHORT)0, (USHORT)0) {};
+		knownPeer() : addr(0L), ports((USHORT)0, (USHORT)0) {};
 };
 #endif
