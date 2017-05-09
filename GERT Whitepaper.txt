@@ -82,7 +82,7 @@ H. Cell: An Ocranet packet.
 		7b. If the command removes a key, remove it from the key address pair list.
 	8. If a peer sends a registration update command:
 		8a. If the command adds a registration, mark it as the remote route for a gateway.
-		8b. If the command removes a registartion, remove it from the remote routes.
+		8b. If the command removes a registration, remove it from the remote routes.
 	9. If a peer sends a data route packet, transmit it to the registered gateway.
 	10. Loop to step 6.
 		
