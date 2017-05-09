@@ -141,7 +141,9 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			restShort[1] = gate->addr.low;
 			rest.insert(0, { DATA }); //Read the original command byte
 			if (isRemote(target)) { //Target is remote
-				rest.insert(4, string({target.high, target.low})); //Insert target for routing
+				char* highaddr = (char*)&target.high;
+				char* lowaddr = (char*)&target.low;
+				rest.insert(4, string({ *highaddr, *(highaddr++), *lowaddr, *(lowaddr++)})); //Insert target for routing
 			}
 			bool found = sendTo(target, rest); //Send modified data to target
 			/*
@@ -168,7 +170,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			return;
 		}
 		case QUERY: {
-			sendTo(gate, string({ STATE, gate->state }));
+			sendTo(gate, string({ STATE, (char)gate->state }));
 			/*
 			 * Response to state request
 			 * CMD STATE (0)
@@ -251,7 +253,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 		}
 		case LINK: {
 			char* restRaw = (char*)rest.c_str();
-			UCHAR ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
+			unsigned long ipaddr = *restRaw;
 			ipAddr target(ipaddr);
 			rest.erase(0, 4);
 			restShort = (USHORT*)rest.c_str();
@@ -261,7 +263,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 		}
 		case UNLINK: {
 			char* restRaw = (char*)rest.c_str();
-			UCHAR ipaddr[4] = {restRaw[0], restRaw[1], restRaw[2], restRaw[3]};
+			unsigned long ipaddr = *restRaw;
 			ipAddr target(ipaddr);
 			removePeer(target);
 			return;
@@ -284,5 +286,11 @@ DLLExport void killGEDS(peer* geds) {
 	sendTo(geds, string({ CLOSEPEER })); //SEND CLOSE REQUEST
 	closeTarget(geds);
 }
+
+#ifdef _WIN32
+bool WINAPI DllMain(HINSTANCE w, DWORD a, LPVOID s) {
+	return true;
+}
+#endif
 
 ENDEXPORT

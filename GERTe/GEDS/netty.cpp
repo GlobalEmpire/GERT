@@ -1,10 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
+#define _CRT_SECURE_NO_WARNINGS
 
 #ifdef _WIN32 //If compiled for windows
 #include <Windows.h> //Include windows API
+#include <winsock2.h> //Include Winsock v2
 #include <ws2tcpip.h> //Include windows TCP API
 #include <iphlpapi.h> //Include windows IP helper API
-#include <winsock2.h> //Include Winsock v2
+#pragma comment(lib, "Ws2_32.lib")
+typedef int LEN;
 #else //If not compiled for windows (assumed linux)
 #include <sys/socket.h> //Load C++ standard socket API
 #include <netinet/ip.h>
@@ -15,6 +18,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <poll.h>
+typedef unsigned int LEN;
 typedef int SOCKET; //Define SOCK type as integer
 typedef timeval TIMEVAL;
 #endif
@@ -28,7 +32,6 @@ typedef timeval TIMEVAL;
 #include "logging.h"
 using namespace std;
 
-typedef unsigned int UINT;
 typedef unsigned long ULONG;
 typedef unsigned char UCHAR;
 typedef map<GERTaddr, gateway*>::iterator gateIter;
@@ -54,7 +57,7 @@ TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
 u_long nonZero = 1;
 #endif
 
-UINT iplen = 16;
+LEN iplen = 16;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -238,9 +241,9 @@ void initPeer(SOCKET * newSocket) {
 		closeSock(newSocket); //Close the socket
 	}
 	else { //Major version found
-		sockaddr* remotename;
-		getpeername(*newSocket, remotename, &iplen);
-		sockaddr_in remoteip = *(sockaddr_in*)remotename;
+		sockaddr remotename;
+		getpeername(*newSocket, &remotename, &iplen);
+		sockaddr_in remoteip = *(sockaddr_in*)&remotename;
 		if (peerList.count(remoteip.sin_addr) == 0) {
 			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
 			send(*newSocket, error, 3, 0);
@@ -319,7 +322,7 @@ void removeRoute(GERTaddr target) {
 
 //PUBLIC COMPAT
 bool isRemote(GERTaddr target) {
-	return (bool)remoteRoutes.count(target);
+	return remoteRoutes.count(target) > 0;
 }
 
 //PUBLIC
@@ -368,10 +371,9 @@ void buildWeb() {
 		SOCKET * newSock = new SOCKET;
 		*newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = ip.addr;
-		in_port_t peerPort = ports.peer;
 		sockaddr_in addrFormat;
 		addrFormat.sin_addr = remoteIP;
-		addrFormat.sin_port = peerPort;
+		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
 		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
 		if (result != 0) {
@@ -381,7 +383,11 @@ void buildWeb() {
 		send(*newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
 		char death[3];
 		pollfd pollReq = {*newSock, POLLIN};
+#ifdef _WIN32
+		int result2 = WSAPoll(&pollReq, 1, 5);
+#else
 		int result2 = poll(&pollReq, 1, 5);
+#endif
 		if (result2 < 1) {
 			closeSock(newSock);
 			error("Connection to " + ip.stringify() + " dropped during negotiation");

@@ -14,12 +14,6 @@
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort;
 
-#ifdef _WIN32
-#include <iphlpapi.h>
-#else
-#include <netinet/ip.h>
-#endif
-
 #include <thread> //Include thread type
 #include <string> //Include string type
 #include <signal.h> //Include signal processing API

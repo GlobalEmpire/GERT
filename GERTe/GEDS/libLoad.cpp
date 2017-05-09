@@ -1,8 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #ifdef _WIN32
-typedef HMODULE lib;
 #include <Windows.h>
 #include <filesystem>
+typedef HMODULE lib;
 #else
 #include <dlfcn.h>
 #include <experimental/filesystem>
@@ -69,7 +69,7 @@ void registerVersion(version* registee) {
 int loadLibs() { //Load gelib files from api subfolder
 	path libDir = current_path(); //Define relative path to subfolder
 	libDir += "/apis";
-	if (not exists(libDir)) {
+	if (!exists(libDir)) {
 		error("Can't find apis directory.");
 		debug("Library search path: " + libDir.string());
 		return EMPTY;

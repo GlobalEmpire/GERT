@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "logging.h"
 #include "netty.h"
 #include "keyMngr.h"
@@ -7,8 +9,8 @@ typedef map<ipAddr, knownPeer>::iterator peerIter;
 typedef map<GERTaddr, GERTkey>::iterator keyIter;
 
 enum errors {
-	NORMAL,
-	ERROR
+	OK,
+	NOK
 };
 
 extern char * LOCAL_IP;
@@ -19,7 +21,7 @@ extern map<GERTaddr, GERTkey> resolutions;
 int loadPeers() {
 	FILE* peerFile = fopen("peers.geds", "rb");
 	if (peerFile == nullptr)
-		return ERROR;
+		return NOK;
 	while (true) {
 		unsigned long ip;
 		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2?
@@ -36,13 +38,13 @@ int loadPeers() {
 		addPeer(ipClass, ports);
 	}
 	fclose(peerFile);
-	return NORMAL;
+	return OK;
 }
 
 int loadResolutions() {
 	FILE* resolutionFile = fopen("resolutions.geds", "rb");
 	if (resolutionFile == nullptr)
-		return ERROR;
+		return NOK;
 	while (true) {
 		USHORT buf[2];
 		fread(&buf, 2, 2, resolutionFile);
@@ -56,7 +58,7 @@ int loadResolutions() {
 		addResolution(addr, key);
 	}
 	fclose(resolutionFile);
-	return NORMAL;
+	return OK;
 }
 
 void savePeers() {

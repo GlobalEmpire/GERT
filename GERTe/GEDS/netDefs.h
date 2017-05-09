@@ -1,6 +1,8 @@
 #ifndef __NETDEFS__
 #define __NETDEFS__
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <WinSock2.h>
 #include <IPHlpApi.h>
 #else
 #include <netinet/ip.h>
@@ -45,8 +47,8 @@ class ipAddr {
 class GERTaddr {
 	public:
 		USHORT high, low;
-		bool operator < (const GERTaddr comp) const { return (high < comp.high or (high == comp.high and low < comp.low)); };
-		bool operator == (const GERTaddr comp) const { return (high == comp.high and low == comp.low); };
+		bool operator < (const GERTaddr comp) const { return (high < comp.high || (high == comp.high && low < comp.low)); };
+		bool operator == (const GERTaddr comp) const { return (high == comp.high && low == comp.low); };
 		string stringify() { return to_string(high) + to_string(low); };
 };
 
