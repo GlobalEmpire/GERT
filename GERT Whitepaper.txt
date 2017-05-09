@@ -1,10 +1,10 @@
 It's pronounced gurt (as in yogurt)
 Revision 2.0.2 May 9, 2017
 1. Introduction
-It's important to decide on a standard networking implementation to allow for maximum compatibility and ease of use. GERT is simple,
-smart, and powerful, which helped it to become THE Ocranet routing implementation!
-GERTe is an inter-server networking standard built to maximize the potential of Ocranet, while GERTi is an infra-server networking
-protocol that offers superior ease-of-use and capabilities.
+GERT is described in this document, to help implementations achive compatability and to provide ease of use for developers and users.
+The goal of GERT is to be simple but powerful, and at the time of writing is the main Ocranet routing system. GERTe is an inter-server
+networking standard built with the goal of making the most from Ocranet, while GERTi is an intra-server networking protocol that focues
+on ease-of-use and capabilities useful to programmers.
 
 2. Compatibility.
 Any infra-server networking standard can work with GERTe, as long as it is Ocranet+GERTe addressing aware. Any inter-server networking
