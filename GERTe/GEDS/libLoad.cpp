@@ -70,7 +70,8 @@ int loadLibs() { //Load gelib files from api subfolder
 	path libDir = current_path(); //Define relative path to subfolder
 	libDir += "/apis";
 	if (not exists(libDir)) {
-		error("Can't find apis directory. DUMP: " + libDir.string());
+		error("Can't find apis directory.");
+		debug("Library search path: " + libDir.string());
 		return EMPTY;
 	}
 	for (directory_iterator iter(libDir); iter != end(iter); iter++) { //Continue until file list is equal to empty list

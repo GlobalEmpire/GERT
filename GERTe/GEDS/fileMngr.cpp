@@ -11,6 +11,8 @@ enum errors {
 	ERROR
 };
 
+extern char * LOCAL_IP;
+
 extern map<ipAddr, knownPeer> peerList;
 extern map<GERTaddr, GERTkey> resolutions;
 
@@ -19,8 +21,8 @@ int loadPeers() {
 	if (peerFile == nullptr)
 		return ERROR;
 	while (true) {
-		UCHAR ip[4];
-		fread(&ip, 1, 4, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2?
+		unsigned long ip;
+		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2?
 		if (feof(peerFile) != 0)
 			break;
 		USHORT rawPorts[2];
@@ -29,7 +31,8 @@ int loadPeers() {
 		rawPorts[1] = ntohs(rawPorts[1]);
 		portComplex ports = {rawPorts[0], rawPorts[1]};
 		ipAddr ipClass = ip;
-		log("Importing peer " + ipClass.stringify() + ":" + ports.stringify());
+		if (ipClass.stringify() != LOCAL_IP)
+			log("Importing peer " + ipClass.stringify() + ":" + ports.stringify());
 		addPeer(ipClass, ports);
 	}
 	fclose(peerFile);

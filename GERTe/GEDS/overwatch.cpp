@@ -19,6 +19,12 @@ extern map<GERTaddr, gateway*> gateways;
 extern forward_list<gateway*> noAddr;
 //END VARIABLE HOOKS
 
+enum scanResult {
+	CLEAN,
+	MINOR_ERR,
+	MAJOR_ERR
+};
+
 int scanAPI(version * checkapi, string addr, string type) {
 	int errs = 0;
 	if (checkapi == nullptr) {
@@ -62,6 +68,8 @@ int scanGateway(gateway * checkgate, string addr) {
 }
 
 int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
+	bool peerErr = false;
+	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
 	for (peersIter iter = peers.begin(); iter != peers.end(); iter++) {
@@ -80,18 +88,31 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 		version * checkapi = checkpeer->api;
 		errs += scanAPI(checkapi, addr, "Peer");
 	}
+	debug("[ESCAN] Peer error count: " + to_string(errs));
+	if (errs > 0)
+		peerErr = true;
+	total += errs;
+	errs = 0;
 	for (gatewaysIter iter = gateways.begin(); iter != gateways.end(); iter++) {
 		gateway * checkgate = iter->second;
 		GERTaddr addrstrct = iter->first;
 		string addr = addrstrct.stringify();
 		errs += scanGateway(checkgate, addr);
 	}
+	debug("[ESCAN] Gateway error count: " + to_string(errs));
+	total += errs;
+	errs = 0;
 	for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
 		gateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}
+	total += errs;
 	debug("[ESCAN] Emergency scan finished with " + to_string(errs) + " errors\n");
-	return errs;
+	if (total == 0)
+		return CLEAN;
+	else if (peerErr == false)
+		return MINOR_ERR;
+	return MAJOR_ERR;
 }
 
 /*

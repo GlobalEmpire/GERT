@@ -61,11 +61,11 @@ void shutdownProceedure(int param) { //SIGINT handler function
 };
 
 void OHCRAPOHCRAP(int param) {
-	int errs = emergencyScan();
-	if (errs == 0) {
+	int errCode = emergencyScan();
+	saveResolutions();
+	if (errCode < 2) {
 		savePeers();
-		saveResolutions();
-		debug("I did manage to salvage and save peers and resolutions.");
+		debug("Peers uncorrupted, peer file updated.");
 	}
 	cout << "Well, this is the end\n";
 	cout << "I've read too much, and written so far\n";
@@ -78,11 +78,11 @@ void OHCRAPOHCRAP(int param) {
 }
 
 void errHandler() {
-	int errs = emergencyScan();
-	if (errs == 0) {
+	int errCode = emergencyScan();
+	saveResolutions();
+	if (errCode < 2) {
 		savePeers();
-		saveResolutions();
-		debug("I did manage to salvage and save peers and resolutions.");
+		debug("Peers uncorrupted, peer file updated.");
 	}
 	cout << "Unknown error, system called terminate() with code " << to_string(errno) << "\n";
 	exit(UNKNOWN_CRITICAL);
@@ -151,14 +151,18 @@ int main( int argc, char* argv[] ) {
 	debug("Loading peers");
 	int result = loadPeers();
 
-	if (result != NORMAL)
+	if (result != NORMAL) {
+		error("Failed to load peers");
 		return PEER_LOAD_ERR;
+	}
 
 	debug("Loading resolutions");
 	int result2 = loadResolutions();
 
-	if (result2 != NORMAL)
+	if (result2 != NORMAL) {
+		error("Failed to load keys");
 		return KEY_LOAD_ERR;
+	}
 
 	debug("Starting servers");
 	startup(); //Startup servers
