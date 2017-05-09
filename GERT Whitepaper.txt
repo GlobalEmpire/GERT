@@ -1,11 +1,11 @@
 It's pronounced gurt (as in yogurt)
 
 1. Introduction
-The time is NOW! With the Ocranet technology impending, it's important to decide on a standard networking implementation to allow for
-maximum compatibility and ease of use. The Global Empire is actively engaged in promoting the growth of new networking standards, and
-has stepped up to the plate for Ocranet. The time has come for GERT - Global Empire Routing Technology. GERTe is an inter-server
-networking standard built to maximize the potential of Ocranet, while GERTi is an infra-server networking bringing enterprise grade
-failure tolerance and end-user simplicity right into your OC computer.
+It's important to decide on a standard networking implementation to allow for maximum compatibility and ease of use. 
+The Global Empire is actively engaged in promoting the growth of new networking standards, 
+and has stepped up to the plate for Ocranet. The time has come for GERT - Global Empire Routing Technology. 
+GERTe is an inter-server networking standard built to maximize the potential of Ocranet, 
+while GERTi is an infra-server networking bringing enterprise grade failure tolerance and end-user simplicity right into your OC computer.
 
 2. Compatibility.
 GERTe (e for external) can be made compatible with any infra-server networking technology, as long as it is Ocranet/GERTe network
@@ -62,21 +62,32 @@ H. Cell: An Ocranet packet.
     5. The Ocranet starting gateway transfers data as requested over the connection, and maintains the connection until requested, or
     30 minutes elapse.
     6. Upon request, the Ocranet gateway transmits a close signal and then closes the connection.
-    
-    
-    OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE
-    update coming soon(tm)
-  D. GENS implementation details
-    1. Maintain table of "telephone" number and real-world IP address pairs.
-    2. Upon request from a new gateway / other GENS to register a new pair, contact the IP address listed on the selected port with an  
-    acknowledgement packet.
-      2a. If the gateway responds, add / update (in case of "telephone" collision) the pair to table, and proceed to 3.
-      2b. If the gateway does not respond after 5 attempts, ignore request to add pairing.
-    3. If the request did not come from another GENS, transmit pairing to other GENS so they can update the pairing.
-    4. Upon request from gateway to retrieve pairing, lookup pairing in table.
-      4a. If pairing found, transmit pairing to gateway.
-      4b. If pairing not found, transmit error to gateway.
-      
+	
+  D. GEDS implementation details
+    1. Maintain table of "telephone" number and key pairs.
+    2. Upon request from a new gateway, receive a address key pair for registration, or is a peer:
+      2a. If the gateway sends a valid pair, assign that address to the gateway and proceed to 3.
+      2b. If the gateway sends an invalid pair continue at step 2.
+	  2c. If the connection is a known peer, continue to step 6.
+    3. Transmit to peers the registration of the gateway for routing.
+    4. Upon data request, check that the gateway is registered and continue.
+      4a. If the destination is connected to this GEDS, replace destination with source and forward to the destination.
+      4b. If the destination is connected to a different known GEDS, add the source into the packet and forward to remote GEDS.
+	  4c. If the route to the destination is not known or does not exist, respond with an error.
+	5. Loop step 4 until connection is closed.
+	6. If the peer sends a peer update command:
+		6a. If the command adds a peer, add it to the known list.
+		6b. If the command removes a peer, remove it from the known list.
+	7. If the peer sends a key update command:
+		7a. If the command adds a key, add it to the key address pair list.
+		7b. If the command removes a key, remove it from the key address pair list.
+	8. If a peer sends a registration update command:
+		8a. If the command adds a registration, mark it as the remote route for a gateway.
+		8b. If the command removes a registartion, remove it from the remote routes.
+	9. If a peer sends a data route packet, transmit it to the registered gateway.
+	10. Loop to step 6.
+		
+	OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE
   E. GERTi integration details
   Transmission Side:
     1. GERTi makes use of a 3-digit extension code to an Ocranet "telephone" number, so monitor all outgoing requests for the 3 digit
