@@ -69,7 +69,7 @@ DLLExport UCHAR patch = 0;
 DLLExport void processGateway(gateway* gate, string packet) {
 	if (gate->state == FAILURE) {
 		gate->state = CONNECTED;
-		sendTo(gate, string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
+		sendTo(gate, string({ STATE, CONNECTED, (UCHAR)major, (UCHAR)minor, (UCHAR)patch }));
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
@@ -136,16 +136,13 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 */
 				break;
 			}
-			GERTaddr target = {restShort[0], restShort[1]}; //Assign target address as first 4 bytes
-			restShort[0] = gate->addr.high; //Set first 4 bytes to source address
-			restShort[1] = gate->addr.low;
+			GERTaddr target = getAddr(rest); //Assign target address as first 4 bytes
 			rest.insert(0, { DATA }); //Read the original command byte
+			string newCmd = string{DATA} + putAddr(gate->addr) + rest.substr(4);
 			if (isRemote(target)) { //Target is remote
-				char* highaddr = (char*)&target.high;
-				char* lowaddr = (char*)&target.low;
-				rest.insert(4, string({ *highaddr, *(highaddr++), *lowaddr, *(lowaddr++)})); //Insert target for routing
+				newCmd.insert(5, putAddr(target)); //Insert target for routing
 			}
-			bool found = sendTo(target, rest); //Send modified data to target
+			bool found = sendTo(target, newCmd); //Send modified data to target
 			/*
 			 * Forwarded response to data send request
 			 * CMD DATA (3)
@@ -170,7 +167,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			return;
 		}
 		case QUERY: {
-			sendTo(gate, string({ STATE, (char)gate->state }));
+			sendTo(gate, string({ STATE, (UCHAR)gate->state }));
 			/*
 			 * Response to state request
 			 * CMD STATE (0)
@@ -206,7 +203,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 DLLExport void processGEDS(peer* geds, string packet) {
 	if (geds->state == 0) {
 		geds->state = 1;
-		sendTo(geds, string({ (char)major, (char)minor, (char)patch }));
+		sendTo(geds, string({ (UCHAR)major, (UCHAR)minor, (UCHAR)patch }));
 		/*
 		 * Initial packet
 		 * MAJOR VERSION
@@ -220,51 +217,43 @@ DLLExport void processGEDS(peer* geds, string packet) {
 	USHORT* restShort = (USHORT*)rest.c_str();
 	switch (command) {
 		case ROUTE: {
-			GERTaddr target = {restShort[2], restShort[3]};
-			GERTaddr source = {restShort[0], restShort[1]};
+			GERTaddr target = getAddr(rest.substr(4));
 			string cmd = { DATA };
-			cmd += source.high;
-			cmd += source.low;
-			cmd += rest.erase(0, 8);
+			cmd += rest.erase(4, 4);
 			sendTo(target, cmd);
 			return;
 		}
 		case REGISTERED: {
-			GERTaddr target = {restShort[0], restShort[1]};
+			GERTaddr target = getAddr(rest);
 			setRoute(target, geds);
 			return;
 		}
 		case UNREGISTERED: {
-			GERTaddr target = {restShort[0], restShort[1]};
+			GERTaddr target = getAddr(rest);
 			removeRoute(target);
 			return;
 		}
 		case RESOLVE: {
-			GERTaddr target = {restShort[0], restShort[1]};
+			GERTaddr target = getAddr(rest);
 			rest.erase(0, 4);
 			GERTkey key = rest;
 			addResolution(target, key);
 			return;
 		}
 		case UNRESOLVE: {
-			GERTaddr target = {restShort[0], restShort[1]};
+			GERTaddr target = getAddr(rest);
 			removeResolution(target);
 			return;
 		}
 		case LINK: {
-			char* restRaw = (char*)rest.c_str();
-			unsigned long ipaddr = *restRaw;
-			ipAddr target(ipaddr);
+			ipAddr target(rest);
 			rest.erase(0, 4);
-			restShort = (USHORT*)rest.c_str();
-			portComplex ports = {restShort[0], restShort[1]};
+			portComplex ports = makePorts(rest);
 			addPeer(target, ports);
 			return;
 		}
 		case UNLINK: {
-			char* restRaw = (char*)rest.c_str();
-			unsigned long ipaddr = *restRaw;
-			ipAddr target(ipaddr);
+			ipAddr target(rest);
 			removePeer(target);
 			return;
 		}
@@ -287,10 +276,10 @@ DLLExport void killGEDS(peer* geds) {
 	closeTarget(geds);
 }
 
+ENDEXPORT
+
 #ifdef _WIN32
 bool WINAPI DllMain(HINSTANCE w, DWORD a, LPVOID s) {
 	return true;
 }
 #endif
-
-ENDEXPORT

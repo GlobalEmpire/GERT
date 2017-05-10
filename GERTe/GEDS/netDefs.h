@@ -38,6 +38,7 @@ class ipAddr {
 		bool operator== (ipAddr comp) const { return (addr.s_addr == comp.addr.s_addr); };
 		ipAddr(unsigned long target) : addr(*(in_addr*)&target) {};
 		ipAddr(in_addr target) : addr(target) {};
+		ipAddr(string target) : addr(*(in_addr*)target.c_str()) {};
 		string stringify() {
 			UCHAR* rep = (UCHAR*)&addr.s_addr;
 			return to_string(rep[0]) + "." + to_string(rep[1]) + "." + to_string(rep[2]) + "." + to_string(rep[3]);

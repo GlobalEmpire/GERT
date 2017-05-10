@@ -23,7 +23,7 @@ local path = fs.path(process.running())
 local peers = {}
 local connected
 
-local version = "100"
+local version = "\1\0\0"
 local readableVersion = "1.0.0"
 
 if card.isTcpEnabled() == false then
