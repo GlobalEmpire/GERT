@@ -69,7 +69,7 @@ DLLExport UCHAR patch = 0;
 DLLExport void processGateway(gateway* gate, string packet) {
 	if (gate->state == FAILURE) {
 		gate->state = CONNECTED;
-		sendTo(gate, string({ STATE, CONNECTED, (UCHAR)major, (UCHAR)minor, (UCHAR)patch }));
+		sendTo(gate, string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
@@ -107,8 +107,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 * STATE REGISTERED (2)
 				 */
 				string cmd = {REGISTERED};
-				cmd += restShort[0];
-				cmd += restShort[1];
+				cmd += rest.substr(0, 4);
 				broadcast(cmd);
 				/*
 				 * Broadcast to all peers registration
@@ -167,7 +166,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			return;
 		}
 		case QUERY: {
-			sendTo(gate, string({ STATE, (UCHAR)gate->state }));
+			sendTo(gate, string({ STATE, (char)gate->state }));
 			/*
 			 * Response to state request
 			 * CMD STATE (0)
@@ -185,8 +184,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			 */
 			if (gate->state == REGISTERED) {
 				string cmd = {UNREGISTERED};
-				cmd += gate->addr.high;
-				cmd += gate->addr.low;
+				cmd += putAddr(gate->addr);
 				broadcast(cmd);
 				removeResolution(gate->addr);
 				/*
@@ -203,7 +201,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 DLLExport void processGEDS(peer* geds, string packet) {
 	if (geds->state == 0) {
 		geds->state = 1;
-		sendTo(geds, string({ (UCHAR)major, (UCHAR)minor, (UCHAR)patch }));
+		sendTo(geds, string({ (char)major, (char)minor, (char)patch }));
 		/*
 		 * Initial packet
 		 * MAJOR VERSION
