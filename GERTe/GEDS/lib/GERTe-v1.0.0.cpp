@@ -82,7 +82,6 @@ DLLExport void processGateway(gateway* gate, string packet) {
 	}
 	UCHAR command = packet.data()[0];
 	string rest = packet.erase(0, 1);
-	USHORT* restShort = (USHORT*)rest.c_str();
 	switch (command) {
 		case REGISTER: {
 			if (gate->state == ASSIGNED) {
@@ -95,7 +94,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 */
 				return;
 			}
-			GERTaddr request = {restShort[0], restShort[1]};
+			GERTaddr request = getAddr(rest);
 			rest.erase(0, 4);
 			GERTkey requestkey(rest);
 			if (assign(gate, request, requestkey)) {
@@ -212,7 +211,6 @@ DLLExport void processGEDS(peer* geds, string packet) {
 	}
 	UCHAR command = packet.data()[0];
 	string rest = packet.erase(0, 1);
-	USHORT* restShort = (USHORT*)rest.c_str();
 	switch (command) {
 		case ROUTE: {
 			GERTaddr target = getAddr(rest.substr(4));

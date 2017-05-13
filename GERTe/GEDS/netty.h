@@ -7,6 +7,7 @@ typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 
+void closeSock(SOCKET*);
 void startup();
 void shutdown();
 void runServer();
