@@ -1,32 +1,29 @@
 It's pronounced gurt (as in yogurt)
-
+Revision 2.0.2 May 9, 2017
 1. Introduction
-The time is NOW! With the Ocranet technology impending, it's important to decide on a standard networking implementation to allow for
-maximum compatibility and ease of use. The Global Empire is actively engaged in promoting the growth of new networking standards, and
-has stepped up to the plate for Ocranet. The time has come for GERT - Global Empire Routing Technology. GERTe is an inter-server
-networking standard built to maximize the potential of Ocranet, while GERTi is an infra-server networking bringing enterprise grade
-failure tolerance and end-user simplicity right into your OC computer.
+GERT is described in this document, to help implementations achive compatability and to provide ease of use for developers and users.
+The goal of GERT is to be simple but powerful, and at the time of writing is the main Ocranet routing system. GERTe is an inter-server
+networking standard built with the goal of making the most from Ocranet, while GERTi is an intra-server networking protocol that focues
+on ease-of-use and capabilities useful to programmers.
 
 2. Compatibility.
-GERTe (e for external) can be made compatible with any infra-server networking technology, as long as it is Ocranet/GERTe network
-addressing aware. GERTi (i for internal) can also be made compatible with any inter-server networking technology, as long as it is
-Ocranet/GERTi network addressing aware. While GERT is designed to be a leading standard for Ocranet technology, the Global Empire
-encourages enhancements to the system.
+Any infra-server networking standard can work with GERTe, as long as it is Ocranet+GERTe addressing aware. Any inter-server networking
+standard can work with GERTi, as long as it is GERTi addressing aware.
 
 3. Technical Terminology
 A. Ocranet: The base networking protocol GERT is built on. To ensure a minimum level of compatibility, this should be used as the inter
 server networking standard.
 B. Gateway: An OpenComputers computer with an internet card that is responsible from connecting an interior infra-server network to an
 external inter-server (preferably Ocranet based) network.
-C. GERT: The complete Global Empire Routing Technology package. This has been designed to be the leading Ocranet implementation with a
-maximum balance of ease of use and flexibility. It may also be referred to as GERTc for clarity.
-D. GERTe: The Global Empire Routing Technology external implementation. This is solely for communication between minecraft servers, and
+C. GERT: The complete Global Empire Routing Technology package. This includes a network that has both a GERTi network+gateway and a
+GERTe gateway. It may also be referred to as GERTc for clarity.
+D. GERTe: The Global Empire Routing Technology external implementation. This is solely for communication outside a minecraft, and
 handles gateway to gateway communication.
 E. GERTi: The Global Empire Routing Technology internal implementation. This is solely for communication inside a minecraft server using
 OC equipment.
-F. GENS: Global Empire Name service Server. Performs a similar operation as a real-world DNS server and translates an Ocranet
-"telephone" number into a real-world IP address.
-G. End-user, an OC computer that is connected to a gateway.
+F. GEDS: Global Empire Domain Server. Translates GERTe "phone numbers" to IP addresses and handles TCP networking outside of a minecraft
+server
+G. End-user: an OC computer that is connected to a gateway.
 H. Cell: An Ocranet packet.
 
 4. GERTe operation
@@ -46,105 +43,108 @@ H. Cell: An Ocranet packet.
       1b. If download succeeds, continue
     
     Operating procedure:
-    1. An Ocranet gateway receives a request to contact a server with a "telephone" number and, optionally, a port number.
-    2. The Ocranet gateway contacts a GENS server chosen randomly from the list.
-      2a. If the GENS server is successfully contacted, proceed to step 4.
-      2b. If the GENS server is unsuccessfully contacted, begin trying servers in succession from top to bottom.
-      2c. If no GENS server is reachable, throw error.
-    3. The Ocranet gateway requests that the GENS server lookup the "telephone" number and return the real-world IP address of the           number.
-      3a. If the GENS server cannot find the "telephone" number, throw error
-      3b. If the GENS server returns the real-world IP address, store internally for use.
-    4. The Ocranet gateway attempts to contact the other Ocranet gateway on either the port number provided, or the standard contact    
+    1. A GERTe gateway receives a request to contact a server with a "telephone" number and, optionally, a port number.
+    2. The GERTe gateway contacts a GENS server chosen randomly from the list.
+      2a. If the GEDS server is successfully contacted, proceed to step 4.
+      2b. If the GEDS server is unsuccessfully contacted, begin trying servers in succession from top to bottom.
+      2c. If no GEDS server is reachable, throw error.
+    3. The GERTE gateway requests that the GEDS server lookup the "telephone" number and return the real-world IP address of the     
+    number.
+      3a. If the GEDS server cannot find the "telephone" number, throw error
+      3b. If the GEDS server returns the real-world IP address, store internally for use.
+    4. The GERTe gateway attempts to contact the other GERTe gateway on either the port number provided, or the standard contact    
     port number (tbd).
       4a. If the end-point cannot be contacted, try up to 5 attempts.
       4b. If the end-point proves unreachable, throw error
       4c. If the end-point is contacted, continue.
-    5. The Ocranet starting gateway transfers data as requested over the connection, and maintains the connection until requested, or
+    5. The GERTe starting gateway transfers data as requested over the connection, and maintains the connection until requested, or
     30 minutes elapse.
-    6. Upon request, the Ocranet gateway transmits a close signal and then closes the connection.
-    
-    
-    OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE
-    update coming soon(tm)
-  D. GENS implementation details
-    1. Maintain table of "telephone" number and real-world IP address pairs.
-    2. Upon request from a new gateway / other GENS to register a new pair, contact the IP address listed on the selected port with an  
-    acknowledgement packet.
-      2a. If the gateway responds, add / update (in case of "telephone" collision) the pair to table, and proceed to 3.
-      2b. If the gateway does not respond after 5 attempts, ignore request to add pairing.
-    3. If the request did not come from another GENS, transmit pairing to other GENS so they can update the pairing.
-    4. Upon request from gateway to retrieve pairing, lookup pairing in table.
-      4a. If pairing found, transmit pairing to gateway.
-      4b. If pairing not found, transmit error to gateway.
-      
+    6. Upon request, the GERTe gateway transmits a close signal and then closes the connection.
+	
+  D. GEDS implementation details
+    1. Maintain table of "telephone" number and key pairs.
+    2. Upon request from a new gateway, receive a address key pair for registration, or is a peer:
+      2a. If the gateway sends a valid pair, assign that address to the gateway and proceed to 3.
+      2b. If the gateway sends an invalid pair continue at step 2.
+	  2c. If the connection is a known peer, continue to step 6.
+    3. Transmit to peers the registration of the gateway for routing.
+    4. Upon data request, check that the gateway is registered and continue.
+      4a. If the destination is connected to this GEDS, replace destination with source and forward to the destination.
+      4b. If the destination is connected to a different known GEDS, add the source into the packet and forward to remote GEDS.
+	  4c. If the route to the destination is not known or does not exist, respond with an error.
+	5. Loop step 4 until connection is closed.
+	6. If the peer sends a peer update command:
+		6a. If the command adds a peer, add it to the known list.
+		6b. If the command removes a peer, remove it from the known list.
+	7. If the peer sends a key update command:
+		7a. If the command adds a key, add it to the key address pair list.
+		7b. If the command removes a key, remove it from the key address pair list.
+	8. If a peer sends a registration update command:
+		8a. If the command adds a registration, mark it as the remote route for a gateway.
+		8b. If the command removes a registration, remove it from the remote routes.
+	9. If a peer sends a data route packet, transmit it to the registered gateway.
+	10. Loop to step 6.
+	
   E. GERTi integration details
   Transmission Side:
-    1. GERTi makes use of a 3-digit extension code to an Ocranet "telephone" number, so monitor all outgoing requests for the 3 digit
+    1. GERTi makes use of a 3-digit extension code to a GERTe "telephone" number, so monitor all outgoing requests for the 3 digit
     code.
-    2. Upon recognition of extended length number, strip the last 3 digits from GENS request, and use the extended format cell when in
-    communication with the destination GERTi networked gateway.
+    2. Upon recognition of extended length number, strip the last 3 digits from connection initation request, and use the extended
+    format cell when in communication with the destination.
   Reception Side:
     1. Strip the 3-digit extension code from Ocranet extended format cell.
-    2. Use the 3 digits as keys to locate UUID of computer.
-    3. Open connection to computer through GERTi routing and transmit data.
+    2. Pass the code and data on to GERTi gateway.
     
 5. GERTi Operation
   A. Premise
-    A robust internal network is necessary for Ocranet to become viable and useful for inter-server networking. GERTi provides a simple,
-    distributed, failure-tolerant network for OC computers inside of a minecraft server. GERTi handles the networking of OC computers
-    to a gateway outside of the server.
+    GERTi provides a simple, distributed, powerful, network for OC computers inside of a minecraft server. GERTi handles the networking
+    of OC computers to each other, and when enabled by an appropriate protocol (e.g. GERTe) can connect to computers outside of a
+    minecraft server.
     
   B. Implementation overview
     Upon startup, a GERTi enabled computer will use all available communication channels to attempt to reach a gateway through up to 2
-    intermediate computers. At a maximum, this allows for 1000 publicly addressable computers on an internal network with good planning,
-    and a maximum of 10 publicly addressable computers with no planning.
+    intermediate computers. This currently allows for up to 1,000 clients on any GERTi network.
     
   C. Implementation details
     Startup:
     1. Upon startup, a GERTi enabled computer checks for tunnel cards and wired/wireless network cards.
     2. If it has a linked card, attempt to check for a GERTi computer on the other end.
-      2a. If the other computer has GERTi and is Tier 0 (gateway)/Tier 1/Tier 2, store the other computer's UUID, store the other
-      computer's network card UUID, store the other computer's tier, and set this computer's tier to other computer's tier+1. Advance to
-      step 3.
-      2b. If the other computer is not GERTi enabled, advance to 3.
-    3. If it has a wired/wireless card, do a broadcast on a standard port (tbd) to look for GERTi enabled computers.
-      3a. For each reply that is from a computer with GERT and is a gateway(Tier 0)/Tier 1/Tier 2, store the other computer's UUID, and
-      store the other computer's tier. Advance to 4
+      2a. If the other computer has GERTi and is Tier 0 (gateway)/Tier 1/Tier 2, store the other computer's network card UUID, store the
+      other computer's tier, and set this computer's tier to other computer's tier+1. Advance to step 3.
+      2b. If the other computer is not GERTi enabled, do nothing and advance to 3.
+    3. If it has a wired/wireless card, do a broadcast on port 4378 to look for GERTi enabled computers.
+      3a. For each reply that is from a computer with GERTi and is a gateway(Tier 0)/Tier 1/Tier 2, store the other computer's network
+      card UUID, and store the other computer's tier. Advance to 4
       3b. If no response from any other computer, advance to 4.
-    4. Sort table entries by computers' GERTi tier, then UUID.
-    5. Assign GERTi channel numbers based on table entries.
-    6. Set this computer's tier to that of the lowest GERTi channel number's tier plus 1.
-    7. Engage listener so that other computers that send out broadcasts can connect through this computer.
-      7a. On connection request, reply with computer Tier number, computer UUID, and network card number, if this computer is lower than
-      tier 0/1/2.
-    8. Forward local database connections up through chain to gateway.
+    4. Sort table entries by computers' GERTi tier.
+    5. Set this computer's tier to that of the lowest GERTi channel number's tier plus 1.
+    6. Engage listener so that other computers that send out broadcasts can connect through this computer.
+      6a. On startup message reception, reply with computer Tier number, network card UUID, if this computer is tier 0/1/2.
+    7. Forward local database connections up through chain to gateway.
     
     Communication
-    1. Upon inter-server communication requests from within the computer, attempt to connect to lowest tier number connection.
-      1a. Upon initial acknowledgement request, continue sending all communications through that node.
-      1a. If the acknowledgement request fails, attempt to contact gateway through successively higher tier number nodes.
+    1. Upon inter-server communication requests from within the computer, attempt to connect to gateway, either directly, or through the
+    highest ranked parent node.
+      1a. If gateway acknowledges connection, forward data through it, and out of the network.
+      1b. If gateway does not respond, report an error.
     2. Upon inter-server communication request from a child node, follow step 1.
-      2a. If step 1 fails, send a FAIL cell to child node.
-      2b. If step 1 succeeds, send a CONNECT cell to child node.
-    3. Upon infra-server communication request from within the computer, attempt to lookup target computer UUID in local database
-      3a. If UUID is found, transmit directly, skip rest of 7.
+    3. Upon infra-server communication request from within the computer, attempt to lookup target network card UUID in local database.
+      3a. If UUID is found, transmit directly, skip rest of 3.
       3b. If UUID is not found, request parent node to look up UUID in its local database.
-      3c. Continue requesting up chain until connection achieved or gateway reached, then use gateway to route.
-    4. Upon infra-server communication request from a child node, attempt to lookup target computer UUID in local database.
-      4a. If UUID is found, transmit CONNECT cell to child node and route directly, skip rest of 8.
+      3c. If parent does not respond, report error.
+    4. Upon infra-server communication request from a child node, attempt to lookup target network card UUID in local database.
+      4a. If UUID is found, attempt to open connection to network card, and notify child of success.
       4b. If UUID is not found, request parent node to look up UUID in its local database.
-      4c. Continue requesting up chain until connection achieved or gateway reached, then use gateway to route.
-      4d. Upon receiving CONNECT, transmit connect to child node, and route through CONNECT sender.
+      4c. If parent does not respond, report error.
    D. GERTi Gateway operation
     Startup:
-    1. Follow normal startup operation for a GERTi device, but mark computer as Tier 0.
+    1. Register event listener to listen for new clients.
     2. Attempt to connect to external routing protocol (GERTe preferred, but not necessary)
     3. Collect and organize routing table and paths to every child node.
     
     Communication:
     1. Upon infra-server communication request from a child node, look up most efficient (fewest hops) path to requested node.
       1a. If path found and verified, route communication to destination
-      1b. If path not found / not usable, attempt to route through alternate paths.
-      1c. If no paths usable / device not found, transmit FAIL cell to originator node.
+      1b. If no paths found, report error.
     2. Upon inter-server communication request from a child node, prepare Ocranet cell for transmission to external routing protocol.
-2a. If external protocol not available, send FAIL cell.
+	2a. If external protocol not available, send FAIL cell.
