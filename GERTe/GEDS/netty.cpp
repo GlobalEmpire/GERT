@@ -23,7 +23,6 @@ typedef int SOCKET; //Define SOCK type as integer
 typedef timeval TIMEVAL;
 #endif
 #include "netDefs.h"
-#include "peerManager.h"
 #include <thread>
 #include <map>
 #include <forward_list>
@@ -31,6 +30,7 @@ typedef timeval TIMEVAL;
 #include "keyMngr.h"
 #include "libLoad.h"
 #include "logging.h"
+#include "peerManager.h"
 using namespace std;
 
 typedef unsigned long ULONG;
@@ -61,7 +61,7 @@ extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
 
-void closeSock(SOCKET * target) { //Close a socket
+void destroy(SOCKET * target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
 	closesocket(*target); //Close socket using WinSock API
 #else //If not compiled for Windows
@@ -70,6 +70,9 @@ void closeSock(SOCKET * target) { //Close a socket
 	delete target;
 }
 
+void destroy(void * target) {
+	destroy((SOCKET*) target);
+}
 
 void killConnections() {
 	for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
@@ -86,7 +89,7 @@ void killConnections() {
 //PUBLIC
 void closeTarget(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
-	closeSock((SOCKET*)target->sock); //Close the socket
+	destroy((SOCKET*)target->sock); //Close the socket
 	log("Disassociation from " + target->addr.stringify());
 }
 
@@ -203,7 +206,7 @@ void initGate(SOCKET * newSocket) {
 	if (api == nullptr) {
 		char error[3] = { 0, 0, 0 };
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
-		closeSock(newSocket); //Close the socket
+		destroy(newSocket); //Close the socket
 	}
 	else { //Major version found
 		gateway * newConnection = new gateway(newSocket, api);
@@ -250,18 +253,6 @@ bool assign(gateway* requestee, GERTaddr requested, GERTkey key) {
 	}
 	return false;
 }
-
-/*void addPeer(ipAddr addr, portComplex ports) {
-	peerList[addr] = knownPeer(addr, ports);
-	if (running)
-		log("New peer " + addr.stringify());
-}
-
-void removePeer(ipAddr addr) {
-	map<ipAddr, knownPeer>::iterator iter = peerList.find(addr);
-	peerList.erase(iter);
-	log("Removed peer " + addr.stringify());
-}*/
 
 //PUBLIC
 void setRoute(GERTaddr target, peer* route) {
@@ -316,9 +307,10 @@ void broadcast(string data) {
 void buildWeb() {
 	version* best = getVersion(highestVersion());
 	versioning vers = best->vers;
-	for (knownIter iter = peerList.begin(); iter != peerList.end(); iter++) {
-		ipAddr ip = iter->first;
-		portComplex ports = iter->second.ports;
+	for (knownIter iter; !iter.isEnd(); iter++) {
+		ipAddr ip = (*iter).addr;
+		knownPeer known = *iter;
+		portComplex ports = known.ports;
 		if (ports.peer == 0) {
 			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
 			continue;
@@ -345,13 +337,13 @@ void buildWeb() {
 		int result2 = poll(&pollReq, 1, 5);
 #endif
 		if (result2 < 1) {
-			closeSock(newSock);
+			destroy(newSock);
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
 		}
 		recv(*newSock, death, 3, 0);
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
-			closeSock(newSock);
+			destroy(newSock);
 			continue;
 		}
 #ifdef _WIN32
@@ -383,4 +375,3 @@ portComplex makePorts(string data) {
 	USHORT * ptr = (USHORT*)data.c_str();
 	return portComplex{ntohs(*ptr), ntohs(*ptr++)};
 }
-

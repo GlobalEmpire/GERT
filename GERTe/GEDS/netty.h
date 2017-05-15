@@ -7,12 +7,10 @@ typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 
-void closeSock(SOCKET*);
+void destroy(void*);
 void startup();
 void shutdown();
 void runServer();
-void addPeer(ipAddr, portComplex);
-void removePeer(ipAddr);
 void setRoute(GERTaddr, peer*);
 void removeRoute(GERTaddr);
 void killConnections();

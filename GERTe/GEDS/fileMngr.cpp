@@ -1,11 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "logging.h"
-#include "netty.h"
+#include "peerManager.h"
 #include "keyMngr.h"
 #include <map>
 
-typedef map<ipAddr, knownPeer>::iterator peerIter;
 typedef map<GERTaddr, GERTkey>::iterator keyIter;
 
 enum errors {
@@ -63,8 +62,8 @@ int loadResolutions() {
 
 void savePeers() {
 	FILE * peerFile = fopen("peers.geds", "wb");
-	for (peerIter iter = peerList.begin(); iter != peerList.end(); iter++) {
-		knownPeer tosave = iter->second;
+	for (knownIter iter; !iter.isEnd(); iter++) {
+		knownPeer tosave = *iter;
 		unsigned long addr = htonl((unsigned long)tosave.addr.addr.s_addr);
 		fwrite(&addr, 4, 1, peerFile);
 		unsigned short gateport = htons(tosave.ports.gate);

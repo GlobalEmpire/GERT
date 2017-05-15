@@ -9,6 +9,7 @@ typedef int SOCKET;
 
 #include <map>
 #include "netDefs.h"
+#include "peerManager.h"
 #include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
@@ -20,20 +21,23 @@ typedef map<ipAddr, knownPeer>::iterator authPtr;
 map<ipAddr, peer*> peers;
 map<ipAddr, knownPeer> peerList;
 
+extern bool running;
+
 #ifdef _WIN32
 const int iplen = 16;
 #else
 const unsigned int iplen = 16;
 #endif
 
-class peerIter {
-	peersPtr ptr;
-	public:
-		bool isEnd() {return ptr == peers.end();}
-		peerIter operator++ (int a) {return (ptr++, *this);}
-		peerIter() : ptr(peers.begin()) {};
-		peer* operator*() {return ptr->second;};
-};
+bool peerIter::isEnd() { return ptr == peers.end(); }
+peerIter peerIter::operator++ (int a) { return (ptr++, *this); }
+peerIter::peerIter() : ptr(peers.begin()) {};
+peer* peerIter::operator*() { return ptr->second; }
+
+bool knownIter::isEnd() { return ptr == peerList.end(); }
+knownIter knownIter::operator++ (int a) { return (ptr++, *this); }
+knownIter::knownIter() : ptr(peerList.begin()) {};
+knownPeer knownIter::operator*() { return ptr->second; }
 
 void watcher() {
 	for (peersPtr iter; iter != peers.end(); iter++) {
@@ -51,13 +55,14 @@ void watcher() {
 }
 
 void closeTarget(peer* target) {
-	killAssociated(target);
+	//killAssociated(target);
 	peers.erase(target->addr);
-	closeSock((SOCKET*)target->sock);
+	destroy((SOCKET*)target->sock);
 	log("Peer " + target->addr.stringify() + " disconnected");
 }
 
-void initPeer(SOCKET * newSocket) {
+void initPeer(void * newSock) {
+	SOCKET * newSocket = (SOCKET*)newSock;
 #ifdef _WIN32
 	ioctlsocket(*newSocket, FIONBIO, &nonZero);
 #else
@@ -71,7 +76,7 @@ void initPeer(SOCKET * newSocket) {
 	if (api == nullptr) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
-		closeSock(newSocket); //Close the socket
+		destroy(newSocket); //Close the socket
 	}
 	else { //Major version found
 		sockaddr remotename;
@@ -94,4 +99,16 @@ peer* lookup(ipAddr target) {
 
 void _raw_peer(ipAddr key, peer* value) {
 	peers[key] = value;
+}
+
+void addPeer(ipAddr addr, portComplex ports) {
+	peerList[addr] = knownPeer(addr, ports);
+	if (running)
+		log("New peer " + addr.stringify());
+}
+
+void removePeer(ipAddr addr) {
+	map<ipAddr, knownPeer>::iterator iter = peerList.find(addr);
+	peerList.erase(iter);
+	log("Removed peer " + addr.stringify());
 }
