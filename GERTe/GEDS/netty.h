@@ -11,18 +11,9 @@ void destroy(void*);
 void startup();
 void shutdown();
 void runServer();
-void setRoute(GERTaddr, peer*);
-void removeRoute(GERTaddr);
 void killConnections();
-bool sendTo(GERTaddr, string);
-void sendTo(ipAddr, string);
 void sendTo(gateway*, string);
 void sendTo(peer*, string);
-bool isRemote(GERTaddr);
 void process();
-void closeTarget(gateway*);
-void closeTarget(peer*);
-bool assign(gateway*, GERTaddr, GERTkey);
 void buildWeb();
-void broadcast(string);
 #endif

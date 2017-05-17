@@ -112,3 +112,13 @@ void removePeer(ipAddr addr) {
 	peerList.erase(iter);
 	log("Removed peer " + addr.stringify());
 }
+
+void sendTo(ipAddr addr, string data) {
+	sendTo(peers[addr], data);
+}
+
+void broadcast(string data) {
+	for (peerIter iter; !iter.isEnd(); iter++) {
+		sendTo(*iter, data);
+	}
+}

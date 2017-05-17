@@ -24,27 +24,17 @@ typedef timeval TIMEVAL;
 #endif
 #include "netDefs.h"
 #include <thread>
-#include <map>
-#include <forward_list>
 #include <cstring>
 #include "keyMngr.h"
 #include "libLoad.h"
 #include "logging.h"
 #include "peerManager.h"
+#include "routeManager.h"
+#include "gatewayManager.h"
 using namespace std;
 
 typedef unsigned long ULONG;
 typedef unsigned char UCHAR;
-typedef map<GERTaddr, gateway*>::iterator gateIter;
-typedef map<GERTaddr, peer*>::iterator remoteIter;
-typedef forward_list<gateway*>::iterator noAddrIter;
-
-//WARNING: DOES NOT HANDLE NETWORK PROCESSING INTERNALLY!!!
-
-map<GERTaddr, gateway*> gateways;
-map<GERTaddr, peer*> remoteRoutes;
-
-forward_list<gateway*> noAddr;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set gateTest, gedsTest, nullSet; //Define test sets and null set
@@ -75,32 +65,25 @@ void destroy(void * target) {
 }
 
 void killConnections() {
-	for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
-		iter->second->kill();
+	for (gatewayIter iter; !iter.isEnd(); iter++) {
+		(*iter)->kill();
 	}
 	for (peerIter iter; !iter.isEnd(); iter++) {
 		(*iter)->kill();
 	}
-	for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+	for (noAddrIter iter; !iter.isEnd(); iter++) {
 		(*iter)->kill();
 	}
-}
-
-//PUBLIC
-void closeTarget(gateway* target) { //Close a full connection
-	gateways.erase(target->addr); //Remove connection from universal map
-	destroy((SOCKET*)target->sock); //Close the socket
-	log("Disassociation from " + target->addr.stringify());
 }
 
 //PUBLIC
 void process() {
 	while (running) {
-		for (gateIter iter = gateways.begin(); iter != gateways.end(); iter++) {
-			if (iter->second == nullptr)
+		for (gatewayIter iter; !iter.isEnd(); iter++) {
+			if (*iter == nullptr)
 				break;
 			char buf[256];
-			gateway* conn = iter->second;
+			gateway* conn = *iter;
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
 			if (result == 0)
 				continue;
@@ -120,7 +103,7 @@ void process() {
 				continue;
 			conn->process(buf);
 		}
-		for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+		for (noAddrIter iter; !iter.isEnd(); iter++) {
 			if (*iter == nullptr)
 				break;
 			char buf[256];
@@ -192,100 +175,21 @@ void shutdown() {
 #endif
 }
 
-void initGate(SOCKET * newSocket) {
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
-#endif
-	char buf[3];
-	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
-	log((string)"Gateway using " + buf[0] + "." + buf[1] + "." + buf[2]);
-	UCHAR major = buf[0]; //Major version number
-	version* api = getVersion(major);
-	if (api == nullptr) {
-		char error[3] = { 0, 0, 0 };
-		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
-		destroy(newSocket); //Close the socket
-	}
-	else { //Major version found
-		gateway * newConnection = new gateway(newSocket, api);
-		noAddr.push_front(newConnection);
-		newConnection->process("");
-	}
-}
-
 //PUBLIC
 void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		if (select(0, &gateTest, &nullSet, &nullSet, &nonBlock) > 0) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
-			initGate(newSock);
+			initGate((void*)newSock);
 		}
 		if (select(0, &gedsTest, &nullSet, &nullSet, &nonBlock) > 0) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
-			initPeer(newSocket);
+			initPeer((void*)newSocket);
 		}
 		this_thread::yield(); //Release CPU
 	}
-}
-
-bool assign(gateway* requestee, GERTaddr requested, GERTkey key) {
-	if (checkKey(requested, key)) {
-		requestee->addr = requested;
-		gateways[requested] = requestee;
-		noAddrIter last = noAddr.begin();
-		if (*last == requestee) {
-			noAddr.pop_front();
-			return true;
-		}
-		for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
-			if (*iter == requestee) {
-				noAddr.erase_after(last);
-				break;
-			}
-			last++;
-		}
-		log("Association from " + requested.stringify());
-		return true;
-	}
-	return false;
-}
-
-//PUBLIC
-void setRoute(GERTaddr target, peer* route) {
-	remoteRoutes[target] = route;
-	log("Received routing information for " + target.stringify());
-}
-
-//PUBLIC
-void removeRoute(GERTaddr target) {
-	remoteRoutes.erase(target);
-	log("Lost routing information for " + target.stringify());
-}
-
-//PUBLIC COMPAT
-bool isRemote(GERTaddr target) {
-	return remoteRoutes.count(target) > 0;
-}
-
-//PUBLIC
-bool sendTo(GERTaddr addr, string data) {
-	if (gateways.count(addr) != 0)
-		send(*(SOCKET*)gateways[addr]->sock, data.c_str(), (ULONG)data.length(), 0);
-	else if (remoteRoutes.count(addr) != 0)
-		send(*(SOCKET*)remoteRoutes[addr]->sock, data.c_str(), (ULONG)data.length(), 0); //ENSURE ROUTE AND DATA ARE SAME COMMAND CODE
-	else
-		return false;
-	return true;
-}
-
-//PUBLIC
-void sendTo(ipAddr addr, string data) {
-	peer* target = lookup(addr);
-	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 //PUBLIC
@@ -296,12 +200,6 @@ void sendTo(gateway* target, string data) {
 //PUBLIC
 void sendTo(peer* target, string data) {
 	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
-}
-
-void broadcast(string data) {
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		sendTo(*iter, data);
-	}
 }
 
 void buildWeb() {

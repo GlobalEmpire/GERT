@@ -2,21 +2,18 @@
 #include "keyDef.h"
 #include "netDefs.h"
 #include <map>
-#include <forward_list>
+#include <vector>
 #include "logging.h"
+#include "peerManager.h"
+#include "gatewayManager.h"
 
 typedef unsigned long long pointer;
-
-typedef map<ipAddr, peer*>::iterator peersIter;
-typedef map<GERTaddr, gateway*>::iterator gatewaysIter;
-
-typedef forward_list<gateway*>::iterator noAddrIter;
 
 //BEGIN VARIABLE HOOKS
 extern map<ipAddr, peer*> peers;
 extern map<GERTaddr, gateway*> gateways;
 
-extern forward_list<gateway*> noAddr;
+extern vector<gateway*> noAddrList;
 //END VARIABLE HOOKS
 
 enum scanResult {
@@ -72,8 +69,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
-	for (peersIter iter = peers.begin(); iter != peers.end(); iter++) {
-		peer * checkpeer = iter->second;
+	for (peerIter iter; !iter.isEnd(); iter++) {
+		peer * checkpeer = *iter;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
@@ -93,16 +90,16 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 		peerErr = true;
 	total += errs;
 	errs = 0;
-	for (gatewaysIter iter = gateways.begin(); iter != gateways.end(); iter++) {
-		gateway * checkgate = iter->second;
-		GERTaddr addrstrct = iter->first;
+	for (gatewayIter iter; !iter.isEnd(); iter++) {
+		gateway * checkgate = *iter;
+		GERTaddr addrstrct = checkgate->addr;
 		string addr = addrstrct.stringify();
 		errs += scanGateway(checkgate, addr);
 	}
 	debug("[ESCAN] Gateway error count: " + to_string(errs));
 	total += errs;
 	errs = 0;
-	for (noAddrIter iter = noAddr.begin(); iter != noAddr.end(); iter++) {
+	for (noAddrIter iter; !iter.isEnd(); iter++) {
 		gateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}

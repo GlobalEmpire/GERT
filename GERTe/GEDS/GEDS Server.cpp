@@ -23,7 +23,6 @@ typedef unsigned short ushort;
 #include "logging.h"
 #include "overwatch.h"
 #include "fileMngr.h"
-#include "crypto.h"
 #include <exception>
 using namespace std; //Default namespace to std
 

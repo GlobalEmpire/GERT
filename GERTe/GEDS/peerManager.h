@@ -31,4 +31,7 @@ void _raw_peer(ipAddr, peer*);
 void closeTarget(peer*);
 void addPeer(ipAddr, portComplex);
 void removePeer(ipAddr);
+void sendTo(ipAddr, string);
+void broadcast(string);
+void initPeer(void*);
 #endif
