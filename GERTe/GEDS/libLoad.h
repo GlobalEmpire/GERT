@@ -1,6 +1,5 @@
 #ifndef __LIBLOAD__
 #define __LIBLOAD__
-#include <string>
 #include "libDefs.h"
 using namespace std;
 

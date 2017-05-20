@@ -1,7 +1,7 @@
 /* 
 	This is the primary code for the GEDS server.
 	This file implements platform independent definitions for internet sockets.
-	Supported platforms are currently Linux(/Unix) and Windows
+	Supported platforms are currently Linux(/Unix)
 	To modify the default ports change the numbers in the config.h file.
 	
 	This code is designed to function with other code from
@@ -15,12 +15,10 @@ typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort;
 
 #include <thread> //Include thread type
-#include <string> //Include string type
 #include <signal.h> //Include signal processing API
 #include <iostream>
 #include "netty.h"
 #include "libLoad.h"
-#include "logging.h"
 #include "overwatch.h"
 #include "fileMngr.h"
 #include <exception>
@@ -166,6 +164,9 @@ int main( int argc, char* argv[] ) {
 
 	running = true;
 
+	debug("Starting overwatch garbage sorter");
+	thread watcher(overwatch);
+
 	debug("Starting message processor");
 	thread processor(process);
 
@@ -177,6 +178,9 @@ int main( int argc, char* argv[] ) {
 	debug("Waiting for message processor to exit");
 	processor.join(); //Cleanup processor (wait for it to die)
 	warn("Processor killed, program ending.");
+
+	debug("Waiting for overwatch garbage sorter to exit");
+	watcher.join();
 
 	debug("Cleaning up servers");
 	shutdown();//Cleanup servers

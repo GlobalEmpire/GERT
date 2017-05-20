@@ -6,6 +6,9 @@
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
+typedef int SOCKET;
+
+const unsigned int iplen = 16;
 
 void destroy(void*);
 void startup();

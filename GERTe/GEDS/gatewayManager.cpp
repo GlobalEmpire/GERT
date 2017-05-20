@@ -1,17 +1,11 @@
 #include "netDefs.h"
 #include "keyMngr.h"
-#include <sys/socket.h> //Load C++ standard socket API
-#include <netinet/ip.h>
+#include <sys/socket.h>
 #include <fcntl.h>
-#include <map>
-#include <vector>
-#include "logging.h"
 #include "libLoad.h"
 #include "gatewayManager.h"
 #include "netty.h"
 #include "routeManager.h"
-
-typedef int SOCKET;
 
 map<GERTaddr, gateway*> gateways;
 vector<gateway*> noAddrList;
@@ -82,5 +76,20 @@ void initGate(void * newSock) {
 void closeTarget(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
 	destroy((SOCKET*)target->sock); //Close the socket
+	delete target;
 	log("Disassociation from " + target->addr.stringify());
+}
+
+void gateWatcher(){
+	for (gatewayPtr iter = gateways.begin(); iter != gateways.end(); iter++) {
+		gateway* target = iter->second;
+		if (target == nullptr || target->sock == nullptr) {
+			iter = gateways.erase(iter);
+			error("Null pointer in gateway map");
+			continue;
+		}
+		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
+			closeTarget(target);
+		}
+	}
 }

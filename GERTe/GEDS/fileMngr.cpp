@@ -1,9 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "logging.h"
 #include "peerManager.h"
 #include "keyMngr.h"
-#include <map>
 
 typedef map<GERTaddr, GERTkey>::iterator keyIter;
 

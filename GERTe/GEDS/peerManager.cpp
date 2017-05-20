@@ -2,32 +2,16 @@
  * Manages peers and their associated connections for mapping use.
  */
 
-#ifndef _WIN32
 #include <fcntl.h>
-typedef int SOCKET;
-#endif
-
-#include <map>
-#include "netDefs.h"
 #include "peerManager.h"
 #include "netty.h"
 #include "routeManager.h"
-#include "logging.h"
 #include "libLoad.h"
-
-typedef map<ipAddr, peer*>::iterator peersPtr;
-typedef map<ipAddr, knownPeer>::iterator authPtr;
 
 map<ipAddr, peer*> peers;
 map<ipAddr, knownPeer> peerList;
 
 extern bool running;
-
-#ifdef _WIN32
-const int iplen = 16;
-#else
-const unsigned int iplen = 16;
-#endif
 
 bool peerIter::isEnd() { return ptr == peers.end(); }
 peerIter peerIter::operator++ (int a) { return (ptr++, *this); }
@@ -39,13 +23,12 @@ knownIter knownIter::operator++ (int a) { return (ptr++, *this); }
 knownIter::knownIter() : ptr(peerList.begin()) {};
 knownPeer knownIter::operator*() { return ptr->second; }
 
-void watcher() {
-	for (peersPtr iter; iter != peers.end(); iter++) {
+void peerWatcher() {
+	for (peersPtr iter = peers.begin(); iter != peers.end(); iter++) {
 		peer* target = iter->second;
 		if (target == nullptr || target->sock == nullptr) {
-			ipAddr temp = iter++->first;
-			peers.erase(iter->first);
-			iter = peers.find(temp);
+			iter = peers.erase(iter);
+			error("Null pointer in peer map");
 			continue;
 		}
 		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
@@ -55,9 +38,10 @@ void watcher() {
 }
 
 void closeTarget(peer* target) {
-	//killAssociated(target);
+	killAssociated(target);
 	peers.erase(target->addr);
 	destroy((SOCKET*)target->sock);
+	delete target;
 	log("Peer " + target->addr.stringify() + " disconnected");
 }
 

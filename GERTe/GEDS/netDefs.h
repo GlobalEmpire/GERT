@@ -1,13 +1,7 @@
 #ifndef __NETDEFS__
 #define __NETDEFS__
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#include <IPHlpApi.h>
-#else
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#endif
 #include <string>
 #include "libDefs.h"
 #include "logging.h"

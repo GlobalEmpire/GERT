@@ -3,11 +3,11 @@
 #include "netDefs.h"
 #include <map>
 
-typedef map<ipAddr, peer*>::iterator peerPtr;
+typedef map<ipAddr, peer*>::iterator peersPtr;
 typedef map<ipAddr, knownPeer>::iterator knownPtr;
 
 class peerIter {
-	peerPtr ptr;
+	peersPtr ptr;
 	public:
 		bool isEnd();
 		peerIter operator++(int);
@@ -24,7 +24,7 @@ class knownIter {
 		knownPeer operator*();
 };
 
-void watcher();
+void peerWatcher();
 void initPeer(void*);
 peer* lookup(ipAddr);
 void _raw_peer(ipAddr, peer*);

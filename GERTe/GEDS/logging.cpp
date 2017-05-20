@@ -1,7 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <string>
-#include <iostream>
+#include "logging.h"
 #include <time.h>
 using namespace std;
 

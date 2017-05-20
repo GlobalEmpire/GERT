@@ -30,4 +30,5 @@ gateway* getGate(GERTaddr);
 bool sendTo(GERTaddr, string);
 void initGate(void *);
 void closeTarget(gateway*);
+void gateWatcher();
 #endif

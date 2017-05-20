@@ -9,12 +9,7 @@
 
 typedef unsigned long long pointer;
 
-//BEGIN VARIABLE HOOKS
-extern map<ipAddr, peer*> peers;
-extern map<GERTaddr, gateway*> gateways;
-
-extern vector<gateway*> noAddrList;
-//END VARIABLE HOOKS
+extern bool running;
 
 enum scanResult {
 	CLEAN,
@@ -112,7 +107,9 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	return MAJOR_ERR;
 }
 
-/*
 void overwatch() {
-	//Implement some kind of overwatch for pointers and garbage collecting them.
-}*/
+	while (running) {
+		gateWatcher();
+		peerWatcher();
+	}
+}

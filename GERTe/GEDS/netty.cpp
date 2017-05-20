@@ -1,16 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
-#ifdef _WIN32 //If compiled for windows
-#include <Windows.h> //Include windows API
-#include <winsock2.h> //Include Winsock v2
-#include <ws2tcpip.h> //Include windows TCP API
-#include <iphlpapi.h> //Include windows IP helper API
-#pragma comment(lib, "Ws2_32.lib")
-typedef int LEN;
-#else //If not compiled for windows (assumed linux)
 #include <sys/socket.h> //Load C++ standard socket API
-#include <netinet/ip.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/time.h>
@@ -18,33 +9,20 @@ typedef int LEN;
 #include <sys/select.h>
 #include <unistd.h>
 #include <poll.h>
-typedef unsigned int LEN;
-typedef int SOCKET; //Define SOCK type as integer
-typedef timeval TIMEVAL;
-#endif
-#include "netDefs.h"
 #include <thread>
 #include <cstring>
-#include "keyMngr.h"
 #include "libLoad.h"
-#include "logging.h"
 #include "peerManager.h"
 #include "routeManager.h"
 #include "gatewayManager.h"
+#include "netty.h"
 using namespace std;
 
-typedef unsigned long ULONG;
-typedef unsigned char UCHAR;
+typedef timeval TIMEVAL;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set gateTest, gedsTest, nullSet; //Define test sets and null set
 TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
-
-#ifdef _WIN32
-u_long nonZero = 1;
-#endif
-
-LEN iplen = 16;
 
 extern volatile bool running;
 extern char * gatewayPort;
