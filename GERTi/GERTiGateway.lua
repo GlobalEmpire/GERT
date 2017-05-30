@@ -153,7 +153,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	end
 end
 
-handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
+handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
 	local doesExist = false
 	local childTier = 1
 	print("GERTiStartReceived")

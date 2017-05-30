@@ -1,6 +1,7 @@
 -- Under Construction
 local GERTi = {}
 local component = require("component")
+local computer = require("computer")
 local event = require("event")
 local serialize = require("serialization")
 local modem = nil
@@ -43,10 +44,10 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
 	neighbors[neighborDex]["address"] = sendingModem
 	neighbors[neighborDex]["port"] = tonumber(port)
 	if package == nil then
-		--This is used for when a computer receives a new client's GERTiStart message. It stores a neighbor connection with a tier one lower than this computer's tier
+		--This is used for when a computer receives a new client's AddNeighbor message. It stores a neighbor connection with a tier one lower than this computer's tier
 		neighbors[neighborDex]["tier"] = (tier+1)
 	else
-		-- This is used for when a computer receives replies to its GERTiStart message.
+		-- This is used for when a computer receives replies to its AddNeighbor message.
 		neighbors[neighborDex]["tier"] = tonumber(package)
 		if tonumber(package) < tier then
 			-- attempt to set this computer's tier to one lower than the highest ranked neighbor.
@@ -92,6 +93,14 @@ local function storeData(connectNum, data)
 	return true
 end
 
+local function removeNeighbor(address)
+	for key, value in pairs(neighbors) do
+		if value["address"] = address then
+			table.remove(neighbors, key)
+			break
+		end
+	end
+end
 -- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
 	if (port ~= 0) and (modem) then
@@ -101,6 +110,15 @@ local function transmitInformation(sendTo, port, ...)
 	end
 
 	io.stderr:write("Tried to transmit, but no network card or linked card was found.")
+	return false
+end
+
+handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
+	-- Process AddNeighbor messages and add them as neighbors
+	if tier < 3 then
+		storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
+		return transmitInformation(sendingModem, port, "RETURNSTART", tier)
+	end
 	return false
 end
 
@@ -117,6 +135,11 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 		end
 	end
 	return false
+end
+
+handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, serialTable)
+	-- Forward neighbor tables up the chain to the gateway
+	return transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "GERTiForwardTable", serialTable)
 end
 
 -- opens a route using the given information, used in handler["OPENROUTE"] and GERTi.openRoute()
@@ -162,19 +185,9 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	return false
 end
 
-
-handler["GERTiStart"] = function (eventName, receivingModem, sendingModem, port, distance, code)
-	-- Process GERTiStart messages and add them as neighbors
-	if tier < 3 then
-		storeNeighbors(eventName, receivingModem, sendingModem, port, distance, nil)
-		return transmitInformation(sendingModem, port, "RETURNSTART", tier)
-	end
-	return false
-end
-
-handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, serialTable)
-	-- Forward neighbor tables up the chain to the gateway
-	return transmitInformation(neighbors[1]["address"], neighbors[1]["port"], serialTable)
+handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
+	removeNeighbor(origination)
+	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RemoveNeighbor", origination)
 end
 
 handler["RETURNSTART"] = function (eventName, receivingModem, sendingModem, port, distance, code, tier)
@@ -190,14 +203,15 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 	end
 end
 
+-- Begin startup ---------------------------------------------------------------------------------------------------------------------------
 -- transmit broadcast to check for neighboring GERTi enabled computers
 if tunnel then
-	tunnel.send("GERTiStart")
+	tunnel.send("AddNeighbor")
 	receivePacket(event.pull(1, "modem_message"))
 end
 
 if modem then
-	modem.broadcast(4378, "GERTiStart")
+	modem.broadcast(4378, "AddNeighbor")
 	local continue = true
 	while continue do
 		continue = receivePacket(event.pull(1, "modem_message"))
@@ -207,6 +221,19 @@ end
 -- Register event listener to receive packets from now on
 event.listen("modem_message", receivePacket)
 
+--Override computer.shutdown to allow for better network leaves
+computer.shutdowner = computer.shutdown
+local function safedown(...)
+	if tunnel then
+		tunnel.send("RemoveNeighbor")
+	end
+	if modem then
+		modem.broadcast("RemoveNeighbor")
+	end
+	computer.shutdowner(...)
+end
+computer.shutdown = safedown
+
 -- forward neighbor table up the line
 local serialTable = serialize.serialize(neighbors)
 print(serialTable)
@@ -214,7 +241,8 @@ if serialTable ~= "{}" then
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "GERTiForwardTable", modem.address, tier, serialTable)
 end
 
--- startup procedure is now complete
+-- startup procedure is now complete ------------------------------------------------------------------------------------------------------------
+
 -- begin procedure to allow for data transmission
 -- this function allows a connection to the requested destination device, should only be used publicly if low-level operation is desired (e.g. another protocol that sits on top of GERTi to further manage networking)
 function GERTi.openRoute(destination)
