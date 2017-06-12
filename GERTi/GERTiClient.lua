@@ -61,6 +61,15 @@ local function storeNeighbors(eventName, receivingModem, sendingModem, port, dis
 	return true
 end
 
+local function removeNeighbor(address)
+	for key, value in pairs(neighbors) do
+		if value["address"] == address then
+			table.remove(neighbors, key)
+			break
+		end
+	end
+end
+
 local function storeConnection(origination, destination, beforeHop, nextHop, port)
 	connections[connectDex] = {}
 	connections[connectDex]["destination"] = destination
@@ -93,14 +102,6 @@ local function storeData(connectNum, data)
 	return true
 end
 
-local function removeNeighbor(address)
-	for key, value in pairs(neighbors) do
-		if value["address"] = address then
-			table.remove(neighbors, key)
-			break
-		end
-	end
-end
 -- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
 	if (port ~= 0) and (modem) then
@@ -225,10 +226,10 @@ event.listen("modem_message", receivePacket)
 computer.shutdowner = computer.shutdown
 local function safedown(...)
 	if tunnel then
-		tunnel.send("RemoveNeighbor")
+		tunnel.send("RemoveNeighbor", modem.address)
 	end
 	if modem then
-		modem.broadcast("RemoveNeighbor")
+		modem.broadcast(4378, "RemoveNeighbor", modem.address)
 	end
 	computer.shutdowner(...)
 end

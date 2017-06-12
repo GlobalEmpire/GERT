@@ -52,6 +52,15 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
 	return (childNum-1)
 end
 
+local function removeChild(address)
+	for key, value in pairs(childNodes) do
+		if value["address"] == address then
+			table.remove(childNodes, key)
+			break
+		end
+	end
+end
+
 local function storeConnection(destination, origination, beforeHop, nextHop, port)
 	connections[connectDex] = {}
 	connections[connectDex]["destination"] = destination
@@ -78,6 +87,26 @@ local function transmitInformation(sendTo, port, ...)
 	end
 	io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
 	return false
+end
+
+handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
+	local doesExist = false
+	local childTier = 1
+	print("GERTiStartReceived")
+	for key,value in pairs(childNodes) do
+		if value["address"] == sendingModem then
+			doesExist = true
+			childNodes[key]["tier"] = childTier
+			childNodes[key]["port"] = port
+			childNodes[key]["children"] = {}
+			childNodes[key]["parents"] = {}
+			break
+		end
+	end
+	if doesExist == false then
+		storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
+	end
+	transmitInformation(sendingModem, port, "RETURNSTART", tier)
 end
 
 handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
@@ -153,26 +182,6 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	end
 end
 
-handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
-	local doesExist = false
-	local childTier = 1
-	print("GERTiStartReceived")
-	for key,value in pairs(childNodes) do
-		if value["address"] == sendingModem then
-			doesExist = true
-			childNodes[key]["tier"] = childTier
-			childNodes[key]["port"] = port
-			childNodes[key]["children"] = {}
-			childNodes[key]["parents"] = {}
-			break
-		end
-	end
-	if doesExist == false then
-		storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
-	end
-	transmitInformation(sendingModem, port, "RETURNSTART", tier)
-end
-
 handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
 	neighborTable = serialize.unserialize(neighborTable)
 	local nodeDex = 0
@@ -196,6 +205,10 @@ handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem
 			subChildDex = subChildDex + 1
 		end
 	end
+end
+
+handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
+	removeChild(origination)
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
