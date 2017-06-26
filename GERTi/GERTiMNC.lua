@@ -51,7 +51,7 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
 	childNum = childNum + 1
 	addressDex = addressDex + 1
 	table.sort(childNodes, sortTable)
-	return (childNum-1), childNodes[childNum]["gAddress"]
+	return (childNum-1), childNodes[childNum-1]["gAddress"]
 end
 
 local function removeChild(address)
@@ -212,6 +212,14 @@ end
 
 handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
 	removeChild(origination)
+end
+
+handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
+	for key, value in pairs(childNodes) do
+		if value["gAddress"] == gAddress then
+			return transmitInformation(sendingModem, port, value["realAddress"])
+		end
+	end
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)

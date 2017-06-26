@@ -28,7 +28,7 @@ end
 -- addresses
 local eAddress = 0
 local iAddress = 0
-local cachedAddress = {}
+local cachedAddress = {{}, {}, {}, {}, {}}
 local addressDex = 1
 -- Tables of neighbors and connections
 local neighbors = {}
@@ -357,7 +357,7 @@ function GERTi.openSocket(gAddress)
 	end
 	outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
 	if incomingRoute == 0 or outgoingRoute == 0 then
-		isValid = GERTi.openRoute(destination)
+		isValid = GERTi.openRoute(realAddress)
 		if isValid == true then
 			outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
 		end
@@ -387,4 +387,5 @@ end
 
 function GERTi.getAddress()
 	return iAddress
+end
 return GERTi
