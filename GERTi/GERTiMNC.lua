@@ -11,7 +11,7 @@ local connections = {}
 local connectDex = 1
 local tier = 0
 local handler = {}
-
+local addressDex = 1
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
@@ -40,21 +40,23 @@ local function storeChild(eventName, receivingModem, sendingModem, port, distanc
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
 	-- children means the direct connections a comptuer can make to another computer that is a lower tier than it
 	childNodes[childNum] = {}
-	childNodes[childNum]["address"] = sendingModem
+	childNodes[childNum]["realAddress"] = sendingModem
+	childNodes[childNum]["gAddress"] = addressDex
 	childNodes[childNum]["tier"] = tonumber(package)
 	childNodes[childNum]["port"] = tonumber(port)
 	childNodes[childNum]["parents"] = {}
 	childNodes[childNum]["children"]={}
 	print("inside store Child")
-	print(childNodes[childNum]["address"])
+	print(childNodes[childNum]["realAddress"])
 	childNum = childNum + 1
+	addressDex = addressDex + 1
 	table.sort(childNodes, sortTable)
-	return (childNum-1)
+	return (childNum-1), childNodes[childNum]["gAddress"]
 end
 
 local function removeChild(address)
 	for key, value in pairs(childNodes) do
-		if value["address"] == address then
+		if value["realAddress"] == address then
 			table.remove(childNodes, key)
 			break
 		end
@@ -94,7 +96,7 @@ handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port
 	local childTier = 1
 	print("GERTiStartReceived")
 	for key,value in pairs(childNodes) do
-		if value["address"] == sendingModem then
+		if value["realAddress"] == sendingModem then
 			doesExist = true
 			childNodes[key]["tier"] = childTier
 			childNodes[key]["port"] = port
@@ -144,7 +146,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	local childKey = nil
 	-- attempt to look up the node and establish a routing path
 	for key, value in pairs(childNodes) do
-		if value["address"] == destination then
+		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
 				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"])
@@ -156,9 +158,9 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		-- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
 		for key, value in pairs(childNodes[childKey]["parents"]) do
 			for key2, value2 in pairs(childNodes) do
-				if value2["address"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
+				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return orController(destination, origination, sendingModem, value2["address"], value2["address"], port, value2["port"])
+					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"])
 				end
 			end
 		end
@@ -172,7 +174,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 					-- so much nesting!
 					if value3["address"] == value2["address"] then
 						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						return orController(destination, origination, sendingModem, value["address"], value2["address"], port, childNodes[key]["port"])
+						return orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"])
 					end
 				end
 			end
@@ -182,11 +184,11 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	end
 end
 
-handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
+handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
 	neighborTable = serialize.unserialize(neighborTable)
 	local nodeDex = 0
 	for key, value in pairs(childNodes) do
-		if value["address"] == originatorAddress then
+		if value["realAddress"] == originatorAddress then
 			nodeDex = key
 			break
 		end
@@ -205,6 +207,7 @@ handler["GERTiForwardTable"] = function (eventName, receivingModem, sendingModem
 			subChildDex = subChildDex + 1
 		end
 	end
+	transmitInformation(sendingModem, port, childNodes[nodeDex]["gAddress"])
 end
 
 handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
