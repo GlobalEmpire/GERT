@@ -1,5 +1,6 @@
 -- Under Construction
 local component = require("component")
+local computer = require("computer")
 local event = require("event")
 local serialize = require("serialization")
 local modem = nil
@@ -63,7 +64,7 @@ local function removeChild(address)
 	end
 end
 
-local function storeConnection(destination, origination, beforeHop, nextHop, port)
+local function storeConnection(destination, origination, beforeHop, nextHop, port, ...)
 	connections[connectDex] = {}
 	connections[connectDex]["destination"] = destination
 	connections[connectDex]["origination"] = origination
@@ -72,13 +73,14 @@ local function storeConnection(destination, origination, beforeHop, nextHop, por
 	connections[connectDex]["port"] = port
 	connections[connectDex]["data"] = {}
 	connections[connectDex]["dataDex"] = 1
+	connections[connectDex]["outbound"] = ...
 	connectDex = connectDex + 1
 	return (connectDex-1)
 end
 
-local function storeConnections(origination, destination, beforeHop, nextHop, port)
-	storeConnection(origination, destination, nextHop, beforeHop, port)
-	storeConnection(destination, origination, beforeHop, nextHop, port)
+local function storeConnections(origination, destination, beforeHop, nextHop, port, ...)
+	storeConnection(origination, destination, nextHop, beforeHop, port, ...)
+	storeConnection(destination, origination, beforeHop, nextHop, port, ...)
 end
 
 local function transmitInformation(sendTo, port, ...)
@@ -116,6 +118,8 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 			if value["destination"] == destination and value["origination"] == origination then
 				if connections[key]["destination"] ~= modem.address then
 					return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
+				else
+					computer.pushSignal("GERTiData", value["outbound"], data)
 				end
 			end
 		end
@@ -123,8 +127,8 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 end
 
 -- Used in handler["OPENROUTE"]
--- Gateway's openRoute and Client's openRoute DIFFER
-local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort)
+-- MNC's openRoute and Client's openRoute DIFFER
+local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound)
 	print("Opening Route")
 	if modem.address ~= destination then
 		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination)
@@ -132,15 +136,16 @@ local function orController(destination, origination, beforeHop, hopOne, hopTwo,
 		if payload ~= "ROUTE OPEN" then
 			return false
 		end
+		return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, hopOne, receivedPort)
+	else
+		return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, hopOne, receivedPort, outbound)
 	end
-	storeConnections(origination, destination, beforeHop, hopOne, receivedPort)
-	return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN")
 end
 
-handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination)
+handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination, outbound)
 	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
 	if destination == modem.address then
-		return orController(destination, origination, sendingModem, modem.address, port, nil)
+		return orController(destination, origination, sendingModem, modem.address, modem.address, port, port, outbound)
 	end
 
 	local childKey = nil
@@ -215,9 +220,13 @@ handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, p
 end
 
 handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
-	for key, value in pairs(childNodes) do
-		if value["gAddress"] == gAddress then
-			return transmitInformation(sendingModem, port, value["realAddress"])
+	if string.find(gAddress, ":") then
+		return transmitInformation(sendingModem, port, modem.address)
+	else
+		for key, value in pairs(childNodes) do
+			if value["gAddress"] == gAddress then
+				return transmitInformation(sendingModem, port, value["realAddress"])
+			end
 		end
 	end
 end

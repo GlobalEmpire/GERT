@@ -153,11 +153,11 @@ end
 
 -- opens a route using the given information, used in handler["OPENROUTE"] and GERTi.openRoute()
 -- DIFFERs from MNC's orController
-local function orController(destination, origination, beforeHop, nextHop, receivedPort, transmitPort)
+local function orController(destination, origination, beforeHop, nextHop, receivedPort, transmitPort, ...)
 	print("Opening Route")
 	if modem.address ~= destination then
 		print("modem address was not destination")
-		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination)
+		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, ...)
 		local eventName, receivingModem, _, port, distance, payload = event.pull(6, "modem_message")
 		if payload ~= "ROUTE OPEN" then
 			return false
@@ -166,7 +166,7 @@ local function orController(destination, origination, beforeHop, nextHop, receiv
 	return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
 end
 
-handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination)
+handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination, outbound)
 	-- Attempt to determine if the intended destination is this computer
 	if destination == modem.address then
 		return orController(modem.address, origination, sendingModem, modem.address, port, port)
@@ -181,7 +181,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 
 	-- if it is not a neighbor, and no intermediary was found, then contact parent to forward indirect connection request
 	if intermediary == modem.address then
-		return orController(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"])
+		return orController(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"], outbound)
 	end
 
 	-- If an intermediary is found (likely because MNC was already contacted), then attempt to forward request to intermediary
@@ -264,7 +264,7 @@ event.listen("shutdown", safedown)
 
 -- begin procedure to allow for data transmission
 -- this function allows a connection to the requested destination device, should only be used publicly if low-level operation is desired (e.g. another protocol that sits on top of GERTi to further manage networking)
-function GERTi.openRoute(destination)
+function GERTi.openRoute(destination, outbound)
 	local connectNum = 0
 	local isNeighbor = false
 	local neighborKey = 0
@@ -279,10 +279,10 @@ function GERTi.openRoute(destination)
 	end
 	-- if neighbor is local, then open a direct connection
 	if isNeighbor == true then
-		return orController(neighbors[neighborKey]["address"], modem.address, modem.address, neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], neighbors[neighborKey]["port"])
+		return orController(neighbors[neighborKey]["address"], modem.address, modem.address, neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], neighbors[neighborKey]["port"], outbound)
 	else
 		-- if neighbor is not local, then attempt to contact parent to open an indirect connection (i.e. routed through multiple computers)
-		return orController(destination, modem.address, modem.address, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"])
+		return orController(destination, modem.address, modem.address, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], outbound)
 	end
 end
 
@@ -316,7 +316,7 @@ end
 
 -- Writes data to an opened connection
 local function writeData(self, data)
-	return transmitInformation(connections[self.outgoingRoute]["nextHop"], self.outPort, "DATA", data, self.destination, modem.address)
+	return transmitInformation(connections[self.outgoingRoute]["nextHop"], self.outPort, "DATA", data, self.destination, modem.address, self.outbound)
 end
 
 -- Reads data from an opened connection
@@ -357,7 +357,7 @@ function GERTi.openSocket(gAddress)
 	end
 	outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
 	if incomingRoute == 0 or outgoingRoute == 0 then
-		isValid = GERTi.openRoute(realAddress)
+		isValid = GERTi.openRoute(realAddress, gAddress)
 		if isValid == true then
 			outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
 		end
@@ -365,6 +365,7 @@ function GERTi.openSocket(gAddress)
 	if isValid == true then
 		socket.origin = modem.address
 		socket.destination = realAddress
+		socket.outbound = gAddress
 		socket.incomingRoute = incomingRoute
 		socket.outgoingRoute = outgoingRoute
 		socket.outPort = outgoingPort
