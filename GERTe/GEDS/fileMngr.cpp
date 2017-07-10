@@ -43,15 +43,17 @@ int loadResolutions() {
 	if (resolutionFile == nullptr)
 		return NOK;
 	while (true) {
-		USHORT buf[2];
-		fread(&buf, 2, 2, resolutionFile);
+		UCHAR bufE[3];
+		UCHAR bufI[3];
+		fread(&bufE, 1, 3, resolutionFile);
+		fread(&bufI, 1, 3, resolutionFile);
 		if (feof(resolutionFile) != 0)
 			break;
-		GERTaddr addr = {ntohs(buf[0]), ntohs(buf[1])};
+		GERTaddr addr{bufE, bufI};
 		char buff[20];
 		fread(&buff, 1, 20, resolutionFile);
 		GERTkey key(buff);
-		log("Imported resolution for " + to_string(addr.high) + "-" + to_string(addr.low));
+		log("Imported resolution for " + addr.stringify());
 		addResolution(addr, key);
 	}
 	fclose(resolutionFile);
@@ -77,10 +79,8 @@ void saveResolutions() {
 	for (keyIter iter = resolutions.begin(); iter != resolutions.end(); iter++) {
 		GERTaddr addr = iter->first;
 		GERTkey key = iter->second;
-		USHORT high = htons(addr.high);
-		USHORT low = htons(addr.low);
-		fwrite(&high, 2, 1, resolutionFile);
-		fwrite(&low, 2, 1, resolutionFile);
+		fwrite(&addr.eAddr, 1, 3, resolutionFile);
+		fwrite(&addr.iAddr, 1, 3, resolutionFile);
 		fwrite(&key.key, 1, 20, resolutionFile);
 	}
 	fclose(resolutionFile);

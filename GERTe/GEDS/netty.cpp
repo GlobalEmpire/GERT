@@ -235,16 +235,12 @@ void buildWeb() {
 }
 
 GERTaddr getAddr(string data) {
-	USHORT * ptr = (USHORT*)data.c_str();
-	return GERTaddr{ntohs(*ptr), ntohs(*ptr++)};
+	UCHAR * ptr = (USHORT*)data.c_str();
+	return GERTaddr{ptr, (ptr+=3)};
 }
 
 string putAddr(GERTaddr addr) {
-	USHORT high = htons(addr.high);
-	USHORT low = htons(addr.low);
-	USHORT * ptr1 = &high;
-	USHORT * ptr2 = &low;
-	return string{*(char*)ptr1, *(char*)ptr1++, *(char*)ptr2, *(char*)ptr2++};
+	return string{addr.eAddr, addr.iAddr};
 }
 
 portComplex makePorts(string data) {
