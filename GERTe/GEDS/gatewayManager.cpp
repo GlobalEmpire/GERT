@@ -80,7 +80,7 @@ void closeTarget(gateway* target) { //Close a full connection
 	log("Disassociation from " + target->addr.stringify());
 }
 
-void gateWatcher(){
+void gateWatcher() {
 	for (gatewayPtr iter = gateways.begin(); iter != gateways.end(); iter++) {
 		gateway* target = iter->second;
 		if (target == nullptr || target->sock == nullptr) {
@@ -92,4 +92,8 @@ void gateWatcher(){
 			closeTarget(target);
 		}
 	}
+}
+
+bool isLocal(GERTaddr addr) {
+	return gateways.count(addr) > 0;
 }

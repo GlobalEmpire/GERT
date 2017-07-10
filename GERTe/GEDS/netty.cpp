@@ -15,6 +15,7 @@
 #include "peerManager.h"
 #include "routeManager.h"
 #include "gatewayManager.h"
+#include "query.h"
 #include "netty.h"
 using namespace std;
 
@@ -235,7 +236,7 @@ void buildWeb() {
 }
 
 GERTaddr getAddr(string data) {
-	UCHAR * ptr = (USHORT*)data.c_str();
+	UCHAR * ptr = (UCHAR*)data.c_str();
 	return GERTaddr{ptr, (ptr+=3)};
 }
 

@@ -29,7 +29,7 @@ enum gatewayCommands {
 	STATE,
 	REGISTER,
 	DATA,
-	QUERY,
+	STATUS,
 	CLOSE
 };
 
@@ -57,7 +57,8 @@ enum gedsCommands {
 	UNRESOLVE,
 	LINK,
 	UNLINK,
-	CLOSEPEER
+	CLOSEPEER,
+	QUERY
 };
 
 STARTEXPORT
@@ -139,32 +140,32 @@ DLLExport void processGateway(gateway* gate, string packet) {
 			string newCmd = string{DATA} + putAddr(gate->addr) + rest.substr(4);
 			if (isRemote(target)) { //Target is remote
 				newCmd.insert(5, putAddr(target)); //Insert target for routing
+				sendTo(target, newCmd); //Send to remote target
+			} else if (isLocal(target)) {
+				sendTo(target, newCmd); //Send to local target
+			} else {
+				if (queryWeb(target)) {
+					sendTo(target, newCmd);
+				} else {
+					sendTo(gate, string({ STATE, FAILURE, NO_ROUTE }));
+					/*
+					 * Response to failed data send request.
+					 * CMD STATE (0)
+					 * STATE FAILURE (0)
+					 * REASON NO_ROUTE (4)
+					 */
+					return;
+				}
 			}
-			bool found = sendTo(target, newCmd); //Send modified data to target
+			sendTo(gate, string({ STATE, SENT }));
 			/*
-			 * Forwarded response to data send request
-			 * CMD DATA (3)
-			 * GERTADDR (4 bytes, numerical)
-			 * DATA (Variable length up to 247 bytes, ASCII format)
+			 * Response to successful data send request.
+			 * CMD STATE (0)
+			 * STATE SENT (5)
 			 */
-			if (found)
-				sendTo(gate, string({ STATE, SENT }));
-				/*
-				 * Response to successful data send request.
-				 * CMD STATE (0)
-				 * STATE SENT (5)
-				 */
-			else
-				sendTo(gate, string({ STATE, FAILURE, NO_ROUTE }));
-				/*
-				 * Response to failed data send request.
-				 * CMD STATE (0)
-				 * STATE FAILURE (0)
-				 * REASON NO_ROUTE (4)
-				 */
 			return;
 		}
-		case QUERY: {
+		case STATUS: {
 			sendTo(gate, string({ STATE, (char)gate->state }));
 			/*
 			 * Response to state request
@@ -216,7 +217,11 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			GERTaddr target = getAddr(rest.substr(4));
 			string cmd = { DATA };
 			cmd += rest.erase(4, 4);
-			sendTo(target, cmd);
+			if (!sendTo(target, cmd)) {
+				string errCmd = { UNREGISTERED };
+				errCmd += putAddr(target);
+				sendTo(geds, errCmd);
+			}
 			return;
 		}
 		case REGISTERED: {
@@ -256,6 +261,19 @@ DLLExport void processGEDS(peer* geds, string packet) {
 		case CLOSEPEER: {
 			sendTo(geds, string({ CLOSEPEER }));
 			closeTarget(geds);
+			return;
+		}
+		case QUERY: {
+			GERTaddr target = getAddr(rest);
+			if (isLocal(target)) {
+				string cmd = { REGISTERED };
+				cmd += putAddr(target);
+				sendTo(target, cmd);
+			} else {
+				string cmd = { UNREGISTERED };
+				cmd += putAddr(target);
+				sendTo(geds, cmd);
+			}
 			return;
 		}
 	}

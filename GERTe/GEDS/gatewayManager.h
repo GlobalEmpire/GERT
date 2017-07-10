@@ -31,4 +31,5 @@ bool sendTo(GERTaddr, string);
 void initGate(void *);
 void closeTarget(gateway*);
 void gateWatcher();
+bool isLocal(GERTaddr);
 #endif
