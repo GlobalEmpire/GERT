@@ -115,6 +115,7 @@ local function cacheAddress(gAddress, realAddress)
 	cachedAddress[addressDex]["gAddress"] = gAddress
 	cachedAddress[addressDex]["realAddress"] = realAddress
 end
+
 -- Low level function that abstracts away the differences between a wired/wireless network card and linked card.
 local function transmitInformation(sendTo, port, ...)
 	if (port ~= 0) and (modem) then

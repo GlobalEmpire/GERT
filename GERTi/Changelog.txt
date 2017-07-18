@@ -1,5 +1,3 @@
-v0.10.1
-
 
 v0.10
 Changed: Instead of calling socket.read/write, socket:read()/write must be used, but they do not need to be provided with information now
