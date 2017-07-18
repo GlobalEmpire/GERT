@@ -1,11 +1,11 @@
 It's pronounced gurt (as in yogurt)
 Revision 2.0.2 May 9, 2017
+
 1. Introduction
-It's important to decide on a standard networking implementation to allow for maximum compatibility and ease of use. 
-The Global Empire is actively engaged in promoting the growth of new networking standards, 
-and has stepped up to the plate for Ocranet. The time has come for GERT - Global Empire Routing Technology. 
-GERTe is an inter-server networking standard built to maximize the potential of Ocranet, 
-while GERTi is an infra-server networking bringing enterprise grade failure tolerance and end-user simplicity right into your OC computer.
+GERT is described in this document, to help implementations achive compatability and to provide ease of use for developers and users.
+The goal of GERT is to be simple but powerful, and at the time of writing is the main Ocranet routing system. GERTe is an inter-server
+networking standard built with the goal of making the most from Ocranet, while GERTi is an intra-server networking protocol that focues
+on ease-of-use and capabilities useful to programmers.
 
 2. Compatibility.
 Any infra-server networking standard can work with GERTe, as long as it is Ocranet+GERTe addressing aware. Any inter-server networking
@@ -60,7 +60,7 @@ H. Cell: An Ocranet packet.
       4c. If the end-point is contacted, continue.
     5. The GERTe starting gateway transfers data as requested over the connection, and maintains the connection until requested, or
     30 minutes elapse.
-    6. Upon request, the Ocranet gateway transmits a close signal and then closes the connection.
+    6. Upon request, the GERTe gateway transmits a close signal and then closes the connection.
 	
   D. GEDS implementation details
     1. Maintain table of "telephone" number and key pairs.
@@ -85,8 +85,7 @@ H. Cell: An Ocranet packet.
 		8b. If the command removes a registration, remove it from the remote routes.
 	9. If a peer sends a data route packet, transmit it to the registered gateway.
 	10. Loop to step 6.
-		
-	OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE OUT OF DATE
+  
   E. GERTi integration details
   Transmission Side:
     1. GERTi makes use of a 3-digit extension code to a GERTe "telephone" number, so monitor all outgoing requests for the 3 digit
