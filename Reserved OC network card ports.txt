@@ -4,4 +4,4 @@ this list.
 
 Port 14: Ethernet over OC : SolraBizna
 Port 4096: MultICE Networking: Izaya
-Ports 4378-4550: Reserved for GERTi use
+Ports 4378-4379: Reserved for GERTi use
