@@ -1,5 +1,3 @@
-#include "netDefs.h"
-#include "keyMngr.h"
 #include <sys/socket.h>
 #include <fcntl.h>
 #include "libLoad.h"

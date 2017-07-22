@@ -9,9 +9,7 @@ typedef HMODULE lib;
 typedef void* lib;
 #endif
 #include <map>
-#include <string>
 #include "netty.h"
-#include "logging.h"
 typedef unsigned char UCHAR;
 using namespace std;
 using namespace experimental::filesystem::v1;

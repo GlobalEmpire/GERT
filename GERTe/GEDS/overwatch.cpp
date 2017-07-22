@@ -1,9 +1,4 @@
-#include "libDefs.h"
 #include "keyDef.h"
-#include "netDefs.h"
-#include <map>
-#include <vector>
-#include "logging.h"
 #include "peerManager.h"
 #include "gatewayManager.h"
 
