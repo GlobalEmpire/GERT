@@ -1,5 +1,5 @@
-Please message MGR or Gavle to apply for reserving a GERTe telephone number. The reserved number can be for an MC server or for another service intended to be attached to the
-Ocranet. Request should include a GERTe phone number in the form of XXX-YYYY and a corresponding IP address and port number.
+Please message MGR or Gavle to apply for reserving a GERTe telephone number. The reserved number can be for an MC server or for another service intended to be attached to the GERT network.
+Request should include a GERTe phone number in the form of XXX.XXX.YYY.YYY and a corresponding IP address and port number.
 
 000-0000: Reserved for GERTe phone home
 009-7335: Reserved by nxsupert
