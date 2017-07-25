@@ -5,93 +5,93 @@
 #include "netty.h"
 #include "routeManager.h"
 
-map<GERTaddr, gateway*> gateways;
-vector<gateway*> noAddrList;
+map<GERTaddr, gateway*> gateways; //Create gateway database
+vector<gateway*> noAddrList; //Create list for unregistered gateways
 
-bool gatewayIter::isEnd() { return ptr == gateways.end(); }
-gatewayIter gatewayIter::operator++ (int a) { return (ptr++, *this); }
-gatewayIter::gatewayIter() : ptr(gateways.begin()) {};
-gateway* gatewayIter::operator* () { return ptr->second; }
+//For gateway iterators
+bool gatewayIter::isEnd() { return ptr == gateways.end(); } //Add logic to isEnd()     Is last element
+gatewayIter gatewayIter::operator++ (int a) { return (ptr++, *this); } //Add logic for ++ operator    Next element
+gatewayIter::gatewayIter() : ptr(gateways.begin()) {}; //Add logic for constructor    First element
+gateway* gatewayIter::operator* () { return ptr->second; } //Add logic for * operator    This element
 
+//See above its a mirror for non-registered gateways
 bool noAddrIter::isEnd() { return ptr == noAddrList.end(); }
 noAddrIter noAddrIter::operator++ (int a) { return (ptr++, *this); }
 noAddrIter::noAddrIter() : ptr(noAddrList.begin()) {};
 gateway* noAddrIter::operator* () { return *ptr; }
-void noAddrIter::erase() { ptr = noAddrList.erase(ptr); }
+void noAddrIter::erase() { ptr = noAddrList.erase(ptr); } //Add logic to erase()     Remove this element
 
-gateway* getGate(GERTaddr target) {
+gateway* getGate(GERTaddr target) { //Get a gateway from an address
 	return gateways[target];
 }
 
-bool assign(gateway* requestee, GERTaddr requested, GERTkey key) {
-	if (checkKey(requested, key)) {
-		requestee->addr = requested;
-		gateways[requested] = requestee;
-		for (noAddrIter iter; !iter.isEnd(); iter++) {
-			if (*iter == requestee) {
-				iter.erase();
-				break;
+bool assign(gateway* requestee, GERTaddr requested, GERTkey key) { //Assign an address to a gateway
+	if (checkKey(requested, key)) { //Determine if the key is for the address
+		requestee->addr = requested; //Set the address
+		gateways[requested] = requestee; //Add gateway to the database
+		for (noAddrIter iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
+			if (*iter == requestee) { //If we found the gateway
+				iter.erase(); //Remove it
+				break; //We're done here
 			}
 		}
-		log("Association from " + requested.stringify());
-		return true;
+		log("Association from " + requested.stringify()); //Notify user that the address has registered
+		return true; //Notify the protocol library assignment was successful
 	}
-	return false;
+	return false; //Notify the protocol library assignment has failed
 }
 
-bool sendTo(GERTaddr addr, string data) {
-	if (gateways.count(addr) != 0) {
-		sendTo(gateways[addr], data);
-		return true;
+bool sendTo(GERTaddr addr, string data) { //Send to gateway with address
+	if (gateways.count(addr) != 0) { //If that gateway is in the database
+		sendTo(gateways[addr], data); //Send to that gateway with gateway
+		return true; //Notify the protocol library that we succeeded in sending
 	}
-	return remoteSend(addr, data);
+	return remoteSend(addr, data); //Attempt to send to gateway with address via routing. Notify protocol library of result.
 }
 
-void initGate(void * newSock) {
-	SOCKET * newSocket = (SOCKET*)newSock;
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
+void initGate(void * newSock) { //Create gateway with socket
+	SOCKET * newSocket = (SOCKET*)newSock; //Convert socket to correct type
+#ifdef _WIN32 //If we're compiled in Windows
+	ioctlsocket(*newSocket, FIONBIO, &nonZero); //Make socket non-blocking
+#else //If we're compiled in *nix
+	fcntl(*newSocket, F_SETFL, O_NONBLOCK); //Make socket non-blocking
 #endif
-	char buf[3];
+	char buf[3]; //Create a buffer for the version data
 	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
-	log((string)"Gateway using " + buf[0] + "." + buf[1] + "." + buf[2]);
+	log((string)"Gateway using " + buf[0] + "." + buf[1] + "." + buf[2]); //Notify user of connection and version
 	UCHAR major = buf[0]; //Major version number
-	version* api = getVersion(major);
-	if (api == nullptr) {
-		char error[3] = { 0, 0, 0 };
+	version* api = getVersion(major); //Get the protocol library for the major version
+	if (api == nullptr) { //If the protocol library doesn't exist
+		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
 	}
 	else { //Major version found
-		gateway * newConnection = new gateway(newSocket, api);
-		noAddrList.push_back(newConnection);
-		newConnection->process("");
+		gateway * newConnection = new gateway(newSocket, api); //Create a new gateway object using the socket and protocol library
+		noAddrList.push_back(newConnection); //Add new gateway to the unregistered list
+		newConnection->process(""); //Process empty data (Protocol Library Gateway Initialization)
 	}
 }
 
 void closeTarget(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
 	destroy((SOCKET*)target->sock); //Close the socket
-	delete target;
-	log("Disassociation from " + target->addr.stringify());
+	delete target; //Release the memory used to store the gateway
+	log("Disassociation from " + target->addr.stringify()); //Notify the user of the closure
 }
 
-void gateWatcher() {
-	for (gatewayPtr iter = gateways.begin(); iter != gateways.end(); iter++) {
-		gateway* target = iter->second;
-		if (target == nullptr || target->sock == nullptr) {
-			iter = gateways.erase(iter);
-			error("Null pointer in gateway map");
-			continue;
-		}
-		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
-			closeTarget(target);
+void gateWatcher() { //Monitors gateways and their connections
+	for (gatewayPtr iter = gateways.begin(); iter != gateways.end(); iter++) { //For every gatway in the database
+		gateway* target = iter->second; //Get the gateway
+		if (target == nullptr || target->sock == nullptr) { //If the gateway or it's socket is broken
+			iter = gateways.erase(iter); //Remove it from the database
+			error("Null pointer in gateway map"); //Notify the user of the error
+		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) { //If a socket read of 0 length fails
+			closeTarget(target); //Close the gateway smoothly
 		}
 	}
 }
 
-bool isLocal(GERTaddr addr) {
+bool isLocal(GERTaddr addr) { //Check is an address is locally connected
 	return gateways.count(addr) > 0;
 }

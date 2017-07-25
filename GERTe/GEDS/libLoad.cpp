@@ -1,119 +1,119 @@
-#define WIN32_LEAN_AND_MEAN
-#ifdef _WIN32
-#include <Windows.h>
-#include <filesystem>
-typedef HMODULE lib;
-#else
-#include <dlfcn.h>
-#include <experimental/filesystem>
-typedef void* lib;
+#define WIN32_LEAN_AND_MEAN //Windows Optimization flag preventing loading of certain libraries
+#ifdef _WIN32 //If we're compiled in Windows
+#include <Windows.h> //Load Windows? Wait? Windows wasn't loaded? How'd we run? *Mind Blown*
+#include <filesystem> //Load Windows filesystem API
+typedef HMODULE lib; //Define lib as Windows HMODULE for dynamic library
+#else //If we're compiled in *nix
+#include <dlfcn.h> //Load Unix Dynamic Library... library
+#include <experimental/filesystem> //Load experimental C++ Standard Filesystem API
+typedef void* lib; //Define lib as Unix void pointer for dynamic library
 #endif
-#include <map>
-#include "netty.h"
+#include <map> //Load map type for databases
+#include "netty.h" //Load netty header for ... Reason? Notify me if you determine what is required
 typedef unsigned char UCHAR;
-using namespace std;
-using namespace experimental::filesystem::v1;
+using namespace std; //Default to using STD namespace
+using namespace experimental::filesystem::v1; //Default to using this really long namespace
 
-map<UCHAR, version*> registered;
+map<UCHAR, version*> registered; //Create protocol library database
 
-enum libErrors {
-	NO_ERR,
-	UNKNOWN,
-	EMPTY
+enum libErrors { //Create list of library errors
+	NO_ERR, //We're good!
+	UNKNOWN, //Unknown error
+	EMPTY //No libraries detected
 };
 
-void* getValue(void* handle, string value) { //Retrieve gelib value
+void* getValue(void* handle, string value) { //Retrieve library value
 #ifdef _WIN32 //If compiled for Windows
 	return GetProcAddress(*(lib*)handle, value.c_str()); //Retrieve using Windows API
 #else //If not compiled for Windows
-	void * test = dlsym(*(lib*)handle, value.c_str());
-	char * err = dlerror();
-	if (err != nullptr) {
-		error(err);
-		return nullptr;
+	void * test = dlsym(*(lib*)handle, value.c_str()); //Get value using Unix API
+	char * err = dlerror(); //Detect potential error
+	if (err != nullptr) { //If error isn't empty
+		error(err); //Let's error it!
+		return nullptr; //Return null
 	}
 	return test; //Retrieve using C++ standard API
 #endif
 }
 
-lib loadLib(path libPath) { //Load gelib file
+lib loadLib(path libPath) { //Load protocol library file
 #ifdef _WIN32 //If compiled for Windows
 	return LoadLibrary(libPath.c_str()); //Load using Windows API
 #else //If not compiled for Windows
-	lib handle = dlopen(libPath.c_str(), RTLD_LAZY);
-	if (handle == NULL) {
-		error(dlerror());
-		return nullptr;
+	lib handle = dlopen(libPath.c_str(), RTLD_LAZY); //Load using Unix API
+	if (handle == NULL) { //If it didn't load
+		error(dlerror()); //Print the error
+		return nullptr; //Return null
 	}
 	return handle; //Load using C++ standard API
 #endif
 }
 
-void registerVersion(version* registee) {
-	if (registered.count(registee->vers.major)) {
-		version* test = registered[registee->vers.major];
-		if (test->vers.minor < registee->vers.minor) {
-			registered[registee->vers.major] = registee;
+void registerVersion(version* registee) { //Register a version in the database
+	if (registered.count(registee->vers.major)) { //If the major version already exists
+		version* test = registered[registee->vers.major]; //Grab the already registered version
+		if (test->vers.minor < registee->vers.minor) { //If the new version has a bigger minor version
+			registered[registee->vers.major] = registee; //Replace the old version
 		}
-		else if (test->vers.patch < registee->vers.patch && test->vers.minor == registee->vers.minor){
-			registered[registee->vers.major] = registee;
+		else if (test->vers.patch < registee->vers.patch && test->vers.minor == registee->vers.minor){ //If the new version is the same minor version and has a bigger patch version
+			registered[registee->vers.major] = registee; //Replace the old version
 		}
-		return;
+		return; //We're done here
 	}
-	registered[registee->vers.major] = registee;
+	registered[registee->vers.major] = registee; //Add the version to the database
 }
 
 //PUBLIC
-int loadLibs() { //Load gelib files from api subfolder
-	path libDir = current_path(); //Define relative path to subfolder
-	libDir += "/apis";
-	if (!exists(libDir)) {
-		error("Can't find apis directory.");
-		debug("Library search path: " + libDir.string());
-		return EMPTY;
+int loadLibs() { //Load library files from apis subfolder
+	path libDir = current_path(); //Grab the relative path
+	libDir += "/apis";  //Navigate to the apis subfolder
+	if (!exists(libDir)) { //If the subfolder is missing
+		error("Can't find apis directory."); //Print the error
+		debug("Library search path: " + libDir.string()); //Debug print where exactly we are looking
+		return EMPTY; //Return that we've found nothing
 	}
 	for (directory_iterator iter(libDir); iter != end(iter); iter++) { //Continue until file list is equal to empty list
 		directory_entry testFile = *iter; //Get file from list
 		path testPath = testFile.path(); //Get path of file from list
-		if (testPath.extension() == ".gelib") { //Test that file is a gelib file via file extension
-			lib handle = loadLib(testPath); //Load gelib file
-			if (handle == nullptr) {
-				error("Failed to load " + testPath.filename().string());
-				continue;
+		if (testPath.extension() == ".gelib") { //Test that file is a library file via file extension
+			lib handle = loadLib(testPath); //Load library file
+			if (handle == nullptr) { //If the file failed to load
+				error("Failed to load " + testPath.filename().string()); //Print that we've failed
+				continue; //Skip loading the file
 			}
-			version* api = new version();
-			api->vers.major = *(UCHAR*)getValue(&handle, "major");
+			version* api = new version(); //Create a new version object
+			api->vers.major = *(UCHAR*)getValue(&handle, "major"); //Populate the version numbers
 			api->vers.minor = *(UCHAR*)getValue(&handle, "minor");
 			api->vers.patch = *(UCHAR*)getValue(&handle, "patch");
-			api->procGate = (bool(*)(gateway*, string))getValue(&handle, "processGateway");
+			api->procGate = (bool(*)(gateway*, string))getValue(&handle, "processGateway"); //Populate the processing functions
 			api->procPeer = (bool(*)(peer*, string))getValue(&handle, "processGEDS");
-			api->killGate = (void(*)(gateway*))getValue(&handle, "killGateway");
+			api->killGate = (void(*)(gateway*))getValue(&handle, "killGateway"); //Populate the cleanup functions
 			api->killPeer = (void(*)(peer*))getValue(&handle, "killGEDS");
-			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) {
-				error("Failed to load " + testPath.filename().string());
-				delete api;
-				continue;
+			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) { //If any function failed to load
+				error("Failed to load " + testPath.filename().string()); //Print that we failed to load
+				delete api; //Delete the new version to clear memory
+				continue; //Skip the rest of loading
 			}
 
-			//void (*importFunc)(void*) = (void (*)(void*)) getValue(handle, "importFuncs");
-			//importFunc(genPointers());
-			registerVersion(api); //Register API and map API
-			log("Loaded " + testPath.stem().string() + " with version " + api->vers.stringify());
+			//void (*importFunc)(void*) = (void (*)(void*)) getValue(handle, "importFuncs"); //Experimental fix for Windows issues
+			//importFunc(genPointers()); //Experimental fix
+			registerVersion(api); //Register API
+			log("Loaded " + testPath.stem().string() + " with version " + api->vers.stringify()); //Print that we've loaded
 		}
 	}
-	if (registered.empty())
-		return EMPTY;
-	return NO_ERR;
+	if (registered.empty()) //If we didn't register anything
+		return EMPTY; //Return the empty error code
+	return NO_ERR; //Return that we succeeded
 }
 
-version* getVersion(UCHAR major) {
-	if (registered.count(major) != 0) {
-		return registered[major];
+version* getVersion(UCHAR major) { //Get a version by the major number
+	if (registered.count(major) != 0) { //If that version is registered
+		return registered[major]; //Return it
 	}
-	return nullptr;
+	return nullptr; //Else return predictable null
 }
 
-UCHAR highestVersion() {
-	map<UCHAR, version*>::iterator last = registered.end();
-	return (--last)->first;
+UCHAR highestVersion() { //Get the highest version registered
+	map<UCHAR, version*>::iterator last = registered.end(); //Go to the end of the list because it's sorted
+	return (--last)->first; //Move back one (onto the list) and return that version
 }
