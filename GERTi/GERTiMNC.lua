@@ -119,7 +119,7 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 				if connections[key]["destination"] ~= modem.address then
 					return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
 				else
-					computer.pushSignal("GERTiData", value["outbound"], data)
+					computer.pushSignal("DataOut", value["outbound"], data)
 				end
 			end
 		end
@@ -154,7 +154,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"])
+				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound)
 			end
 			break
 		end
@@ -165,7 +165,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"])
+					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound)
 				end
 			end
 		end
@@ -220,12 +220,12 @@ handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, p
 end
 
 handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
-	if string.find(gAddress, ":") then
+	if string.find(tostring(gAddress), ":") then
 		return transmitInformation(sendingModem, port, modem.address)
 	else
 		for key, value in pairs(childNodes) do
-			if value["gAddress"] == gAddress then
-				return transmitInformation(sendingModem, port, value["realAddress"])
+			if tonumber(value["gAddress"]) == tonumber(gAddress) then
+				return value["realAddress"], transmitInformation(sendingModem, port, value["realAddress"])
 			end
 		end
 	end
@@ -239,3 +239,21 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 end
 
 event.listen("modem_message", receivePacket)
+
+-- Functionality to allow reception of data from outside of the GERTi network, and then to pass it inwards
+local function openExternalConnection(eventName, gDestination, origination)
+	local rDestination = ""
+	if string.find(tostring(gDestination), ":") then
+		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, string.sub(gDestination, (string.find(tostring(gDestination), ":")+1)))
+	else
+		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, gDestination)
+	end
+	computer.pushSignal("modem_message", nil, modem.address, 4378, 1, "OPENROUTE", rDestination, nil, modem.address, origination)
+	computer.pushSignal("addressReturn", rDestination)
+end
+event.listen("OpenRoute", openExternalConnection)
+
+local function receiveData(eventName, data, destination)
+	computer.pushSignal("modem_message", nil, nil, 4378, 1, "DATA", data, destination, modem.address)
+end
+event.listen("DataIn", receiveData)
