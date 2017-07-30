@@ -179,8 +179,8 @@ function api.parse()
 			data = msg:sub(7)
 		}
 	elseif cmd == 4 then
-		error("Server closed connection")
 		socket.close()
+		error("Server closed connection")
 	end
 end
 
