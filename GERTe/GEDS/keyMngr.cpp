@@ -1,23 +1,17 @@
-#include "netDefs.h"
+#include "keyMngr.h"
 #include <map>
 using namespace std;
 
-class GERTkey {
-	public:
-		char key[20] = {0};
-		bool operator= (const GERTkey comp) const { return (key == comp.key); };
-};
+map<GERTaddr, GERTkey> resolutions; //Create key database
 
-map<GERTaddr, GERTkey> resolutions;
-
-bool checkKey(GERTaddr requested, GERTkey key) {
-	return (resolutions[requested].key == key.key);
+bool checkKey(GERTaddr requested, GERTkey key) { //Check if the key matches the address
+	return (resolutions[requested] == key);
 }
 
-void addResolution(GERTaddr addr, GERTkey key) {
+void addResolution(GERTaddr addr, GERTkey key) { //Add key for the address
 	resolutions[addr] = key;
 }
 
-void removeResolution(GERTaddr addr) {
+void removeResolution(GERTaddr addr) { //Remove the key for the address
 	resolutions.erase(addr);
 }

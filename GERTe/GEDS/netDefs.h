@@ -2,7 +2,6 @@
 #define __NETDEFS__
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <string>
 #include "libDefs.h"
 #include "logging.h"
 

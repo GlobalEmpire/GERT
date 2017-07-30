@@ -69,7 +69,7 @@ end
 
 function api.register(addr, key)
 	local cmd = "\1"
-	local rawAddr = parseAddr(addr)
+	local rawAddr = parseAddr(addr .. ".0.0")
 	cmd = cmd .. rawAddr
 	socket.write(cmd)
 	local result = socket.read()
@@ -79,7 +79,7 @@ function api.register(addr, key)
 	return true
 end
 
-function api.transmitTo(addr, data) --Will ALWAYS ensure gateway isn't connected
+function api.transmitTo(addr, data)
 	if not socket then
 		return false, "Not connected"
 	end
@@ -127,12 +127,61 @@ local function parseError(err)
 	return errors[string.char(err)]
 end
 
-local parseAddr(addr)
-	local upper = string.match(addr, "(%d%d%d)-%d%d%d%d")
-	local lower = string.match(addr, "%d%d%d-(%d%d%d%d")
-	upper = tonumber(upper)
-	lower = tonumber(lower)
-	return string.char(upper) .. string.char(lower)
+local function parseAddr(addr)
+	local addrPart = "%d?%d?%d?%d"
+	local addrSegment = addrPart .. "%." .. addrPart
+	local externalUpper = string.match(addr, "(" .. addrPart .. ")%." .. addrPart .. "%." .. addrSegment)
+	local externalLower = string.match(addr, addrPart .. "%.(" .. addrPart .. ")%." .. addrSegment)
+	local internalUpper = string.match(addr, addrSegment .. "%.(" .. addrPart .. ")%." .. addrPart)
+	local internalLower = string.match(addr, addrSegment .. "%." .. addrPart .. "%.(" .. addrPart .. ")")
+	externalUpper = tonumber(externalUpper)
+	externalLower = tonumber(externalLower)
+	local chars = {
+		string.char(externalUpper >> 4),
+		string.char((externalUpper << 8 & 0xF0) | (externalLower >> 8)),
+		string.char((externalLower << 8)),
+		string.char(internalUpper >> 4),
+		string.char((internalUpper << 8 & 0xF0) | (internalLower >> 8)),
+		string.char((internalLower << 8)),
+	}
+	return chars:concat("")
+end
+
+local function unparseAddr(addr) 
+	local chars = {
+		addr:sub(1, 1):byte(),
+		addr:sub(2, 2):byte(),
+		addr:sub(3, 3):byte(),
+		addr:sub(4, 4):byte(),
+		addr:sub(5, 5):byte(),
+		addr:sub(6, 6):byte()
+	}
+	parts = {
+		tostring((chars[1] << 4) | (chars[2] >> 4)),
+		tostring(((chars[2] & 0x0F) << 4) | chars[3]),
+		tostring((chars[4] << 4) | (chars[5] >> 4)),
+		tostring(((chars[5] & 0x0F) << 4) | chars[6]),
+	}
+	return parts:concat(".")
+end
+
+function api.parse()
+	local msg = socket.read()
+	local cmd = msg:sub(1, 1)
+	msg:sub(2)
+
+	if cmd == 2 then
+		local addrPart = "%d?%d?%d?%d"
+		local addrSegment = addrPart .. "%." .. addrPart
+		local addr = unparseAddr(msg)
+		return {
+			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")")
+			data = msg:sub(7)
+		}
+	elseif cmd == 4 then
+		socket.close()
+		error("Server closed connection")
+	end
 end
 
 return api

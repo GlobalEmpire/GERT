@@ -1,10 +1,6 @@
-#include "netDefs.h"
-#include "gatewayManager.h"
 #include "routeManager.h"
+#include "gatewayManager.h"
 #include "netty.h"
-#include <map>
-
-typedef map<GERTaddr, peer*>::iterator routePtr;
 
 map<GERTaddr, peer*> routes;
 

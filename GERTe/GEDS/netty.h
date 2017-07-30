@@ -1,6 +1,5 @@
 #ifndef __NETTY__
 #define __NETTY__
-#include "netDefs.h"
 #include "keyMngr.h"
 
 typedef unsigned char UCHAR;
@@ -19,4 +18,5 @@ void sendTo(gateway*, string);
 void sendTo(peer*, string);
 void process();
 void buildWeb();
+string putAddr(GERTaddr);
 #endif
