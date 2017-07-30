@@ -63,11 +63,11 @@ void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
 	for (knownIter iter; !iter.isEnd(); iter++) { //For each peer in the database
 		knownPeer tosave = *iter; //Gets the next peer
-		unsigned long addr = htonl((unsigned long)tosave.addr.addr.s_addr); //Grabs the IP address and converts it to cross-platform mode
+		unsigned long addr = (unsigned long)tosave.addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
 		fwrite(&addr, 4, 1, peerFile); //Writes it to file
-		unsigned short gateport = htons(tosave.ports.gate); //Converts gateway port to cross-platform mode
+		unsigned short gateport = tosave.ports.gate; //Converts gateway port to cross-platform mode
 		fwrite(&gateport, 2, 1, peerFile); //Writes it to file
-		unsigned short peerport = htons(tosave.ports.peer); //Converts peer port to cross-platform mode
+		unsigned short peerport = tosave.ports.peer; //Converts peer port to cross-platform mode
 		fwrite(&peerport, 2, 1, peerFile); //Write it to file
 	}
 	fclose(peerFile); //Close the file
