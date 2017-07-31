@@ -45,18 +45,19 @@ class GERTaddr {
 		bool operator < (const GERTaddr comp) const { return (eAddr < comp.eAddr || (eAddr == comp.eAddr && iAddr < comp.iAddr)); };
 		bool operator == (const GERTaddr comp) const { return (eAddr == comp.eAddr && iAddr == comp.iAddr); };
 		GERTaddr(UCHAR* e, UCHAR* i) : eAddr{e[0], e[1], e[2]}, iAddr{i[0], i[1], i[2]} {};
+		GERTaddr(UCHAR* e) : eAddr{e[0], e[1], e[2]}, iAddr{0, 0, 0} {};
 		GERTaddr() : eAddr{0, 0, 0}, iAddr{0, 0, 0} {};
 		string stringify() {
 			USHORT eHigh, eLow;
 			USHORT iHigh, iLow;
-			eHigh = (USHORT)eAddr[1] << 4 && (USHORT)eAddr[2] >> 4;
-			eLow = ((USHORT)eAddr[2] && 0x0F) << 4 && (USHORT)eAddr[3];
-			iHigh = (USHORT)iAddr[1] << 4 && (USHORT)iAddr[2] >> 4;
-			iLow = ((USHORT)iAddr[2] && 0x0F) << 4 && (USHORT)iAddr[3];
-			eHigh = ntohs(eHigh);
+			eHigh = (USHORT)(eAddr[0]) << 4 | (USHORT)(eAddr[1]) >> 4;
+			eLow = ((USHORT)eAddr[1] & 0x0F) << 8 | (USHORT)eAddr[2];
+			iHigh = (USHORT)iAddr[0] << 4 | (USHORT)iAddr[1] >> 4;
+			iLow = ((USHORT)iAddr[1] & 0x0F) << 8 | (USHORT)iAddr[2];
+			/*eHigh = ntohs(eHigh);
 			eLow = ntohs(eLow);
 			iHigh = ntohs(iHigh);
-			iLow = ntohs(iLow);
+			iLow = ntohs(iLow);*/
 			string eString = to_string(eHigh) + "." + to_string(eLow);
 			string iString = to_string(iHigh) + "." + to_string(iLow);
 			return eString + "." + iString;

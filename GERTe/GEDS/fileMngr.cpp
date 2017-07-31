@@ -43,12 +43,10 @@ int loadResolutions() { //Load key resolutions from a file
 		return NOK; //Return with an error
 	while (true) {
 		UCHAR bufE[3]; //Create a storage variable for the external portion of the address
-		UCHAR bufI[3]; //Create a storage variable for the internal portion of the address
 		fread(&bufE, 1, 3, resolutionFile); //Fill the external address
-		fread(&bufI, 1, 3, resolutionFile); //Fill the internal address
 		if (feof(resolutionFile) != 0) //If the file is at the end
 			break; //We're done
-		GERTaddr addr{bufE, bufI}; //Reformat the address portions into a single structure
+		GERTaddr addr{bufE}; //Reformat the address portions into a single structure
 		char buff[20]; //Create a storage variable for the key
 		fread(&buff, 1, 20, resolutionFile); //Fill the key
 		GERTkey key(buff); //Reformat the key
@@ -63,11 +61,11 @@ void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
 	for (knownIter iter; !iter.isEnd(); iter++) { //For each peer in the database
 		knownPeer tosave = *iter; //Gets the next peer
-		unsigned long addr = htonl((unsigned long)tosave.addr.addr.s_addr); //Grabs the IP address and converts it to cross-platform mode
+		unsigned long addr = (unsigned long)tosave.addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
 		fwrite(&addr, 4, 1, peerFile); //Writes it to file
-		unsigned short gateport = htons(tosave.ports.gate); //Converts gateway port to cross-platform mode
+		unsigned short gateport = tosave.ports.gate; //Converts gateway port to cross-platform mode
 		fwrite(&gateport, 2, 1, peerFile); //Writes it to file
-		unsigned short peerport = htons(tosave.ports.peer); //Converts peer port to cross-platform mode
+		unsigned short peerport = tosave.ports.peer; //Converts peer port to cross-platform mode
 		fwrite(&peerport, 2, 1, peerFile); //Write it to file
 	}
 	fclose(peerFile); //Close the file
@@ -79,8 +77,7 @@ void saveResolutions() { //Save key resolutions to file
 		GERTaddr addr = iter->first; //Get the associated address
 		GERTkey key = iter->second; //Get the key
 		fwrite(&addr.eAddr, 1, 3, resolutionFile); //Write the external address portion to file
-		fwrite(&addr.iAddr, 1, 3, resolutionFile); //Write the internal address portion to file
-		fwrite(&key.key, 1, 20, resolutionFile); //Write the key to file
+		fwrite(key.key.c_str(), 1, 20, resolutionFile); //Write the key to file
 	}
 	fclose(resolutionFile); //Close the file
 }
