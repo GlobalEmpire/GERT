@@ -45,6 +45,7 @@ class GERTaddr {
 		bool operator < (const GERTaddr comp) const { return (eAddr < comp.eAddr || (eAddr == comp.eAddr && iAddr < comp.iAddr)); };
 		bool operator == (const GERTaddr comp) const { return (eAddr == comp.eAddr && iAddr == comp.iAddr); };
 		GERTaddr(UCHAR* e, UCHAR* i) : eAddr{e[0], e[1], e[2]}, iAddr{i[0], i[1], i[2]} {};
+		GERTaddr(UCHAR* e) : eAddr{e[0], e[1], e[2]}, iAddr{0, 0, 0} {};
 		GERTaddr() : eAddr{0, 0, 0}, iAddr{0, 0, 0} {};
 		string stringify() {
 			USHORT eHigh, eLow;
