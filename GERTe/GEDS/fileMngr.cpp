@@ -77,7 +77,7 @@ void saveResolutions() { //Save key resolutions to file
 		GERTaddr addr = iter->first; //Get the associated address
 		GERTkey key = iter->second; //Get the key
 		fwrite(&addr.eAddr, 1, 3, resolutionFile); //Write the external address portion to file
-		fwrite(&key.key, 1, 20, resolutionFile); //Write the key to file
+		fwrite(key.key.c_str(), 1, 20, resolutionFile); //Write the key to file
 	}
 	fclose(resolutionFile); //Close the file
 }
