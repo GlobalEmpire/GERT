@@ -47,7 +47,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 	
 	for num, peer in pairs(peer) do --Testing peers
 		local temp = card.connect(peer.ip, peer.gate)
-		local result succ
+		local result, succ
 		while true do
 			result, succ = temp.finishConnect()
 			if not result or succ then
@@ -118,13 +118,16 @@ local function formatIp(nums)
 end
 
 local function parseError(err)
-	local errors = {
-		0 = "VERSION",
-		1 = "BAD_KEY",
-		2 = "ALREADY_REGISTERED",
-		3 = "NO_ROUTE"
-	}
-	return errors[string.char(err)]
+	err = string.byte(err)
+	if err == 0 then
+		return "VERSION"
+	elseif err == 1 then
+		return "BAD_KEY"
+	elseif err == 2 then
+		return "ALREADY_REGISTERED"
+	elseif err == 3 then
+		return "NO_ROUTE"
+	end
 end
 
 local function parseAddr(addr)
@@ -158,9 +161,9 @@ local function unparseAddr(addr)
 	}
 	parts = {
 		tostring((chars[1] << 4) | (chars[2] >> 4)),
-		tostring(((chars[2] & 0x0F) << 4) | chars[3]),
+		tostring(((chars[2] & 0x0F) << 8) | chars[3]),
 		tostring((chars[4] << 4) | (chars[5] >> 4)),
-		tostring(((chars[5] & 0x0F) << 4) | chars[6]),
+		tostring(((chars[5] & 0x0F) << 8) | chars[6]),
 	}
 	return parts:concat(".")
 end
