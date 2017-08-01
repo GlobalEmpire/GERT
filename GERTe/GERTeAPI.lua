@@ -19,7 +19,7 @@ end
 local api = {}
 local card = comp.proxy(comp.list("internet")())
 local socket
-local path = fs.path(process.running())
+local path = fs.path(proc.running())
 local peers = {}
 local connected
 
@@ -179,8 +179,8 @@ function api.parse()
 		local addr = unparseAddr(msg)
 		local source = unpauseAddr(msg:sub(5))
 		return {
-			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")")
-			source = source
+			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
+			source = source,
 			data = msg:sub(7)
 		}
 	elseif cmd == 4 then
