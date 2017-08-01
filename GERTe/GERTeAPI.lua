@@ -177,8 +177,10 @@ function api.parse()
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
 		local addr = unparseAddr(msg)
+		local source = unpauseAddr(msg:sub(5))
 		return {
 			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")")
+			source = source
 			data = msg:sub(7)
 		}
 	elseif cmd == 4 then

@@ -237,7 +237,7 @@ void buildWeb() {
 
 GERTaddr getAddr(string data) {
 	UCHAR * ptr = (UCHAR*)data.c_str();
-	return GERTaddr{ptr, (ptr+=3)};
+	return GERTaddr{ptr};
 }
 
 string putAddr(GERTaddr addr) {

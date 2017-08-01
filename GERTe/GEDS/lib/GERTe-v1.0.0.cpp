@@ -136,13 +136,9 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				break;
 			}
 			GERTaddr target = getAddr(rest); //Assign target address as first 4 bytes
-			rest.insert(0, { DATA }); //Read the original command byte
-			string newCmd = string{DATA} + putAddr(gate->addr) + rest.substr(4);
-			if (isRemote(target)) { //Target is remote
-				newCmd.insert(5, putAddr(target)); //Insert target for routing
-				sendTo(target, newCmd); //Send to remote target
-			} else if (isLocal(target)) {
-				sendTo(target, newCmd); //Send to local target
+			string newCmd = string{DATA} + rest;
+			if (isRemote(target) || isLocal(target)) { //Target is remote
+				sendTo(target, newCmd); //Send to target
 			} else {
 				if (queryWeb(target)) {
 					sendTo(target, newCmd);
@@ -214,9 +210,9 @@ DLLExport void processGEDS(peer* geds, string packet) {
 	string rest = packet.erase(0, 1);
 	switch (command) {
 		case ROUTE: {
-			GERTaddr target = getAddr(rest.substr(4));
+			GERTaddr target = getAddr(rest);
 			string cmd = { DATA };
-			cmd += rest.erase(4, 4);
+			cmd += rest;
 			if (!sendTo(target, cmd)) {
 				string errCmd = { UNREGISTERED };
 				errCmd += putAddr(target);
