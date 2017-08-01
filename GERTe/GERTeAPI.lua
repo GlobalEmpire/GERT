@@ -35,11 +35,7 @@ local function apiRequired(name)
 end
 
 local function formatIp(nums)
-	ip = tostring(string.sub(nums, 1, 1)) .. "."
-	ip = ip .. tostring(string.sub(nums, 2, 2)) .. "."
-	ip = ip .. tostring(string.sub(nums, 3, 3)) .. "."
-	ip = ip .. tostring(string.sub(nums, 4, 4))
-	return ip
+	return nums:byte(1) .. "." .. nums:byte(2) .. "." .. nums:byte(3) .. "." .. nums:byte(4)
 end
 
 local function parseError(err)
@@ -77,12 +73,12 @@ end
 
 local function unparseAddr(addr) 
 	local chars = {
-		addr:sub(1, 1):byte(),
-		addr:sub(2, 2):byte(),
-		addr:sub(3, 3):byte(),
-		addr:sub(4, 4):byte(),
-		addr:sub(5, 5):byte(),
-		addr:sub(6, 6):byte()
+		addr:byte(1),
+		addr:byte(2),
+		addr:byte(3),
+		addr:byte(4),
+		addr:byte(5),
+		addr:byte(6)
 	}
 	parts = {
 		tostring((chars[1] << 4) | (chars[2] >> 4)),
@@ -123,28 +119,29 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 		local ipNums = file:read(4)
 		if ipNums == nil then break end
 		local ip = formatIp(ipNums)
-		local gatePort = tonumber(file:read(2))
-		local peerPort = tonumber(file:read(2))
+		local gatePort = (file:read(1):byte() << 4) | file:read(1):byte()
+		local peerPort = (file:read(1):byte() << 4) | file:read(1):byte()
 		table.insert(peers, {ip = ip, gate = gatePort, peer = peerPort})
 	end
-	fs.close(file)
+	file:close()
 	
-	for num, peer in pairs(peer) do --Testing peers
+	for num, peer in pairs(peers) do --Testing peers
 		local temp = card.connect(peer.ip, peer.gate)
-		local result, succ
+		local result, err
 		while true do
-			result, succ = temp.finishConnect()
-			if not result or succ then
+			result, err = temp.finishConnect()
+			if result or err then
 				break
 			end
 		end
-		if succ and result then
+		if not err and result then
 			temp.write(version) --Note to self: This seems broken. Check to make sure it's actually sub-byte
 			if temp.read(3) ~= "\0\0\0" then
 				socket = temp
 				connected = peer
+			else
+				temp.close()
 			end
-			temp.close()
 		end
 	end
 
