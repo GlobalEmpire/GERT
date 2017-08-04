@@ -63,12 +63,12 @@ local function parseAddr(addr)
 	local chars = {
 		string.char(externalUpper >> 4),
 		string.char((externalUpper << 8 & 0xF0) | (externalLower >> 8)),
-		string.char((externalLower << 8)),
+		string.char((externalLower << 8) & 0xFF),
 		string.char(internalUpper >> 4),
 		string.char((internalUpper << 8 & 0xF0) | (internalLower >> 8)),
-		string.char((internalLower << 8)),
+		string.char((internalLower << 8) & 0xFF),
 	}
-	return chars:concat("")
+	return table.concat(chars, "")
 end
 
 local function unparseAddr(addr) 
@@ -119,8 +119,8 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 		local ipNums = file:read(4)
 		if ipNums == nil then break end
 		local ip = formatIp(ipNums)
-		local gatePort = (file:read(1):byte() << 4) | file:read(1):byte()
-		local peerPort = (file:read(1):byte() << 4) | file:read(1):byte()
+		local gatePort = (file:read(1):byte() << 8) | file:read(1):byte()
+		local peerPort = (file:read(1):byte() << 8) | file:read(1):byte()
 		table.insert(peers, {ip = ip, gate = gatePort, peer = peerPort})
 	end
 	file:close()
@@ -135,10 +135,18 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 			end
 		end
 		if not err and result then
-			temp.write(version) --Note to self: This seems broken. Check to make sure it's actually sub-byte
-			if temp.read(3) ~= "\0\0\0" then
+			temp.write(version)
+			local response
+			while true do
+				response = temp.read(3)
+				if response then
+					return
+				end
+			end
+			if response:sub(1, 3) == "\0\1" .. version:sub(1, 1) then
 				socket = temp
 				connected = peer
+				return
 			else
 				temp.close()
 			end
@@ -151,7 +159,7 @@ end
 function api.register(addr, key)
 	local cmd = "\1"
 	local rawAddr = parseAddr(addr .. ".0.0")
-	cmd = cmd .. rawAddr
+	cmd = cmd .. rawAddr .. key
 	socket.write(cmd)
 	local result = socket.read()
 	if string.sub(result, 2, 2) == "\0" then
