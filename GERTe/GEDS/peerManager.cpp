@@ -32,12 +32,12 @@ void peerWatcher() {
 			continue;
 		}
 		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
-			closeTarget(target);
+			closePeer(target);
 		}
 	}
 }
 
-void closeTarget(peer* target) {
+void closePeer(peer* target) {
 	killAssociated(target);
 	peers.erase(target->addr);
 	destroy((SOCKET*)target->sock);
@@ -47,16 +47,16 @@ void closeTarget(peer* target) {
 
 void initPeer(void * newSock) {
 	SOCKET * newSocket = (SOCKET*)newSock;
+	char buf[3];
+	recv(*newSocket, buf, 3, 0);
+	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
+	UCHAR major = buf[0]; //Major version number
+	version* api = getVersion(major); //Find API version
 #ifdef _WIN32
 	ioctlsocket(*newSocket, FIONBIO, &nonZero);
 #else
 	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
 #endif
-	char buf[3];
-	recv(*newSocket, buf, 3, 0);
-	log((string)"GEDS using " + buf[0] + "." + buf[1] + "." + buf[2]);
-	UCHAR major = buf[0]; //Major version number
-	version* api = getVersion(major); //Find API version
 	if (api == nullptr) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
@@ -97,12 +97,12 @@ void removePeer(ipAddr addr) {
 	log("Removed peer " + addr.stringify());
 }
 
-void sendTo(ipAddr addr, string data) {
-	sendTo(peers[addr], data);
+void sendToPeer(ipAddr addr, string data) {
+	sendByPeer(peers[addr], data);
 }
 
 void broadcast(string data) {
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		sendTo(*iter, data);
+		sendByPeer(*iter, data);
 	}
 }

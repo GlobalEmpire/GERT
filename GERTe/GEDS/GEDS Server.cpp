@@ -187,7 +187,7 @@ int main( int argc, char* argv[] ) {
 	watcher.join(); //Cleanup overwatch (wait for it to die)
 
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
-	shutdown(); //Cleanup servers
+	cleanup(); //Cleanup servers
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process
 	savePeers(); //Save the peers database to file

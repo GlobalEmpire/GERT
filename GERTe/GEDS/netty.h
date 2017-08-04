@@ -9,14 +9,16 @@ typedef int SOCKET;
 
 const unsigned int iplen = 16;
 
-void destroy(void*);
-void startup();
-void shutdown();
-void runServer();
-void killConnections();
-void sendTo(gateway*, string);
-void sendTo(peer*, string);
-void process();
-void buildWeb();
-string putAddr(GERTaddr);
+extern "C" {
+	void destroy(void*);
+	void startup();
+	void cleanup();
+	void runServer();
+	void killConnections();
+	void sendByGateway(gateway*, string);
+	void sendByPeer(peer*, string);
+	void process();
+	void buildWeb();
+	string putAddr(GERTaddr);
+}
 #endif

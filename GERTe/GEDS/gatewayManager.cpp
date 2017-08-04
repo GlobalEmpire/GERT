@@ -41,9 +41,9 @@ bool assign(gateway* requestee, GERTaddr requested, GERTkey key) { //Assign an a
 	return false; //Notify the protocol library assignment has failed
 }
 
-bool sendTo(GERTaddr addr, string data) { //Send to gateway with address
+bool sendToGateway(GERTaddr addr, string data) { //Send to gateway with address
 	if (gateways.count(addr) != 0) { //If that gateway is in the database
-		sendTo(gateways[addr], data); //Send to that gateway with gateway
+		sendByGateway(gateways[addr], data); //Send to that gateway with gateway
 		return true; //Notify the protocol library that we succeeded in sending
 	}
 	return remoteSend(addr, data); //Attempt to send to gateway with address via routing. Notify protocol library of result.
@@ -51,16 +51,16 @@ bool sendTo(GERTaddr addr, string data) { //Send to gateway with address
 
 void initGate(void * newSock) { //Create gateway with socket
 	SOCKET * newSocket = (SOCKET*)newSock; //Convert socket to correct type
+	char buf[3]; //Create a buffer for the version data
+	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
+	log((string)"Gateway using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2])); //Notify user of connection and version
+	UCHAR major = buf[0]; //Major version number
+	version* api = getVersion(major); //Get the protocol library for the major version
 #ifdef _WIN32 //If we're compiled in Windows
 	ioctlsocket(*newSocket, FIONBIO, &nonZero); //Make socket non-blocking
 #else //If we're compiled in *nix
 	fcntl(*newSocket, F_SETFL, O_NONBLOCK); //Make socket non-blocking
 #endif
-	char buf[3]; //Create a buffer for the version data
-	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
-	log((string)"Gateway using " + buf[0] + "." + buf[1] + "." + buf[2]); //Notify user of connection and version
-	UCHAR major = buf[0]; //Major version number
-	version* api = getVersion(major); //Get the protocol library for the major version
 	if (api == nullptr) { //If the protocol library doesn't exist
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
@@ -73,7 +73,7 @@ void initGate(void * newSock) { //Create gateway with socket
 	}
 }
 
-void closeTarget(gateway* target) { //Close a full connection
+void closeGateway(gateway* target) { //Close a full connection
 	gateways.erase(target->addr); //Remove connection from universal map
 	destroy((SOCKET*)target->sock); //Close the socket
 	delete target; //Release the memory used to store the gateway
@@ -87,7 +87,7 @@ void gateWatcher() { //Monitors gateways and their connections
 			iter = gateways.erase(iter); //Remove it from the database
 			error("Null pointer in gateway map"); //Notify the user of the error
 		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) { //If a socket read of 0 length fails
-			closeTarget(target); //Close the gateway smoothly
+			closeGateway(target); //Close the gateway smoothly
 		}
 	}
 }

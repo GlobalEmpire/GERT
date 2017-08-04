@@ -106,12 +106,12 @@ void startup() {
 #endif
 	sockaddr_in gate = {
 			AF_INET,
-			stoi(gatewayPort),
+			htons(stoi(gatewayPort)),
 			INADDR_ANY
 	};
 	sockaddr_in geds = {
 			AF_INET,
-			stoi(peerPort),
+			htons(stoi(peerPort)),
 			INADDR_ANY
 	};
 
@@ -130,8 +130,8 @@ void startup() {
 }
 
 //PUBLIC
-void shutdown() {
-	//KillConnections()
+void cleanup() {
+	killConnections();
 #ifdef _WIN32
 	closesocket(gedsServer);
 	closesocket(gateServer);
@@ -147,9 +147,10 @@ void runServer() { //Listen for new connections
 		FD_ZERO(&testSet);
 		FD_SET(gateServer, &testSet);
 		FD_SET(gedsServer, &testSet);
-		select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
+		int result = select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
+		if (result < -1)
+			break;
 		if (FD_ISSET(gateServer, &testSet)) {
-			debug("New connection");
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			initGate((void*)newSock);
@@ -164,12 +165,12 @@ void runServer() { //Listen for new connections
 }
 
 //PUBLIC
-void sendTo(gateway* target, string data) {
+void sendByGateway(gateway* target, string data) {
 	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 //PUBLIC
-void sendTo(peer* target, string data) {
+void sendByPeer(peer* target, string data) {
 	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 

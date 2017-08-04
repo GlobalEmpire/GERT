@@ -138,7 +138,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 			temp.write(version)
 			local response
 			while true do
-				response = temp.read(3)
+				response = temp.read(5)
 				if response then
 					return
 				end

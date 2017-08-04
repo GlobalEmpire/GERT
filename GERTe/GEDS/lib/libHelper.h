@@ -2,14 +2,14 @@
 #include "../keyDef.h"
 #include "../netDefs.h"
 
-extern bool sendTo(GERTaddr, string);
-extern void sendTo(gateway*, string);
-extern void sendTo(peer*, string);
+extern bool sendToGateway(GERTaddr, string);
+extern void sendByGateway(gateway*, string);
+extern void sendByPeer(peer*, string);
 extern bool assign(gateway*, GERTaddr, GERTkey);
 extern bool isRemote(GERTaddr);
 extern bool isLocal(GERTaddr);
-extern void closeTarget(gateway*);
-extern void closeTarget(peer*);
+extern void closeGateway(gateway*);
+extern void closePeer(peer*);
 extern void setRoute(GERTaddr, peer*);
 extern void removeRoute(GERTaddr);
 extern void addResolution(GERTaddr, GERTkey);

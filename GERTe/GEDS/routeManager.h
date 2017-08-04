@@ -15,9 +15,11 @@ class routeIter {
 		routePtr operator->();
 };
 
-void killAssociated(peer*);
-void setRoute(GERTaddr, peer*);
-void removeRoute(GERTaddr);
-bool remoteSend(GERTaddr, string);
-bool isRemote(GERTaddr);
+extern "C" {
+	void killAssociated(peer*);
+	void setRoute(GERTaddr, peer*);
+	void removeRoute(GERTaddr);
+	bool remoteSend(GERTaddr, string);
+	bool isRemote(GERTaddr);
+}
 #endif

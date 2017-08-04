@@ -36,6 +36,6 @@ bool isRemote(GERTaddr target) {
 bool remoteSend(GERTaddr target, string data) {
 	if (routes.count(target) == 0)
 		return false;
-	sendTo(routes[target], data);
+	sendByPeer(routes[target], data);
 	return true;
 }

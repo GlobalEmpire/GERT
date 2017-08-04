@@ -26,10 +26,12 @@ class noAddrIter {
 		void erase();
 };
 
-gateway* getGate(GERTaddr);
-bool sendTo(GERTaddr, string);
-void initGate(void *);
-void closeTarget(gateway*);
-void gateWatcher();
-bool isLocal(GERTaddr);
+extern "C" {
+	gateway* getGate(GERTaddr);
+	bool sendToGateway(GERTaddr, string);
+	void initGate(void *);
+	void closeGateway(gateway*);
+	void gateWatcher();
+	bool isLocal(GERTaddr);
+}
 #endif
