@@ -104,30 +104,24 @@ void startup() {
 	WSADATA socketConfig; //Construct WSA configuration destination
 	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
 #endif
-
-	//Define some needed variables
-	addrinfo *resultgate = NULL, hints, *resultgeds; //Define some IP addressing
-	memset(&hints, 0, sizeof(hints)); //Clear IP variables
-	hints.ai_family = AF_INET; //Set to IPv4
-	hints.ai_socktype = SOCK_STREAM; //Set to stream sockets
-	hints.ai_protocol = IPPROTO_TCP; //Set to TCP
-	hints.ai_flags = AI_PASSIVE; //Set to inbound socket
-
-	//Request internal addressing and port
-	getaddrinfo(NULL, gatewayPort, &hints, &resultgate); //Fill gateway inbound socket information
-	getaddrinfo(NULL, peerPort, &hints, &resultgeds); //Fill GEDS P2P inbound socket information
+	sockaddr_in gate = {
+			AF_INET,
+			stoi(gatewayPort),
+			INADDR_ANY
+	};
+	sockaddr_in geds = {
+			AF_INET,
+			stoi(peerPort),
+			INADDR_ANY
+	};
 
 	//Construct server sockets
-	gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
-	gedsServer = socket(resultgeds->ai_family, resultgeds->ai_socktype, resultgeds->ai_protocol); //Construct GEDS P2P inbound socket
+	gateServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct gateway inbound socket
+	gedsServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct GEDS P2P inbound socket
 
 	//Bind servers to addresses
-	bind(gateServer, resultgate->ai_addr, (int)resultgate->ai_addrlen); //Initialize gateway inbound socket
-	bind(gedsServer, resultgeds->ai_addr, (int)resultgeds->ai_addrlen); //Initialize GEDS P2P inbound socket
-
-	//Destroy some used variables
-	freeaddrinfo(resultgate); //Clear RAM
-	freeaddrinfo(resultgeds); //Clear RAM
+	bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)); //Initialize gateway inbound socket
+	bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)); //Initialize GEDS P2P inbound socket
 
 	//Activate servers
 	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
