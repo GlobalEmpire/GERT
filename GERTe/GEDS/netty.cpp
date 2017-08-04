@@ -22,7 +22,7 @@ using namespace std;
 typedef timeval TIMEVAL;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
-fd_set gateTest, gedsTest, nullSet; //Define test sets and null set
+fd_set testSet; //Define test sets and null set
 TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
 
 extern volatile bool running;
@@ -118,8 +118,8 @@ void startup() {
 	getaddrinfo(NULL, peerPort, &hints, &resultgeds); //Fill GEDS P2P inbound socket information
 
 	//Construct server sockets
-	SOCKET gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
-	SOCKET gedsServer = socket(resultgeds->ai_family, resultgeds->ai_socktype, resultgeds->ai_protocol); //Construct GEDS P2P inbound socket
+	gateServer = socket(resultgate->ai_family, resultgate->ai_socktype, resultgate->ai_protocol); //Construct gateway inbound socket
+	gedsServer = socket(resultgeds->ai_family, resultgeds->ai_socktype, resultgeds->ai_protocol); //Construct GEDS P2P inbound socket
 
 	//Bind servers to addresses
 	bind(gateServer, resultgate->ai_addr, (int)resultgate->ai_addrlen); //Initialize gateway inbound socket
@@ -133,13 +133,6 @@ void startup() {
 	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
 	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
 	//Servers constructed and started
-
-	//Construct some socket sets for testing serves
-	FD_ZERO(&gateTest); //Clear gateway inbound test set
-	FD_ZERO(&gedsTest); //Clear GEDS P2P inbound test set
-	FD_ZERO(&nullSet); //Clear empty test set
-	FD_SET(gateServer, &gateTest); //Assign inbound gateway socket to inbound gateway test set
-	FD_SET(gedsServer, &gedsTest); //Assign GEDS P2P inbound socket to GEDS P2P test set
 }
 
 //PUBLIC
@@ -157,12 +150,17 @@ void shutdown() {
 //PUBLIC
 void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
-		if (select(0, &gateTest, &nullSet, &nullSet, &nonBlock) > 0) {
+		FD_ZERO(&testSet);
+		FD_SET(gateServer, &testSet);
+		FD_SET(gedsServer, &testSet);
+		select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
+		if (FD_ISSET(gateServer, &testSet)) {
+			debug("New connection");
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			initGate((void*)newSock);
 		}
-		if (select(0, &gedsTest, &nullSet, &nullSet, &nonBlock) > 0) {//Tests GEDS P2P inbound socket
+		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
 			initPeer((void*)newSocket);
