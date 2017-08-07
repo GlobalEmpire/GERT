@@ -140,7 +140,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 			while true do
 				response = temp.read(5)
 				if response then
-					return
+					break
 				end
 			end
 			if response:sub(1, 3) == "\0\1" .. version:sub(1, 1) then
