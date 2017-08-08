@@ -2,6 +2,8 @@
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
+local filesystem = require("filesystem")
+local GERTe = nil
 local serialize = require("serialization")
 local modem = nil
 local tunnel = nil
@@ -13,6 +15,8 @@ local connectDex = 1
 local tier = 0
 local handler = {}
 local addressDex = 1
+local gAddress = nil
+local gKey = nil
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
@@ -29,6 +33,10 @@ end
 
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
+end
+
+if filesystem.exists("/lib/GERTeAPI.lua") then
+	GERTe = require("GERTeAPI")
 end
 
 -- functions to store the children and then sort the table
@@ -237,9 +245,6 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 		handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
 	end
 end
-
-event.listen("modem_message", receivePacket)
-
 -- Functionality to allow reception of data from outside of the GERTi network, and then to pass it inwards
 local function openExternalConnection(eventName, gDestination, origination)
 	local rDestination = ""
@@ -256,4 +261,19 @@ event.listen("OpenRoute", openExternalConnection)
 local function receiveData(eventName, data, destination)
 	computer.pushSignal("modem_message", nil, nil, 4378, 1, "DATA", data, destination, modem.address)
 end
+
+local function readGMessage()
+	-- keep calling GERTe.parse until it returns nil
+end
+------------------------ Startup procedure
+event.listen("modem_message", receivePacket)
 event.listen("DataIn", receiveData)
+
+if GERTe then
+	local file = io.open("/lib/GERTConfig.cfg", "r")
+	gAddress = file:read()
+	gKey = file:read()
+	GERTe.startup()
+	GERTE.register(gAddress, gKey)
+	event.timer(0.1, readGMessage, math.huge)
+end
