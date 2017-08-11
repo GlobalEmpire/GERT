@@ -122,16 +122,19 @@ handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port
 end
 
 handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
-		for key, value in pairs(connections) do
-			if value["destination"] == destination and value["origination"] == origination then
-				if connections[key]["destination"] ~= modem.address then
-					return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
-				else
-					computer.pushSignal("DataOut", value["outbound"], data)
+	for key, value in pairs(connections) do
+		if value["destination"] == destination and value["origination"] == origination then
+			if connections[key]["destination"] ~= modem.address then
+				return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
+			else
+				computer.pushSignal("DataOut", value["outbound"], data)
+				if GERTe then
+					GERTe.transmitTo(value["outbound"], data)
 				end
 			end
 		end
-		return false
+	end
+	return false
 end
 
 -- Used in handler["OPENROUTE"]
@@ -162,7 +165,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound)
+				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"])
 			end
 			break
 		end
@@ -173,7 +176,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound)
+					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"])
 				end
 			end
 		end
@@ -264,6 +267,23 @@ end
 
 local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
+	local message = GERTe.parse()
+	while message ~= nil do
+		local found = false
+		local rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4379, nil, nil, message["target"])
+		for key, value in pairs(connections) do
+			if value["destination"] == rDestination and value["origination"] == modem.address then
+				handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+				found = true
+				break
+			end
+		end
+		if not found then
+			handler["OPENROUTE"](nil, nil, modem.address, 4378, nil, nil, rDestination, nil, modem.address, nil)
+			handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+		end
+		message = GERTe.parse()
+	end
 end
 ------------------------ Startup procedure
 event.listen("modem_message", receivePacket)
