@@ -98,11 +98,11 @@ function api.parse()
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
 		local addr = unparseAddr(msg)
-		local source = unpauseAddr(msg:sub(5))
+		local source = unpauseAddr(msg:sub(7))
 		return {
 			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
 			source = source,
-			data = msg:sub(7)
+			data = msg:sub(13)
 		}
 	elseif cmd == 4 then
 		socket.close()
@@ -159,7 +159,7 @@ end
 function api.register(addr, key)
 	local cmd = "\1"
 	local rawAddr = parseAddr(addr .. ".0.0")
-	cmd = cmd .. rawAddr .. key
+	cmd = cmd .. rawAddr:sub(0, 3) .. key
 	socket.write(cmd)
 	local result = socket.read()
 	if string.sub(result, 2, 2) == "\0" then
