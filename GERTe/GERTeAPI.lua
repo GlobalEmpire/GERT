@@ -20,7 +20,6 @@ local api = {}
 local card = comp.proxy(comp.list("internet")())
 local socket
 local path = fs.path(proc.running())
-local peers = {}
 local connected
 
 local version = "\1\0\0"
@@ -60,13 +59,15 @@ local function parseAddr(addr)
 	local internalLower = string.match(addr, addrSegment .. "%." .. addrPart .. "%.(" .. addrPart .. ")")
 	externalUpper = tonumber(externalUpper)
 	externalLower = tonumber(externalLower)
+	internalUpper = tonumber(internalUpper)
+	internalLower = tonumber(internalLower)
 	local chars = {
 		string.char(externalUpper >> 4),
 		string.char((externalUpper << 8 & 0xF0) | (externalLower >> 8)),
-		string.char((externalLower << 8) & 0xFF),
+		string.char(externalLower & 0xFF),
 		string.char(internalUpper >> 4),
 		string.char((internalUpper << 8 & 0xF0) | (internalLower >> 8)),
-		string.char((internalLower << 8) & 0xFF),
+		string.char(internalLower & 0xFF),
 	}
 	return table.concat(chars, "")
 end
@@ -115,6 +116,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 		return
 	end
 	local file = fs.open(path .. "peers.geds", "rb")
+	local peers = {}
 	while true do --Loading peers from file
 		local ipNums = file:read(4)
 		if ipNums == nil then break end
@@ -168,13 +170,15 @@ function api.register(addr, key)
 	return true
 end
 
-function api.transmitTo(addr, data)
+function api.transmitTo(addr, from, data)
 	if not socket then
 		return false, "Not connected"
 	end
 	local cmd = "\2"
 	local rawAddr = parseAddr(addr)
-	cmd = cmd .. rawAddr
+	local rawFrom = parseAddr("0.0." .. from)
+	rawFrom = rawFrom:substr(4)
+	cmd = cmd .. rawAddr .. rawFrom
 	if string.len(data) > 247 then
 		return false, "Data too long"
 	end
@@ -194,4 +198,4 @@ function api.shutdown()
 	end
 end
 
-return api
+return apis
