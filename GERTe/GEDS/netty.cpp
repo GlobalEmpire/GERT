@@ -29,6 +29,7 @@ extern volatile bool running;
 extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
+extern vector<Gateway*> noAddrList;
 
 void destroy(SOCKET * target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
@@ -62,9 +63,10 @@ void process() {
 			if (*iter == nullptr)
 				break;
 			char buf[256];
-			gateway* conn = *iter;
+			Gateway* conn = *iter;
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			if (result == 0)
+			debug(to_string(result));
+			if (result <= 0)
 				continue;
 			conn->process(buf);
 		}
@@ -78,7 +80,7 @@ void process() {
 				abort();
 			}
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			if (result == 0)
+			if (result <= 0)
 				continue;
 			conn->process(buf);
 		}
@@ -86,9 +88,10 @@ void process() {
 			if (*iter == nullptr)
 				break;
 			char buf[256];
-			gateway* conn = *iter;
+			Gateway* conn = *iter;
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			if (result == 0)
+			to_string(result);
+			if (result <= 0)
 				continue;
 			conn->process(buf);
 		}
@@ -148,12 +151,18 @@ void runServer() { //Listen for new connections
 		FD_SET(gateServer, &testSet);
 		FD_SET(gedsServer, &testSet);
 		int result = select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
-		if (result < -1)
+		if (result == -1)
 			break;
 		if (FD_ISSET(gateServer, &testSet)) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
-			initGate((void*)newSock);
+			Gateway * gate;
+			try {
+				gate = new Gateway(newSock);
+				noAddrList.push_back(gate);
+			} catch(int e) {
+				delete gate;
+			}
 		}
 		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
@@ -165,7 +174,7 @@ void runServer() { //Listen for new connections
 }
 
 //PUBLIC
-void sendByGateway(gateway* target, string data) {
+void sendByGateway(Gateway* target, string data) {
 	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
@@ -228,13 +237,12 @@ void buildWeb() {
 	}
 }
 
-GERTaddr getAddr(string data) {
-	UCHAR * ptr = (UCHAR*)data.c_str();
-	return GERTaddr{ptr};
-}
+extern "C" {
 
-string putAddr(GERTaddr addr) {
-	return string{addr.eAddr, addr.iAddr};
+	string putAddr(Address addr) {
+		const unsigned char* chars = addr.getAddr();
+		return string{chars[0], chars[1], chars[2]};
+	}
 }
 
 portComplex makePorts(string data) {

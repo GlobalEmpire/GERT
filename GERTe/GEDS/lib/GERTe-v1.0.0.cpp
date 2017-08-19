@@ -67,7 +67,7 @@ DLLExport UCHAR major = 1;
 DLLExport UCHAR minor = 0;
 DLLExport UCHAR patch = 0;
 
-DLLExport void processGateway(gateway* gate, string packet) {
+DLLExport void processGateway(Gateway* gate, string packet) {
 	if (gate->state == FAILURE) {
 		gate->state = CONNECTED;
 		sendByGateway(gate, string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
@@ -95,9 +95,9 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 */
 				return;
 			}
-			GERTaddr request = getAddr(rest);
-			rest.erase(0, 4);
-			GERTkey requestkey(rest);
+			Address request{rest};
+			rest.erase(0, 3);
+			Key requestkey(rest);
 			if (assign(gate, request, requestkey)) {
 				sendByGateway(gate, string({ STATE, ASSIGNED }));
 				gate->state = REGISTERED;
@@ -107,12 +107,12 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 * STATE REGISTERED (2)
 				 */
 				string cmd = {REGISTERED};
-				cmd += rest.substr(0, 4);
+				cmd += putAddr(request);
 				broadcast(cmd);
 				/*
 				 * Broadcast to all peers registration
 				 * CMD REGISTERED (0)
-				 * GERTaddr (4 bytes)
+				 * Address (4 bytes)
 				 */
 			} else
 				sendByGateway(gate, string({ STATE, FAILURE, BAD_KEY }));
@@ -135,13 +135,14 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				 */
 				break;
 			}
-			GERTaddr target = getAddr(rest); //Assign target address as first 4 bytes
-			string newCmd = string{DATA} + rest;
-			if (isRemote(target) || isLocal(target)) { //Target is remote
-				sendToGateway(target, newCmd); //Send to target
+			GERTc target{rest}; //Assign target address as first 4 bytes
+			rest.erase(0, 6);
+			string newCmd = string{DATA} + gate->addr.stringify() + rest;
+			if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
+				sendToGateway(target.external, newCmd); //Send to target
 			} else {
-				if (queryWeb(target)) {
-					sendToGateway(target, newCmd);
+				if (queryWeb(target.external)) {
+					sendToGateway(target.external, newCmd);
 				} else {
 					sendByGateway(gate, string({ STATE, FAILURE, NO_ROUTE }));
 					/*
@@ -186,7 +187,7 @@ DLLExport void processGateway(gateway* gate, string packet) {
 				/*
 				 * Broadcast that registered gateway left.
 				 * CMD UNREGISTERED (1)
-				 * GERTaddr (4 bytes)
+				 * Address (4 bytes)
 				 */
 			}
 			closeGateway(gate);
@@ -210,7 +211,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 	string rest = packet.erase(0, 1);
 	switch (command) {
 		case ROUTE: {
-			GERTaddr target = getAddr(rest);
+			Address target{rest};
 			string cmd = { DATA };
 			cmd += rest;
 			if (!sendToGateway(target, cmd)) {
@@ -221,30 +222,30 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			return;
 		}
 		case REGISTERED: {
-			GERTaddr target = getAddr(rest);
+			Address target{rest};
 			setRoute(target, geds);
 			return;
 		}
 		case UNREGISTERED: {
-			GERTaddr target = getAddr(rest);
+			Address target{rest};
 			removeRoute(target);
 			return;
 		}
 		case RESOLVE: {
-			GERTaddr target = getAddr(rest);
-			rest.erase(0, 4);
-			GERTkey key = rest;
+			Address target{rest};
+			rest.erase(0, 6);
+			Key key = rest;
 			addResolution(target, key);
 			return;
 		}
 		case UNRESOLVE: {
-			GERTaddr target = getAddr(rest);
+			Address target{rest};
 			removeResolution(target);
 			return;
 		}
 		case LINK: {
 			ipAddr target(rest);
-			rest.erase(0, 4);
+			rest.erase(0, 6);
 			portComplex ports = makePorts(rest);
 			addPeer(target, ports);
 			return;
@@ -260,7 +261,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			return;
 		}
 		case QUERY: {
-			GERTaddr target = getAddr(rest);
+			Address target{rest};
 			if (isLocal(target)) {
 				string cmd = { REGISTERED };
 				cmd += putAddr(target);
@@ -275,7 +276,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 	}
 }
 
-DLLExport void killGateway(gateway* gate) {
+DLLExport void killGateway(Gateway* gate) {
 	sendByGateway(gate, string({ CLOSE })); //SEND CLOSE REQUEST
 	sendByGateway(gate, string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	closeGateway(gate);

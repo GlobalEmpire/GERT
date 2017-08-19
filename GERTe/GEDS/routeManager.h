@@ -4,7 +4,7 @@
 #include <map>
 using namespace std;
 
-typedef map<GERTaddr, peer*>::iterator routePtr;
+typedef map<Address, peer*>::iterator routePtr;
 
 class routeIter {
 	routePtr ptr;
@@ -17,9 +17,9 @@ class routeIter {
 
 extern "C" {
 	void killAssociated(peer*);
-	void setRoute(GERTaddr, peer*);
-	void removeRoute(GERTaddr);
-	bool remoteSend(GERTaddr, string);
-	bool isRemote(GERTaddr);
+	void setRoute(Address, peer*);
+	void removeRoute(Address);
+	bool remoteSend(Address, string);
+	bool isRemote(Address);
 }
 #endif

@@ -2,6 +2,6 @@
 #define __QUERY_SERVICE__
 #include "netDefs.h"
 
-bool queryWeb(GERTaddr);
+bool queryWeb(Address);
 
 #endif

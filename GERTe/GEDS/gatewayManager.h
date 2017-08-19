@@ -1,11 +1,12 @@
 #ifndef __GATEWAY_MANAGER__
 #define __GATEWAY_MANAGER__
 #include "netDefs.h"
+#include "Gateway.h"
 #include <map>
 #include <vector>
 
-typedef map<GERTaddr, gateway*>::iterator gatewayPtr;
-typedef vector<gateway*>::iterator noAddrPtr;
+typedef map<Address, Gateway*>::iterator gatewayPtr;
+typedef vector<Gateway*>::iterator noAddrPtr;
 
 class gatewayIter {
 	gatewayPtr ptr;
@@ -13,7 +14,7 @@ class gatewayIter {
 		bool isEnd();
 		gatewayIter operator++(int);
 		gatewayIter();
-		gateway* operator*();
+		Gateway* operator*();
 };
 
 class noAddrIter {
@@ -22,16 +23,16 @@ class noAddrIter {
 		bool isEnd();
 		noAddrIter operator++(int);
 		noAddrIter();
-		gateway* operator*();
+		Gateway* operator*();
 		void erase();
 };
 
 extern "C" {
-	gateway* getGate(GERTaddr);
-	bool sendToGateway(GERTaddr, string);
+	Gateway* getGate(Address);
+	bool sendToGateway(Address, string);
 	void initGate(void *);
-	void closeGateway(gateway*);
+	void closeGateway(Gateway*);
 	void gateWatcher();
-	bool isLocal(GERTaddr);
+	bool isLocal(Address);
 }
 #endif

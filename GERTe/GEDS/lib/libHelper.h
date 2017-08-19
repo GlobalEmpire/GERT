@@ -1,23 +1,25 @@
 #define __DYNLIB__
-#include "../keyDef.h"
 #include "../netDefs.h"
+#include "../Key.h"
+#include "../Gateway.h"
 
-extern bool sendToGateway(GERTaddr, string);
-extern void sendByGateway(gateway*, string);
-extern void sendByPeer(peer*, string);
-extern bool assign(gateway*, GERTaddr, GERTkey);
-extern bool isRemote(GERTaddr);
-extern bool isLocal(GERTaddr);
-extern void closeGateway(gateway*);
-extern void closePeer(peer*);
-extern void setRoute(GERTaddr, peer*);
-extern void removeRoute(GERTaddr);
-extern void addResolution(GERTaddr, GERTkey);
-extern void removeResolution(GERTaddr);
-extern void addPeer(ipAddr, portComplex);
-extern void removePeer(ipAddr);
-extern void broadcast(string);
-extern GERTaddr getAddr(string);
-extern string putAddr(GERTaddr);
-extern portComplex makePorts(string);
-extern bool queryWeb(GERTaddr);
+extern "C" {
+	extern bool sendToGateway(Address, string);
+	extern void sendByGateway(Gateway*, string);
+	extern void sendByPeer(peer*, string);
+	extern bool assign(Gateway*, Address, Key);
+	extern bool isRemote(Address);
+	extern bool isLocal(Address);
+	extern void closeGateway(Gateway*);
+	extern void closePeer(peer*);
+	extern void setRoute(Address, peer*);
+	extern void removeRoute(Address);
+	extern void addResolution(Address, Key);
+	extern void removeResolution(Address);
+	extern void addPeer(ipAddr, portComplex);
+	extern void removePeer(ipAddr);
+	extern void broadcast(string);
+	extern string putAddr(Address);
+	extern portComplex makePorts(string);
+	extern bool queryWeb(Address);
+}

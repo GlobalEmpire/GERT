@@ -2,7 +2,7 @@
 #include "gatewayManager.h"
 #include "netty.h"
 
-map<GERTaddr, peer*> routes;
+map<Address, peer*> routes;
 
 bool routeIter::isEnd() { return ptr == routes.end(); }
 routeIter routeIter::operator++ (int a) { return (ptr++, *this); }
@@ -12,28 +12,28 @@ routePtr routeIter::operator-> () { return ptr; }
 void killAssociated(peer* target) {
 	for (routeIter iter; !iter.isEnd(); iter++) {
 		if (iter->second == target) {
-			gateway* toDie = getGate(iter->first);
+			Gateway* toDie = getGate(iter->first);
 			toDie->kill();
 			routes.erase(iter->first);
 		}
 	}
 }
 
-void setRoute(GERTaddr target, peer* route) {
+void setRoute(Address target, peer* route) {
 	routes[target] = route;
 	log("Received routing information for " + target.stringify());
 }
 
-void removeRoute(GERTaddr target) {
+void removeRoute(Address target) {
 	routes.erase(target);
 	log("Lost routing information for " + target.stringify());
 }
 
-bool isRemote(GERTaddr target) {
+bool isRemote(Address target) {
 	return routes.count(target) > 0;
 }
 
-bool remoteSend(GERTaddr target, string data) {
+bool remoteSend(Address target, string data) {
 	if (routes.count(target) == 0)
 		return false;
 	sendByPeer(routes[target], data);

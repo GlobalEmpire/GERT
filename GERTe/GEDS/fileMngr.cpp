@@ -3,7 +3,7 @@
 #include "peerManager.h" //Include peer manager so that we can write to the peer database
 #include "keyMngr.h" //Include key manager so we can write to the key database
 
-typedef map<GERTaddr, GERTkey>::iterator keyIter; //Define what a iterator for keys is
+typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
 enum errors { //Define a list of error codes
 	OK, //No error has occurred
@@ -12,7 +12,7 @@ enum errors { //Define a list of error codes
 
 extern char * LOCAL_IP; //Grab the local address
 
-extern map<GERTaddr, GERTkey> resolutions; //Grab the key database
+extern map<Address, Key> resolutions; //Grab the key database
 
 int loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
@@ -46,10 +46,10 @@ int loadResolutions() { //Load key resolutions from a file
 		fread(&bufE, 1, 3, resolutionFile); //Fill the external address
 		if (feof(resolutionFile) != 0) //If the file is at the end
 			break; //We're done
-		GERTaddr addr{bufE}; //Reformat the address portions into a single structure
+		Address addr{bufE}; //Reformat the address portions into a single structure
 		char buff[20]; //Create a storage variable for the key
 		fread(&buff, 1, 20, resolutionFile); //Fill the key
-		GERTkey key(buff); //Reformat the key
+		Key key(buff); //Reformat the key
 		log("Imported resolution for " + addr.stringify()); //Print what we've imported
 		addResolution(addr, key); //Add the key to the database
 	}
@@ -74,9 +74,9 @@ void savePeers() { //Save the database to a file
 void saveResolutions() { //Save key resolutions to file
 	FILE * resolutionFile = fopen("resolutions.geds", "wb"); //Open file in binary mode
 	for (keyIter iter = resolutions.begin(); iter != resolutions.end(); iter++) { //For each key in the database
-		GERTaddr addr = iter->first; //Get the associated address
-		GERTkey key = iter->second; //Get the key
-		fwrite(&addr.eAddr, 1, 3, resolutionFile); //Write the external address portion to file
+		Address addr = iter->first; //Get the associated address
+		Key key = iter->second; //Get the key
+		fwrite(addr.getAddr(), 1, 3, resolutionFile); //Write the external address portion to file
 		fwrite(key.key.c_str(), 1, 20, resolutionFile); //Write the key to file
 	}
 	fclose(resolutionFile); //Close the file

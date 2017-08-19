@@ -1,4 +1,4 @@
-#include "keyDef.h"
+#include "Key.h"
 #include "peerManager.h"
 #include "gatewayManager.h"
 
@@ -38,7 +38,7 @@ int scanAPI(version * checkapi, string addr, string type) {
 	return errs;
 }
 
-int scanGateway(gateway * checkgate, string addr) {
+int scanGateway(Gateway * checkgate, string addr) {
 	int errs = 0;
 	if (checkgate == nullptr) {
 		debug("[ESCAN] Gateway " + addr + " missing from gateways map");
@@ -81,8 +81,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	total += errs;
 	errs = 0;
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		gateway * checkgate = *iter;
-		GERTaddr addrstrct = checkgate->addr;
+		Gateway * checkgate = *iter;
+		Address addrstrct = checkgate->addr;
 		string addr = addrstrct.stringify();
 		errs += scanGateway(checkgate, addr);
 	}
@@ -90,7 +90,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	total += errs;
 	errs = 0;
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		gateway * checkgate = *iter;
+		Gateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}
 	total += errs;

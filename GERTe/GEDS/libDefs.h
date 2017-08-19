@@ -5,7 +5,7 @@ using namespace std;
 
 typedef unsigned char UCHAR;
 
-class gateway;
+class Gateway;
 class peer;
 
 class versioning {
@@ -17,9 +17,9 @@ class versioning {
 
 class version {
 	public:
-		bool(*procGate)(gateway*, string);
+		bool(*procGate)(Gateway*, string);
 		bool(*procPeer)(peer*, string);
-		void(*killGate)(gateway*);
+		void(*killGate)(Gateway*);
 		void(*killPeer)(peer*);
 		versioning vers;
 		void* handle;

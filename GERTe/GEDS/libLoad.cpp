@@ -85,9 +85,9 @@ int loadLibs() { //Load library files from apis subfolder
 			api->vers.major = *(UCHAR*)getValue(&handle, "major"); //Populate the version numbers
 			api->vers.minor = *(UCHAR*)getValue(&handle, "minor");
 			api->vers.patch = *(UCHAR*)getValue(&handle, "patch");
-			api->procGate = (bool(*)(gateway*, string))getValue(&handle, "processGateway"); //Populate the processing functions
+			api->procGate = (bool(*)(Gateway*, string))getValue(&handle, "processGateway"); //Populate the processing functions
 			api->procPeer = (bool(*)(peer*, string))getValue(&handle, "processGEDS");
-			api->killGate = (void(*)(gateway*))getValue(&handle, "killGateway"); //Populate the cleanup functions
+			api->killGate = (void(*)(Gateway*))getValue(&handle, "killGateway"); //Populate the cleanup functions
 			api->killPeer = (void(*)(peer*))getValue(&handle, "killGEDS");
 			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) { //If any function failed to load
 				error("Failed to load " + testPath.filename().string()); //Print that we failed to load
