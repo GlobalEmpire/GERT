@@ -92,6 +92,9 @@ end
 
 function api.parse()
 	local msg = socket.read()
+	if msg:len() == 0 then
+		return nil
+	end
 	local cmd = msg:sub(1, 1)
 	msg:sub(2)
 
@@ -161,9 +164,12 @@ end
 function api.register(addr, key)
 	local cmd = "\1"
 	local rawAddr = parseAddr(addr .. ".0.0")
-	cmd = cmd .. rawAddr:sub(0, 3) .. key
+	cmd = cmd .. rawAddr:sub(1, 3) .. key
 	socket.write(cmd)
-	local result = socket.read()
+	local result = ""
+	while result:len() < 1 do
+		result = socket.read()
+	end
 	if string.sub(result, 2, 2) == "\0" then
 		return false, parseError(string.sub(result, 3, 3))
 	end
@@ -184,7 +190,10 @@ function api.transmitTo(addr, from, data)
 	end
 	cmd = cmd .. data
 	socket.write(cmd)
-	local result = socket.read()
+	local result = ""
+	while result:len() < 1 do
+		result = socket.read()
+	end
 	if string.sub(result, 2, 2) == "\0" then
 		return false, parseError(string.sub(result, 3, 3))
 	end
@@ -195,7 +204,8 @@ function api.shutdown()
 	if socket then
 		socket.write("\4")
 		socket.close()
+		socket = nil
 	end
 end
 
-return apis
+return api
