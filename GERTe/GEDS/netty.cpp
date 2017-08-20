@@ -58,8 +58,8 @@ void killConnections() {
 
 void checkUnregistered() {
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		if (*iter == nullptr)
-			break;
+		if ((*iter)->sock == nullptr)
+			continue;
 		char buf[255];
 		Gateway* conn = *iter;
 		int result = recv(*(SOCKET*)conn->sock, buf, 255, 0);
@@ -71,38 +71,46 @@ void checkUnregistered() {
 	}
 }
 
+void checkPeers() {
+	for (peerIter iter; !iter.isEnd(); iter++) {
+		if ((*iter)->sock == nullptr)
+			continue;
+		char buf[256];
+		peer* conn = *iter;
+		if (conn == nullptr || (SOCKET*)(conn->sock) == nullptr) {
+			error("WHAT THE HECK. IT'S NULL!");
+			abort();
+		}
+		int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
+		if (result <= 0)
+			continue;
+		string data;
+		data.insert(0, buf, result);
+		conn->process(data);
+	}
+}
+
+void checkGateways() {
+	for (gatewayIter iter; !iter.isEnd(); iter++) {
+		if ((*iter)->sock == nullptr)
+			continue;
+		char buf[256];
+		Gateway* conn = *iter;
+		int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
+		debug(to_string(result));
+		if (result <= 0)
+			continue;
+		string data;
+		data.insert(0, buf, result);
+		conn->process(data);
+	}
+}
+
 //PUBLIC
 void process() {
 	while (running) {
-		for (gatewayIter iter; !iter.isEnd(); iter++) {
-			if (*iter == nullptr)
-				break;
-			char buf[256];
-			Gateway* conn = *iter;
-			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			debug(to_string(result));
-			if (result <= 0)
-				continue;
-			string data;
-			data.insert(0, buf, result);
-			conn->process(data);
-		}
-		for (peerIter iter; !iter.isEnd(); iter++) {
-			if (*iter == nullptr)
-				break;
-			char buf[256];
-			peer* conn = *iter;
-			if (conn == nullptr || (SOCKET*)(conn->sock) == nullptr) {
-				error("WHAT THE HECK. IT'S NULL!");
-				abort();
-			}
-			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			if (result <= 0)
-				continue;
-			string data;
-			data.insert(0, buf, result);
-			conn->process(data);
-		}
+		checkGateways();
+		checkPeers();
 		checkUnregistered();
 		this_thread::yield();
 	}
@@ -132,8 +140,14 @@ void startup() {
 	gedsServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct GEDS P2P inbound socket
 
 	//Bind servers to addresses
-	bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)); //Initialize gateway inbound socket
-	bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)); //Initialize GEDS P2P inbound socket
+	if (bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize gateway inbound socket
+		error("Gateway port is in use");
+		exit(-1);
+	}
+	if (bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize GEDS P2P inbound socket
+		error("Peer port is in use");
+		exit(-1);
+	}
 
 	//Activate servers
 	listen(gateServer, SOMAXCONN); //Open gateway inbound socket

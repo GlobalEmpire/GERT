@@ -15,6 +15,7 @@ class gatewayIter {
 		gatewayIter operator++(int);
 		gatewayIter();
 		Gateway* operator*();
+		void erase();
 };
 
 class noAddrIter {
