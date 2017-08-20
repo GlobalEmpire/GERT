@@ -22,6 +22,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include "libLoad.h" //Include library loading header for loading all protocol libraries
 #include "overwatch.h" //Include overwatch header for error checking and "recovery"
 #include "fileMngr.h" //Include file manager library for loading and saving databases
+#include "Trace.h"
 #include <exception> //Load exception library for terminate() hook
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
@@ -60,6 +61,7 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 		savePeers(); //Save the peers database
 		debug("Peers uncorrupted, peer file updated."); //Report to user using debug facility
 	}
+	dumpStack();
 	cout << "Well, this is the end\n"; //Print a little poem to the user
 	cout << "I've read too much, and written so far\n"; //Reference to memory error
 	cout << "But here I am, faulting to death\n";

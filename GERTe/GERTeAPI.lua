@@ -91,7 +91,7 @@ local function unparseAddr(addr)
 end
 
 function api.parse()
-	local msg = socket.read()
+	local msg = socket.read() or ""
 	if msg:len() == 0 then
 		return nil
 	end
@@ -141,12 +141,9 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 		end
 		if not err and result then
 			temp.write(version)
-			local response
-			while true do
-				response = temp.read(5)
-				if response then
-					break
-				end
+			local response = ""
+			while response:len() < 1 do
+				response = temp.read(5) or ""
 			end
 			if response:sub(1, 3) == "\0\1" .. version:sub(1, 1) then
 				socket = temp
@@ -168,7 +165,7 @@ function api.register(addr, key)
 	socket.write(cmd)
 	local result = ""
 	while result:len() < 1 do
-		result = socket.read()
+		result = socket.read() or ""
 	end
 	if string.sub(result, 2, 2) == "\0" then
 		return false, parseError(string.sub(result, 3, 3))
@@ -183,7 +180,7 @@ function api.transmitTo(addr, from, data)
 	local cmd = "\2"
 	local rawAddr = parseAddr(addr)
 	local rawFrom = parseAddr("0.0." .. from)
-	rawFrom = rawFrom:substr(4)
+	rawFrom = rawFrom:sub(4)
 	cmd = cmd .. rawAddr .. rawFrom
 	if string.len(data) > 247 then
 		return false, "Data too long"
@@ -192,7 +189,7 @@ function api.transmitTo(addr, from, data)
 	socket.write(cmd)
 	local result = ""
 	while result:len() < 1 do
-		result = socket.read()
+		result = socket.read() or ""
 	end
 	if string.sub(result, 2, 2) == "\0" then
 		return false, parseError(string.sub(result, 3, 3))

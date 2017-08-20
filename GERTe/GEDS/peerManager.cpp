@@ -13,7 +13,7 @@ map<ipAddr, knownPeer> peerList;
 
 extern bool running;
 
-bool peerIter::isEnd() { return ptr == peers.end(); }
+bool peerIter::isEnd() { return (ptr == peers.end()) || (ptr == ++peers.end()); }
 peerIter peerIter::operator++ (int a) { return (ptr++, *this); }
 peerIter::peerIter() : ptr(peers.begin()) {};
 peer* peerIter::operator*() { return ptr->second; }
