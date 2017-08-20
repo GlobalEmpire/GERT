@@ -56,6 +56,21 @@ void killConnections() {
 	}
 }
 
+void checkUnregistered() {
+	for (noAddrIter iter; !iter.isEnd(); iter++) {
+		if (*iter == nullptr)
+			break;
+		char buf[255];
+		Gateway* conn = *iter;
+		int result = recv(*(SOCKET*)conn->sock, buf, 255, 0);
+		if (result <= 0)
+			continue;
+		string data;
+		data.insert(0, buf, result);
+		conn->process(data);
+	}
+}
+
 //PUBLIC
 void process() {
 	while (running) {
@@ -68,7 +83,9 @@ void process() {
 			debug(to_string(result));
 			if (result <= 0)
 				continue;
-			conn->process(buf);
+			string data;
+			data.insert(0, buf, result);
+			conn->process(data);
 		}
 		for (peerIter iter; !iter.isEnd(); iter++) {
 			if (*iter == nullptr)
@@ -82,19 +99,11 @@ void process() {
 			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
 			if (result <= 0)
 				continue;
-			conn->process(buf);
+			string data;
+			data.insert(0, buf, result);
+			conn->process(data);
 		}
-		for (noAddrIter iter; !iter.isEnd(); iter++) {
-			if (*iter == nullptr)
-				break;
-			char buf[256];
-			Gateway* conn = *iter;
-			int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-			to_string(result);
-			if (result <= 0)
-				continue;
-			conn->process(buf);
-		}
+		checkUnregistered();
 		this_thread::yield();
 	}
 	killConnections();

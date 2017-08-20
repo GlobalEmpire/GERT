@@ -4,7 +4,7 @@
 
 map<Address, peer*> routes;
 
-bool routeIter::isEnd() { return ptr == routes.end(); }
+bool routeIter::isEnd() { return (ptr == routes.end()) || (ptr == ++routes.end()); }
 routeIter routeIter::operator++ (int a) { return (ptr++, *this); }
 routeIter::routeIter() : ptr(routes.begin()) {};
 routePtr routeIter::operator-> () { return ptr; }

@@ -97,7 +97,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 			}
 			Address request{rest};
 			rest.erase(0, 3);
-			Key requestkey(rest);
+			Key requestkey{rest};
 			if (assign(gate, request, requestkey)) {
 				sendByGateway(gate, string({ STATE, ASSIGNED }));
 				gate->state = REGISTERED;

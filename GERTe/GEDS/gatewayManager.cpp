@@ -9,13 +9,13 @@ map<Address, Gateway*> gateways; //Create Gateway database
 vector<Gateway*> noAddrList; //Create list for unregistered gateways
 
 //For Gateway iterators
-bool gatewayIter::isEnd() { return ptr == gateways.end(); } //Add logic to isEnd()     Is last element
+bool gatewayIter::isEnd() { return (ptr == gateways.end()) || (ptr == ++gateways.end()); } //Add logic to isEnd()     Is last element
 gatewayIter gatewayIter::operator++ (int a) { return (ptr++, *this); } //Add logic for ++ operator    Next element
 gatewayIter::gatewayIter() : ptr(gateways.begin()) {}; //Add logic for constructor    First element
 Gateway* gatewayIter::operator* () { return ptr->second; } //Add logic for * operator    This element
 
 //See above its a mirror for non-registered gateways
-bool noAddrIter::isEnd() { return ptr == noAddrList.end(); }
+bool noAddrIter::isEnd() { return ptr >= noAddrList.end(); }
 noAddrIter noAddrIter::operator++ (int a) { return (ptr++, *this); }
 noAddrIter::noAddrIter() : ptr(noAddrList.begin()) {};
 Gateway* noAddrIter::operator* () { return *ptr; }
