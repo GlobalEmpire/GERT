@@ -53,10 +53,10 @@ end
 local function parseAddr(addr)
 	local addrPart = "%d?%d?%d?%d"
 	local addrSegment = addrPart .. "%." .. addrPart
-	local externalUpper = string.match(addr, "(" .. addrPart .. ")%." .. addrPart .. "%." .. addrSegment)
-	local externalLower = string.match(addr, addrPart .. "%.(" .. addrPart .. ")%." .. addrSegment)
-	local internalUpper = string.match(addr, addrSegment .. "%.(" .. addrPart .. ")%." .. addrPart)
-	local internalLower = string.match(addr, addrSegment .. "%." .. addrPart .. "%.(" .. addrPart .. ")")
+	local externalUpper = string.match(addr, "(" .. addrPart .. ")%." .. addrPart .. ":" .. addrSegment)
+	local externalLower = string.match(addr, addrPart .. "%.(" .. addrPart .. "):" .. addrSegment)
+	local internalUpper = string.match(addr, addrSegment .. ":(" .. addrPart .. ")%." .. addrPart)
+	local internalLower = string.match(addr, addrSegment .. ":" .. addrPart .. "%.(" .. addrPart .. ")")
 	externalUpper = tonumber(externalUpper)
 	externalLower = tonumber(externalLower)
 	internalUpper = tonumber(internalUpper)
@@ -87,7 +87,7 @@ local function unparseAddr(addr)
 		tostring((chars[4] << 4) | (chars[5] >> 4)),
 		tostring(((chars[5] & 0x0F) << 8) | chars[6]),
 	}
-	return parts:concat(".")
+	return parts[1] .. "." .. parts[2] .. ":" .. parts[3] .. "." .. parts[4]
 end
 
 function api.parse()
@@ -160,7 +160,7 @@ end
 
 function api.register(addr, key)
 	local cmd = "\1"
-	local rawAddr = parseAddr(addr .. ".0.0")
+	local rawAddr = parseAddr(addr .. ":0.0")
 	cmd = cmd .. rawAddr:sub(1, 3) .. key
 	socket.write(cmd)
 	local result = ""
@@ -179,7 +179,7 @@ function api.transmitTo(addr, from, data)
 	end
 	local cmd = "\2"
 	local rawAddr = parseAddr(addr)
-	local rawFrom = parseAddr("0.0." .. from)
+	local rawFrom = parseAddr("0.0:" .. from)
 	rawFrom = rawFrom:sub(4)
 	cmd = cmd .. rawAddr .. rawFrom
 	if string.len(data) > 247 then
