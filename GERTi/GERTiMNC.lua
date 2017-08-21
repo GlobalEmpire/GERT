@@ -129,7 +129,14 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 			else
 				computer.pushSignal("DataOut", value["outbound"], data)
 				if GERTe then
-					GERTe.transmitTo(value["outbound"], data)
+					local gAddressOrigin = nil
+					for key2, value2 in pairs(childNodes) do
+						if value2["realAddress"] == value["origination"] then
+							gAddressOrigin = value2["gAddress"]
+							break
+						end
+					end
+					GERTe.transmitTo(value["outbound"], gAddressOrigin, data)
 				end
 			end
 		end
@@ -294,6 +301,6 @@ if GERTe then
 	gAddress = file:read()
 	gKey = file:read()
 	GERTe.startup()
-	GERTE.register(gAddress, gKey)
+	GERTe.register(gAddress, gKey)
 	event.timer(0.1, readGMessage, math.huge)
 end
