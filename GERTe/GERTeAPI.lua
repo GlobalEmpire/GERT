@@ -63,10 +63,10 @@ local function parseAddr(addr)
 	internalLower = tonumber(internalLower)
 	local chars = {
 		string.char(externalUpper >> 4),
-		string.char((externalUpper << 8 & 0xF0) | (externalLower >> 8)),
+		string.char(((externalUpper & 0x0F) << 4) | (externalLower >> 8)),
 		string.char(externalLower & 0xFF),
 		string.char(internalUpper >> 4),
-		string.char((internalUpper << 8 & 0xF0) | (internalLower >> 8)),
+		string.char(((internalUpper & 0x0F) << 4) | (internalLower >> 8)),
 		string.char(internalLower & 0xFF),
 	}
 	return table.concat(chars, "")
