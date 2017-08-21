@@ -13,6 +13,7 @@ bool gatewayIter::isEnd() { return (ptr == gateways.end()) || (ptr == ++gateways
 gatewayIter gatewayIter::operator++ (int a) { return (ptr++, *this); } //Add logic for ++ operator    Next element
 gatewayIter::gatewayIter() : ptr(gateways.begin()) {}; //Add logic for constructor    First element
 Gateway* gatewayIter::operator* () { return ptr->second; } //Add logic for * operator    This element
+void gatewayIter::erase() { gateways.erase(ptr); }
 
 //See above its a mirror for non-registered gateways
 bool noAddrIter::isEnd() { return ptr >= noAddrList.end(); }
@@ -59,13 +60,27 @@ void closeGateway(Gateway* target) { //Close a full connection
 }
 
 void gateWatcher() { //Monitors gateways and their connections
-	for (gatewayPtr iter = gateways.begin(); iter != gateways.end(); iter++) { //For every gatway in the database
-		Gateway* target = iter->second; //Get the Gateway
+	for (gatewayIter iter; !iter.isEnd(); iter++) { //For every gatway in the database
+		Gateway* target = *iter; //Get the Gateway
 		if (target == nullptr || target->sock == nullptr) { //If the Gateway or it's socket is broken
-			iter = gateways.erase(iter); //Remove it from the database
+			iter.erase(); //Remove it from the database
 			error("Null pointer in Gateway map"); //Notify the user of the error
 		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) { //If a socket read of 0 length fails
 			closeGateway(target); //Close the Gateway smoothly
+		}
+	}
+}
+
+void noAddrWatcher() {
+	for (noAddrIter iter; !iter.isEnd(); iter++) {
+		Gateway* target = *iter;
+		if (target == nullptr || target->sock == nullptr) {
+			iter.erase();
+			error("Null pointer in Gateway list");
+		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
+			destroy((SOCKET*)target->sock);
+			delete target;
+			warn("Unassociated gateway was lost");
 		}
 	}
 }
