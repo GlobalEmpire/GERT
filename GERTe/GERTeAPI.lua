@@ -46,6 +46,8 @@ local function parseError(err)
 	elseif err == 2 then
 		return "ALREADY_REGISTERED"
 	elseif err == 3 then
+		return "NOT_REGISTERED"
+	elseif err == 4 then
 		return "NO_ROUTE"
 	end
 end
