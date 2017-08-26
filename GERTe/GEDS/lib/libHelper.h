@@ -2,17 +2,13 @@
 #include "../netDefs.h"
 #include "../Key.h"
 #include "../Gateway.h"
+#include "../Peer.h"
 
 extern "C" {
 	extern bool sendToGateway(Address, string);
-	extern void sendByGateway(Gateway*, string);
-	extern void sendByPeer(peer*, string);
-	extern bool assign(Gateway*, Address, Key);
 	extern bool isRemote(Address);
 	extern bool isLocal(Address);
-	extern void closeGateway(Gateway*);
-	extern void closePeer(peer*);
-	extern void setRoute(Address, peer*);
+	extern void setRoute(Address, Peer*);
 	extern void removeRoute(Address);
 	extern void addResolution(Address, Key);
 	extern void removeResolution(Address);

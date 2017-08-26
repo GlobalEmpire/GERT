@@ -46,7 +46,8 @@ enum gatewayErrors {
 	BAD_KEY,
 	ALREADY_REGISTERED,
 	NOT_REGISTERED,
-	NO_ROUTE
+	NO_ROUTE,
+	ADDRESS_TAKEN
 };
 
 enum gedsCommands {
@@ -70,7 +71,7 @@ DLLExport UCHAR patch = 0;
 DLLExport void processGateway(Gateway* gate, string packet) {
 	if (gate->state == FAILURE) {
 		gate->state = CONNECTED;
-		sendByGateway(gate, string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
+		gate->transmit(string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
@@ -86,7 +87,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 	switch (command) {
 		case REGISTER: {
 			if (gate->state == ASSIGNED) {
-				sendByGateway(gate, string({ STATE, FAILURE, ALREADY_REGISTERED }));
+				gate->transmit(string({ STATE, FAILURE, ALREADY_REGISTERED }));
 				/*
 				 * Response to registration attempt when gateway has address assigned.
 				 * CMD STATE (0)
@@ -96,11 +97,20 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 				return;
 			}
 			Address request{rest};
+			if (isLocal(request) || isRemote(request)) {
+				gate->transmit(string({ STATE, FAILURE, ADDRESS_TAKEN }));
+				/*
+				 * Response to registration attempt when address is already taken.
+				 * CMD STATE (0)
+				 * STATE FAILURE (0)
+				 * REASON ADDRESS_TAKEN (5)
+				 */
+			}
 			rest.erase(0, 3);
 			Key requestkey{rest};
-			if (assign(gate, request, requestkey)) {
-				sendByGateway(gate, string({ STATE, ASSIGNED }));
-				gate->state = REGISTERED;
+			if (gate->assign(request, requestkey)) {
+				gate->transmit(string({ STATE, ASSIGNED }));
+				gate->state = ASSIGNED;
 				/*
 				 * Response to successful registration attempt
 				 * CMD STATE (0)
@@ -115,7 +125,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 				 * Address (4 bytes)
 				 */
 			} else
-				sendByGateway(gate, string({ STATE, FAILURE, BAD_KEY }));
+				gate->transmit(string({ STATE, FAILURE, BAD_KEY }));
 				/*
 				 * Response to failed registration attempt.
 				 * CMD STATE (0)
@@ -126,7 +136,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 		}
 		case DATA: {
 			if (gate->state == CONNECTED) {
-				sendByGateway(gate, string({STATE, FAILURE, NOT_REGISTERED}));
+				gate->transmit(string({STATE, FAILURE, NOT_REGISTERED}));
 				/*
 				 * Response to data before registration
 				 * CMD STATE (0)
@@ -144,7 +154,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 				if (queryWeb(target.external)) {
 					sendToGateway(target.external, newCmd);
 				} else {
-					sendByGateway(gate, string({ STATE, FAILURE, NO_ROUTE }));
+					gate->transmit(string({ STATE, FAILURE, NO_ROUTE }));
 					/*
 					 * Response to failed data send request.
 					 * CMD STATE (0)
@@ -154,7 +164,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 					return;
 				}
 			}
-			sendByGateway(gate, string({ STATE, SENT }));
+			gate->transmit(string({ STATE, SENT }));
 			/*
 			 * Response to successful data send request.
 			 * CMD STATE (0)
@@ -163,7 +173,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 			return;
 		}
 		case STATUS: {
-			sendByGateway(gate, string({ STATE, (char)gate->state }));
+			gate->transmit(string({ STATE, (char)gate->state }));
 			/*
 			 * Response to state request
 			 * CMD STATE (0)
@@ -173,7 +183,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 			return;
 		}
 		case CLOSE: {
-			sendByGateway(gate, string({ STATE, CLOSED }));
+			gate->transmit(string({ STATE, CLOSED }));
 			/*
 			 * Response to close request.
 			 * CMD STATE (0)
@@ -190,15 +200,15 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 				 * Address (4 bytes)
 				 */
 			}
-			closeGateway(gate);
+			gate->close();
 		}
 	}
 }
 
-DLLExport void processGEDS(peer* geds, string packet) {
+DLLExport void processGEDS(Peer* geds, string packet) {
 	if (geds->state == 0) {
 		geds->state = 1;
-		sendByPeer(geds, string({ (char)major, (char)minor, (char)patch }));
+		geds->transmit(string({ (char)major, (char)minor, (char)patch }));
 		/*
 		 * Initial packet
 		 * MAJOR VERSION
@@ -217,7 +227,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			if (!sendToGateway(target, cmd)) {
 				string errCmd = { UNREGISTERED };
 				errCmd += putAddr(target);
-				sendByPeer(geds, errCmd);
+				geds->transmit(errCmd);
 			}
 			return;
 		}
@@ -256,8 +266,8 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			return;
 		}
 		case CLOSEPEER: {
-			sendByPeer(geds, string({ CLOSEPEER }));
-			closePeer(geds);
+			geds->transmit(string({ CLOSEPEER }));
+			geds->close();
 			return;
 		}
 		case QUERY: {
@@ -269,7 +279,7 @@ DLLExport void processGEDS(peer* geds, string packet) {
 			} else {
 				string cmd = { UNREGISTERED };
 				cmd += putAddr(target);
-				sendByPeer(geds, cmd);
+				geds->transmit(cmd);
 			}
 			return;
 		}
@@ -277,14 +287,14 @@ DLLExport void processGEDS(peer* geds, string packet) {
 }
 
 DLLExport void killGateway(Gateway* gate) {
-	sendByGateway(gate, string({ CLOSE })); //SEND CLOSE REQUEST
-	sendByGateway(gate, string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
-	closeGateway(gate);
+	gate->transmit(string({ CLOSE })); //SEND CLOSE REQUEST
+	gate->transmit(string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
+	gate->close();
 }
 
-DLLExport void killGEDS(peer* geds) {
-	sendByPeer(geds, string({ CLOSEPEER })); //SEND CLOSE REQUEST
-	closePeer(geds);
+DLLExport void killGEDS(Peer* geds) {
+	geds->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
+	geds->close();
 }
 
 ENDEXPORT

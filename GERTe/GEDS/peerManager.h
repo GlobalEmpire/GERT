@@ -1,10 +1,11 @@
 #ifndef __PEER_MNGR__
 #define __PEER_MNGR__
 #include "netDefs.h"
+#include "Peer.h"
 #include <map>
 
-typedef map<ipAddr, peer*>::iterator peersPtr;
-typedef map<ipAddr, knownPeer>::iterator knownPtr;
+typedef map<ipAddr, Peer*>::iterator peersPtr;
+typedef map<ipAddr, KnownPeer>::iterator knownPtr;
 
 class peerIter {
 	peersPtr ptr;
@@ -12,7 +13,7 @@ class peerIter {
 		bool isEnd();
 		peerIter operator++(int);
 		peerIter();
-		peer* operator*();
+		Peer* operator*();
 };
 
 class knownIter {
@@ -21,15 +22,13 @@ class knownIter {
 		bool isEnd();
 		knownIter operator++(int);
 		knownIter();
-		knownPeer operator*();
+		KnownPeer operator*();
 };
 
 extern "C" {
 	void peerWatcher();
-	void initPeer(void*);
-	peer* lookup(ipAddr);
-	void _raw_peer(ipAddr, peer*);
-	void closePeer(peer*);
+	Peer* lookup(ipAddr);
+	void _raw_peer(ipAddr, Peer*);
 	void addPeer(ipAddr, portComplex);
 	void removePeer(ipAddr);
 	void sendToPeer(ipAddr, string);

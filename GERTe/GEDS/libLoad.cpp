@@ -10,6 +10,7 @@ typedef void* lib; //Define lib as Unix void pointer for dynamic library
 #endif
 #include <map> //Load map type for databases
 #include "netty.h" //Load netty header for ... Reason? Notify me if you determine what is required
+#include "libLoad.h"
 typedef unsigned char UCHAR;
 using namespace std; //Default to using STD namespace
 using namespace experimental::filesystem::v1; //Default to using this really long namespace
@@ -64,13 +65,12 @@ void registerVersion(version* registee) { //Register a version in the database
 }
 
 //PUBLIC
-int loadLibs() { //Load library files from apis subfolder
+Status loadLibs() { //Load library files from apis subfolder
 	path libDir = current_path(); //Grab the relative path
 	libDir += "/apis";  //Navigate to the apis subfolder
 	if (!exists(libDir)) { //If the subfolder is missing
-		error("Can't find apis directory."); //Print the error
 		debug("Library search path: " + libDir.string()); //Debug print where exactly we are looking
-		return EMPTY; //Return that we've found nothing
+		return Status(StatusCodes::NO_LIBRARY, "API Library Folder Not Found"); //Return that we've found nothing
 	}
 	for (directory_iterator iter(libDir); iter != end(iter); iter++) { //Continue until file list is equal to empty list
 		directory_entry testFile = *iter; //Get file from list
@@ -86,9 +86,9 @@ int loadLibs() { //Load library files from apis subfolder
 			api->vers.minor = *(UCHAR*)getValue(&handle, "minor");
 			api->vers.patch = *(UCHAR*)getValue(&handle, "patch");
 			api->procGate = (bool(*)(Gateway*, string))getValue(&handle, "processGateway"); //Populate the processing functions
-			api->procPeer = (bool(*)(peer*, string))getValue(&handle, "processGEDS");
+			api->procPeer = (bool(*)(Peer*, string))getValue(&handle, "processGEDS");
 			api->killGate = (void(*)(Gateway*))getValue(&handle, "killGateway"); //Populate the cleanup functions
-			api->killPeer = (void(*)(peer*))getValue(&handle, "killGEDS");
+			api->killPeer = (void(*)(Peer*))getValue(&handle, "killGEDS");
 			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) { //If any function failed to load
 				error("Failed to load " + testPath.filename().string()); //Print that we failed to load
 				delete api; //Delete the new version to clear memory
@@ -102,8 +102,9 @@ int loadLibs() { //Load library files from apis subfolder
 		}
 	}
 	if (registered.empty()) //If we didn't register anything
-		return EMPTY; //Return the empty error code
-	return NO_ERR; //Return that we succeeded
+		return Status(StatusCodes::NO_LIBRARY, "No API Libraries Loaded"); //Return the empty error code
+	int test = errno;
+	return Status(StatusCodes::OK); //Return that we succeeded
 }
 
 version* getVersion(UCHAR major) { //Get a version by the major number

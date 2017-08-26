@@ -1,3 +1,6 @@
+#ifndef __KEY_GUARD__
+#define __KEY_GUARD__
+
 #include <string>
 
 class Key {
@@ -10,3 +13,5 @@ class Key {
 		};
 		Key () {};
 };
+
+#endif

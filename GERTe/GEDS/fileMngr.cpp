@@ -2,6 +2,7 @@
 
 #include "peerManager.h" //Include peer manager so that we can write to the peer database
 #include "keyMngr.h" //Include key manager so we can write to the key database
+#include "fileMngr.h"
 
 typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
@@ -14,10 +15,10 @@ extern char * LOCAL_IP; //Grab the local address
 
 extern map<Address, Key> resolutions; //Grab the key database
 
-int loadPeers() { //Load peers from a file
+Status loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
 	if (peerFile == nullptr) //If the file failed to open
-		return NOK; //Return with an error
+		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Peers File: " + to_string(errno)); //Return with an error
 	while (true) {
 		unsigned long ip; //Define a storage variable for an address
 		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2? Store an IP into previous variable
@@ -34,13 +35,13 @@ int loadPeers() { //Load peers from a file
 		addPeer(ipClass, ports); //Add peer to the database
 	}
 	fclose(peerFile); //Close the file
-	return OK; //Return without errors
+	return Status(StatusCodes::OK); //Return without errors
 }
 
-int loadResolutions() { //Load key resolutions from a file
+Status loadResolutions() { //Load key resolutions from a file
 	FILE* resolutionFile = fopen("resolutions.geds", "rb"); //Open the file in binary mode
 	if (resolutionFile == nullptr) //If the file failed to open
-		return NOK; //Return with an error
+		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Key File: " + to_string(errno)); //Return with an error
 	while (true) {
 		UCHAR bufE[3]; //Create a storage variable for the external portion of the address
 		fread(&bufE, 1, 3, resolutionFile); //Fill the external address
@@ -54,13 +55,13 @@ int loadResolutions() { //Load key resolutions from a file
 		addResolution(addr, key); //Add the key to the database
 	}
 	fclose(resolutionFile); //Close the file
-	return OK; //Return without an error
+	return Status(StatusCodes::OK); //Return without an error
 }
 
 void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
 	for (knownIter iter; !iter.isEnd(); iter++) { //For each peer in the database
-		knownPeer tosave = *iter; //Gets the next peer
+		KnownPeer tosave = *iter; //Gets the next peer
 		unsigned long addr = (unsigned long)tosave.addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
 		fwrite(&addr, 4, 1, peerFile); //Writes it to file
 		unsigned short gateport = tosave.ports.gate; //Converts gateway port to cross-platform mode

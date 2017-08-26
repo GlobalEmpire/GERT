@@ -24,6 +24,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include "fileMngr.h" //Include file manager library for loading and saving databases
 #include "Trace.h"
 #include <exception> //Load exception library for terminate() hook
+#include <iostream>
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes
@@ -130,37 +131,27 @@ int main( int argc, char* argv[] ) {
 
 	startLog(); //Create log handles
 
-	set_terminate(errHandler); //Causes terminate() to trigger our code instead
+	//set_terminate(errHandler); //Causes terminate() to trigger our code instead
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 
 	debug("Loading libraries"); //Use debug to notify user where we are in the loading process
-	int libErr = loadLibs(); //Load protocol library files
+	Status libErr = loadLibs(); //Load protocol library files
 
-	switch (libErr) { //Test for errors loading libraries
-		case EMPTY: //Test if there are no libraries
-			error("No libraries detected."); //Report error to user
-			return NO_LIBS; //Exit with correct exit code
-		case UNKNOWN: //Test for unknown library loading error
-			error("Unknown error occurred while loading libraries."); //Report error to user
-			return LIB_LOAD_ERR; //Exit with correct exit code
-	}
+	if (libErr.code != StatusCodes::OK)
+		return (int)libErr.code + 10;
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
-	int result = loadPeers(); //Load the peer database
+	Status result = loadPeers(); //Load the peer database
 
-	if (result != NORMAL) { //Check if peers failed to load
-		error("Failed to load peers"); //Report error to user
-		return PEER_LOAD_ERR; //Exit with correct exit code
-	}
+	if (result.code != StatusCodes::OK)
+		return (int)StatusCodes::GENERAL_ERROR + 20;
 
 	debug("Loading resolutions"); //Use debug to notify user where we are in the loading process
-	int result2 = loadResolutions(); //Load the key resolution database
+	result = loadResolutions(); //Load the key resolution database
 
-	if (result2 != NORMAL) { //Check if keys failed to load
-		error("Failed to load keys"); //Report error to user
-		return KEY_LOAD_ERR; //Exit with correct exit code
-	}
+	if (result.code != StatusCodes::OK)
+		return (int)StatusCodes::GENERAL_ERROR + 25;
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process
 	startup(); //Startup server sockets
@@ -169,9 +160,6 @@ int main( int argc, char* argv[] ) {
 	buildWeb(); //Connect to online peers and update connection database
 
 	running = true; //We've officially started running! SIGINT is now not evil!
-
-	debug("Starting overwatch garbage sorter"); //Use debug to notify user where we are in the loading process
-	thread watcher(overwatch); //Create overwatch thread, proactively removes bad links and closed sockets (socket errors)
 
 	debug("Starting message processor"); //Use debug to notify user where we are in the loading process
 	thread processor(process); //Create message processor thread
@@ -184,9 +172,6 @@ int main( int argc, char* argv[] ) {
 	debug("Waiting for message processor to exit"); //Notify user where we are in the shutdown process
 	processor.join(); //Cleanup processor (wait for it to die)
 	warn("Processor killed, program ending."); //Notify the user we've stopped processing messages
-
-	debug("Waiting for overwatch garbage sorter to exit"); //Notify user where we are in the shutdown process
-	watcher.join(); //Cleanup overwatch (wait for it to die)
 
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
 	cleanup(); //Cleanup servers

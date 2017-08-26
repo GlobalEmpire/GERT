@@ -15,8 +15,6 @@ extern "C" {
 	void cleanup();
 	void runServer();
 	void killConnections();
-	void sendByGateway(Gateway*, string);
-	void sendByPeer(peer*, string);
 	void process();
 	void buildWeb();
 	string putAddr(Address);

@@ -1,6 +1,7 @@
 #include "Key.h"
 #include "peerManager.h"
 #include "gatewayManager.h"
+#include <thread>
 
 typedef unsigned long long pointer;
 
@@ -60,13 +61,13 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		peer * checkpeer = *iter;
+		Peer * checkpeer = *iter;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
 			continue;
 		}
-		string addr = checkpeer->addr.stringify();
+		string addr = checkpeer->id->addr.stringify();
 		void * checksock = checkpeer->sock;
 		if (checksock == nullptr) {
 			debug("[ESCAN] Peer " + addr + "missing socket");
@@ -105,6 +106,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 void overwatch() {
 	while (running) {
 		gateWatcher();
+		this_thread::yield();
 		peerWatcher();
+		this_thread::yield();
 	}
 }

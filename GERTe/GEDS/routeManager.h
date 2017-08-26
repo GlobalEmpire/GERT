@@ -4,7 +4,7 @@
 #include <map>
 using namespace std;
 
-typedef map<Address, peer*>::iterator routePtr;
+typedef map<Address, Peer*>::iterator routePtr;
 
 class routeIter {
 	routePtr ptr;
@@ -16,8 +16,8 @@ class routeIter {
 };
 
 extern "C" {
-	void killAssociated(peer*);
-	void setRoute(Address, peer*);
+	void killAssociated(Peer*);
+	void setRoute(Address, Peer*);
 	void removeRoute(Address);
 	bool remoteSend(Address, string);
 	bool isRemote(Address);

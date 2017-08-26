@@ -5,104 +5,63 @@
 #include <fcntl.h>
 #include "peerManager.h"
 #include "netty.h"
-#include "routeManager.h"
 #include "libLoad.h"
 
-map<ipAddr, peer*> peers;
-map<ipAddr, knownPeer> peerList;
+extern map<ipAddr, Peer*> peers;
+extern map<ipAddr, KnownPeer> peerList;
 
 extern bool running;
 
 bool peerIter::isEnd() { return (ptr == peers.end()) || (ptr == ++peers.end()); }
 peerIter peerIter::operator++ (int a) { return (ptr++, *this); }
 peerIter::peerIter() : ptr(peers.begin()) {};
-peer* peerIter::operator*() { return ptr->second; }
+Peer* peerIter::operator*() { return ptr->second; }
 
 bool knownIter::isEnd() { return ptr == peerList.end(); }
 knownIter knownIter::operator++ (int a) { return (ptr++, *this); }
 knownIter::knownIter() : ptr(peerList.begin()) {};
-knownPeer knownIter::operator*() { return ptr->second; }
+KnownPeer knownIter::operator*() { return ptr->second; }
 
 void peerWatcher() {
 	for (peersPtr iter = peers.begin(); iter != peers.end(); iter++) {
-		peer* target = iter->second;
+		Peer* target = iter->second;
 		if (target == nullptr || target->sock == nullptr) {
 			iter = peers.erase(iter);
 			error("Null pointer in peer map");
 			continue;
 		}
 		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
-			closePeer(target);
+			target->close();
 		}
 	}
 }
 
-void closePeer(peer* target) {
-	killAssociated(target);
-	peers.erase(target->addr);
-	destroy((SOCKET*)target->sock);
-	delete target;
-	log("Peer " + target->addr.stringify() + " disconnected");
-}
-
-void initPeer(void * newSock) {
-	SOCKET * newSocket = (SOCKET*)newSock;
-	char buf[3];
-	recv(*newSocket, buf, 3, 0);
-	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
-	UCHAR major = buf[0]; //Major version number
-	version* api = getVersion(major); //Find API version
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
-#endif
-	if (api == nullptr) { //Determine if major number is not supported
-		char error[3] = { 0, 0, 0 };
-		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
-		destroy(newSocket); //Close the socket
-	}
-	else { //Major version found
-		sockaddr remotename;
-		getpeername(*newSocket, &remotename, (unsigned int*)&iplen);
-		sockaddr_in remoteip = *(sockaddr_in*)&remotename;
-		if (peerList.count(remoteip.sin_addr) == 0) {
-			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
-			send(*newSocket, error, 3, 0);
-		}
-		peer* newConnection = new peer(&newSocket, api, remoteip.sin_addr); //Create new connection
-		peers[remoteip.sin_addr] = newConnection;
-		log("Peer connected from " + newConnection->addr.stringify());
-		newConnection->process("");
-	}
-}
-
-peer* lookup(ipAddr target) {
+Peer* lookup(ipAddr target) {
 	return peers.at(target);
 }
 
-void _raw_peer(ipAddr key, peer* value) {
+void _raw_peer(ipAddr key, Peer* value) {
 	peers[key] = value;
 }
 
 void addPeer(ipAddr addr, portComplex ports) {
-	peerList[addr] = knownPeer(addr, ports);
+	peerList[addr] = KnownPeer(addr, ports);
 	if (running)
 		log("New peer " + addr.stringify());
 }
 
 void removePeer(ipAddr addr) {
-	map<ipAddr, knownPeer>::iterator iter = peerList.find(addr);
+	map<ipAddr, KnownPeer>::iterator iter = peerList.find(addr);
 	peerList.erase(iter);
 	log("Removed peer " + addr.stringify());
 }
 
 void sendToPeer(ipAddr addr, string data) {
-	sendByPeer(peers[addr], data);
+	peers[addr]->transmit(data);
 }
 
 void broadcast(string data) {
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		sendByPeer(*iter, data);
+		(*iter)->transmit(data);
 	}
 }

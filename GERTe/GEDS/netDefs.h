@@ -20,11 +20,6 @@ class portComplex {
 		string stringify() { return to_string(ntohs(gate)) + ":" + to_string(ntohs(peer)); };
 };
 
-class peerAddr {
-	in_addr ip;
-	portComplex ports;
-};
-
 class ipAddr {
 	public:
 		in_addr addr;
@@ -45,21 +40,6 @@ class connection {
 		version* api;
 		UCHAR state = 0;
 		connection(void* socket) : sock(socket), api(nullptr) {};
-};
-
-class peer : public connection {
-	public:
-		ipAddr addr;
-		void process(string data) { api->procPeer(this, data); };
-		void kill() { api->killPeer(this); };
-		peer(void* mysocket, version* vers, in_addr source) : connection(mysocket), addr(source) {api = vers;};
-};
-
-class knownPeer {
-	public:
-		ipAddr addr;
-		portComplex ports;
-		knownPeer(ipAddr target, portComplex pair) : addr(target), ports(pair) {};
-		knownPeer() : addr(0L), ports((USHORT)0, (USHORT)0) {};
+		connection(void* socket, version* vers) : sock(socket), api(vers) {};
 };
 #endif

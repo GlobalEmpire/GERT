@@ -1,15 +1,16 @@
 #include "routeManager.h"
 #include "gatewayManager.h"
 #include "netty.h"
+#include "Peer.h"
 
-map<Address, peer*> routes;
+map<Address, Peer*> routes;
 
 bool routeIter::isEnd() { return (ptr == routes.end()) || (ptr == ++routes.end()); }
 routeIter routeIter::operator++ (int a) { return (ptr++, *this); }
 routeIter::routeIter() : ptr(routes.begin()) {};
 routePtr routeIter::operator-> () { return ptr; }
 
-void killAssociated(peer* target) {
+void killAssociated(Peer* target) {
 	for (routeIter iter; !iter.isEnd(); iter++) {
 		if (iter->second == target) {
 			Gateway* toDie = getGate(iter->first);
@@ -19,7 +20,7 @@ void killAssociated(peer* target) {
 	}
 }
 
-void setRoute(Address target, peer* route) {
+void setRoute(Address target, Peer* route) {
 	routes[target] = route;
 	log("Received routing information for " + target.stringify());
 }
@@ -36,6 +37,6 @@ bool isRemote(Address target) {
 bool remoteSend(Address target, string data) {
 	if (routes.count(target) == 0)
 		return false;
-	sendByPeer(routes[target], data);
+	routes[target]->transmit(data);
 	return true;
 }

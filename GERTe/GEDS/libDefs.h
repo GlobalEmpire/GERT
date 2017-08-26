@@ -6,7 +6,7 @@ using namespace std;
 typedef unsigned char UCHAR;
 
 class Gateway;
-class peer;
+class Peer;
 
 class versioning {
 	public:
@@ -18,9 +18,9 @@ class versioning {
 class version {
 	public:
 		bool(*procGate)(Gateway*, string);
-		bool(*procPeer)(peer*, string);
+		bool(*procPeer)(Peer*, string);
 		void(*killGate)(Gateway*);
-		void(*killPeer)(peer*);
+		void(*killPeer)(Peer*);
 		versioning vers;
 		void* handle;
 };

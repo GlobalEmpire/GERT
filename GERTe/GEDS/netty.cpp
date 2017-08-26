@@ -76,7 +76,7 @@ void checkPeers() {
 		if ((*iter)->sock == nullptr)
 			continue;
 		char buf[256];
-		peer* conn = *iter;
+		Peer* conn = *iter;
 		if (conn == nullptr || (SOCKET*)(conn->sock) == nullptr) {
 			error("WHAT THE HECK. IT'S NULL!");
 			abort();
@@ -97,9 +97,11 @@ void checkGateways() {
 		char buf[256];
 		Gateway* conn = *iter;
 		int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-		debug(to_string(result));
-		if (result <= 0)
+		if (result <= 0) {
+			if (result == -1 && errno != EWOULDBLOCK)
+				debug(to_string(errno));
 			continue;
+		}
 		string data;
 		data.insert(0, buf, result);
 		conn->process(data);
@@ -179,39 +181,28 @@ void runServer() { //Listen for new connections
 		if (FD_ISSET(gateServer, &testSet)) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
-			Gateway * gate;
 			try {
-				gate = new Gateway(newSock);
-				noAddrList.push_back(gate);
-			} catch(int e) {
-				delete gate;
-			}
+				new Gateway(newSock);
+			} catch(int e) {}
 		}
 		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
-			initPeer((void*)newSocket);
+			Peer * peer;
+			try {
+				peer = new Peer(newSocket);
+			} catch(int e) {}
 		}
 		this_thread::yield(); //Release CPU
 	}
-}
-
-//PUBLIC
-void sendByGateway(Gateway* target, string data) {
-	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
-}
-
-//PUBLIC
-void sendByPeer(peer* target, string data) {
-	send(*(SOCKET*)target->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 void buildWeb() {
 	version* best = getVersion(highestVersion());
 	versioning vers = best->vers;
 	for (knownIter iter; !iter.isEnd(); iter++) {
-		ipAddr ip = (*iter).addr;
-		knownPeer known = *iter;
+		KnownPeer known = *iter;
+		ipAddr ip = known.addr;
 		portComplex ports = known.ports;
 		if (ports.peer == 0) {
 			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
@@ -230,7 +221,8 @@ void buildWeb() {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		send(*newSock, (to_string(vers.major) + to_string(vers.minor) + to_string(vers.patch)).c_str(), (ULONG)3, 0);
+		char verc[3] = {vers.major, vers.minor, vers.patch};
+		send(*newSock, verc, (ULONG)3, 0);
 		char death[3];
 		pollfd pollReq = {*newSock, POLLIN};
 #ifdef _WIN32
@@ -253,9 +245,8 @@ void buildWeb() {
 #else
 		fcntl(*newSock, F_SETFL, O_NONBLOCK);
 #endif
-		peer* newConn = new peer((void*)newSock, best, remoteIP);
+		Peer* newConn = new Peer((void*)newSock, best, &known);
 		newConn->state = 1;
-		_raw_peer(remoteIP, newConn);
 		log("Connected to " + ip.stringify());
 	}
 }

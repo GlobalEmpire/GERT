@@ -1,10 +1,15 @@
 #include "Gateway.h"
 #include "libLoad.h"
 #include "netty.h"
+#include "gatewayManager.h"
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <map>
 
 typedef int SOCKET;
+
+map<Address, Gateway*> gateways;
+vector<Gateway*> noAddrList;
 
 Gateway::Gateway(void* sock) : connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock; //Convert socket to correct type
@@ -22,8 +27,38 @@ Gateway::Gateway(void* sock) : connection(sock) {
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
+		delete newSocket;
+		delete this;
 		throw;
 	} else {
 		this->process(""); //Process empty data (Protocol Library Gateway Initialization)
+		noAddrList.push_back(this);
 	}
+}
+
+void Gateway::transmit(string data) {
+	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+}
+
+bool Gateway::assign(Address requested, Key key) {
+	if (checkKey(requested, key)) { //Determine if the key is for the address
+		this->addr = requested; //Set the address
+		gateways[requested] = this; //Add Gateway to the database
+		for (noAddrIter iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
+			if (*iter == this) { //If we found the Gateway
+				iter.erase(); //Remove it
+				break; //We're done here
+			}
+		}
+		log("Association from " + requested.stringify()); //Notify user that the address has registered
+		return true; //Notify the protocol library assignment was successful
+	}
+	return false; //Notify the protocol library assignment has failed
+}
+
+void Gateway::close() {
+	gateways.erase(this->addr); //Remove connection from universal map
+	destroy((SOCKET*)this->sock); //Close the socket
+	log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
+	delete this; //Release the memory used to store the Gateway
 }

@@ -32,7 +32,6 @@ extern "C" {
 	Gateway* getGate(Address);
 	bool sendToGateway(Address, string);
 	void initGate(void *);
-	void closeGateway(Gateway*);
 	void gateWatcher();
 	bool isLocal(Address);
 }
