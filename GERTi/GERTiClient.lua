@@ -26,22 +26,82 @@ if (component.isAvailable("tunnel")) then
 end
 
 -- addresses
-local eAddress = 0
-local iAddress = 0
+
+-- This only matters to the "GERTi" API way down below. Should be int - see startup procedure.
+-- It is updated by handler["RegisterComplete"] if the message concerns this node.
+local iAddress = nil
 local cachedAddress = {{}, {}, {}, {}, {}}
 local addressDex = 1
 -- Tables of neighbors and connections
+-- [x]{
+--  address
+--  port
+--  tier
+-- }
 local neighbors = {}
 local tier = 3
 local neighborDex = 1
+-- [x]{
+--  destination
+--  origin
+--  beforeHop
+--  nextHop
+--  port
+--  data
+--  dataDex
+-- }
 local connections = {}
 local connectDex = 1
+
+-- Addresses awaiting resolution. Key is the gAddress, value is the function.
+-- This is as opposed to addTempHandler which has no caching.
+-- Add to this with addWaitingAddress.
+-- These are cancelled after a set time.
+local waitingAddress = {}
+
 local handler = {}
 
 -- internal functions
 local function sortTable(elementOne, elementTwo)
 	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
 end
+
+-- like sortTable : these are common between MNC & GERTiClient
+-- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
+-- extremely useful for callback programming
+local function addTempHandler(timeout, code, cb, cbf)
+	local function cbi(...)
+		local evn, rc, sd, pt, dt, code2 = ...
+		if code ~= code2 then return end
+		if cb(...) then
+			-- Returning false from the event handler (specifically false) will get rid of the handler.
+			-- I have no idea why an event handler in this code was set up to cause it to return false,
+			--  apart from this one (because it wasn't *the handler holding everything together*)
+			return false
+		end
+	end
+	event.listen("modem_message", cbi)
+	event.timer(timeout, function ()
+		event.ignore(cbi)
+		cbf()
+	end)
+end
+-- Like a sleep, but it will exit early if a modem_message is received and then something happens.
+local function waitWithCancel(timeout, cancelCheck)
+	-- Wait for the response.
+	local now = computer.uptime()
+	local deadline = now + 5
+	while now < deadline do
+		event.pull(deadline - now, "modem_message")
+		-- The listeners were called, so as far as we're concerned anything cancel-worthy should have happened
+		local response = cancelCheck()
+		if response then return response end
+		now = computer.uptime()
+	end
+	-- Out of time
+	return cancelCheck()
+end
+--
 
 local function storeNeighbors(eventName, receivingModem, sendingModem, port, distance, package)
 	-- Register neighbors for communication to the rest of the network
@@ -128,6 +188,22 @@ local function transmitInformation(sendTo, port, ...)
 	return false
 end
 
+-- Sends (or reuses) an existing address resolution request.
+-- Only use when MNC is present.
+local function addWaitingAddress(gAddress, callback)
+	if waitingAddress[gAddress] then
+		local old = waitingAddress[gAddress]
+		waitingAddress[gAddress] = function (response) callback(response) old(response) end
+	else
+		waitingAddress[gAddress] = callback
+		event.timer(5, function ()
+			-- Purge this receiver.
+			waitingAddress[gAddress] = nil
+		end)
+		transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
+	end
+end
+
 handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
 	-- Process AddNeighbor messages and add them as neighbors
 	if tier < 3 then
@@ -142,7 +218,7 @@ handler["DATA"] = function (eventName, receivingModem, sendingModem, port, dista
 	-- Attempt to determine if host is the destination, else send it on to next hop.
 	for key, value in pairs(connections) do
 		if value["destination"] == destination and value["origination"] == origination then
-			if connections[key]["destination"] == modem.address then
+			if connections[key]["destination"] == (modem or tunnel).address then
 				return storeData(key, data)
 			else
 				return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
@@ -154,45 +230,60 @@ end
 
 -- opens a route using the given information, used in handler["OPENROUTE"] and GERTi.openRoute()
 -- DIFFERs from MNC's orController
-local function orController(destination, origination, beforeHop, nextHop, receivedPort, transmitPort, ...)
+-- 'cb' (callback) is given success (true) or failure (false)
+-- The ... is sent in the MNC's direction
+local function orController(destination, origination, beforeHop, nextHop, receivedPort, transmitPort, cb, ...)
 	print("Opening Route")
+	local function sendOKResponse()
+		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
+		storeConnections(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+		if cb then
+			cb(true)
+		end
+	end
 	if modem.address ~= destination then
 		print("modem address was not destination")
 		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, ...)
-		local eventName, receivingModem, _, port, distance, payload = event.pull(6, "modem_message")
-		if payload ~= "ROUTE OPEN" then
-			return false
-		end
+		-- Basically: When the ROUTE OPEN comes along, check if it's the route we want (it's one route per pair anyway)
+		addTempHandler(6, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+			if (destination == pktDest) and (origination == pktOrig) then
+				sendOKResponse()
+				return true -- This terminates the wait
+			end
+		end, function () if cb then cb(false) end end)
+		return
 	end
-	return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+	sendOKResponse()
 end
 
 handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination, outbound)
 	-- Attempt to determine if the intended destination is this computer
 	if destination == modem.address then
-		return orController(modem.address, origination, sendingModem, modem.address, port, port)
+		orController(modem.address, origination, sendingModem, modem.address, port, port, nil)
+		return
 	end
 
 	-- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
-			return orController(destination, origination, sendingModem, neighbors[key]["address"], port, neighbors[key]["port"])
+			orController(destination, origination, sendingModem, neighbors[key]["address"], port, neighbors[key]["port"], nil)
+			return
 		end
 	end
 
 	-- if it is not a neighbor, and no intermediary was found, then contact parent to forward indirect connection request
 	if intermediary == modem.address then
-		return orController(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"], outbound)
+		orController(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"], nil, outbound)
+		return
 	end
 
 	-- If an intermediary is found (likely because MNC was already contacted), then attempt to forward request to intermediary
 	for key, value in pairs(neighbors) do
 		if value["address"] == intermediary then
-			return orController(destination, origination, sendingModem, intermediary, port, neighbors[key]["port"])
+			orController(destination, origination, sendingModem, intermediary, port, neighbors[key]["port"], nil)
+			return
 		end
 	end
-
-	return false
 end
 
 handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
@@ -201,6 +292,8 @@ handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, p
 end
 
 handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination, tier, serialTable)
+	-- THIS IS COMPLETELY IGNORED. Until I have more knowledge about the organization, I won't touch this,
+	--  but FIX THIS LATER! Also see RegisterComplete and the stuff that happened to ResolveAddress - 20kdc
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RetrieveAddress", origination, tier, serialTable)
 	local _, _, _, port, _, payload = event.pull(5, "modem_message")
 	if payload ~= nil then
@@ -208,16 +301,62 @@ handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, por
 	end
 end
 
+handler["RegisterComplete"] = function (eventName, receivingModem, sendingModem, port, distance, code, targetMA, iResponse)
+	if receivingModem == targetMA then
+		-- This is us!
+		iAddress = iResponse
+	end
+	-- The code that goes in the 'else' depends on what happens to RegisterNode
+end
+
 handler["RETURNSTART"] = function (eventName, receivingModem, sendingModem, port, distance, code, tier)
 	-- Store neighbor based on the returning tier
-	return storeNeighbors(eventName, receivingModem, sendingModem, port, distance, tier)
+	storeNeighbors(eventName, receivingModem, sendingModem, port, distance, tier)
+end
+
+handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
+	addWaitingAddress(gAddress, function(response)
+		-- this indentation is weird.
+		-- Anyway, this is the callback to forward the resolution
+		transmitInformation(sendingModem, port, "AddressResolution", gAddress, response)
+	end)
+end
+
+handler["AddressResolution"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress, mtAddress)
+	if waitingAddress[gAddress] then
+		waitingAddress[gAddress](mtAddress)
+		waitingAddress[gAddress] = nil
+	end
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
 	print(code)
 	-- Attempt to call a handler function to further process the packet
 	if handler[code] ~= nil then
-		return handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
+		handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
+	end
+	-- Just to make it clear, the return value system was a bad idea.
+end
+
+local function emergencyCalcIA(modemAddress)
+	local p = 0
+	for i = 1, 3 do
+		p = p + (modemAddress:byte(i) * (16 ^ i))
+	end
+	p = p % 4096
+	if p == 0 then p = 1 end
+	return p
+end
+-- This is used to replace resolveAddress if the MNC is unavailable.
+-- Otherwise, this is replaced during startup procedure.
+local function addressResolver(gAddress)
+	-- A gAddress is simply a number in the MNC (unless it has a ':' in which case it goes to GERTe)
+	local addr = tonumber(gAddress)
+	if not addr then return end
+	for _, v in ipairs(neighbors) do
+		if addr == emergencyCalcIA(v.address) then
+			return addr
+		end
 	end
 end
 
@@ -225,33 +364,15 @@ end
 -- transmit broadcast to check for neighboring GERTi enabled computers
 if tunnel then
 	tunnel.send("AddNeighbor")
-	receivePacket(event.pull(1, "modem_message"))
 end
 
 if modem then
 	modem.broadcast(4378, "AddNeighbor")
-	local continue = true
-	while continue do
-		continue = receivePacket(event.pull(1, "modem_message"))
-	end
 end
 
--- forward neighbor table up the line
-local serialTable = serialize.serialize(neighbors)
-if serialTable ~= "{}" then
-	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", modem.address, tier, serialTable)
-	local _, _, _, _, _, payload = event.pull(5, "modem_message")
-	if payload ~= nil then
-		iAddress = payload
-	else
-		print("Master Network Controller could not be found. This may result in impaired network functionality.")
-	end
-end
-
--- Register event listener to receive packets from now on
-event.listen("modem_message", receivePacket)
-
---Override computer.shutdown to allow for better network leaves
+-- Override computer.shutdown to allow for better network leaves
+-- (Do this now, not later, in case we somehow are told to shutdown during sleep.
+--  It's also right by AddNeighbor which gives a better view of what's going on here.)
 local function safedown()
 	if tunnel then
 		tunnel.send("RemoveNeighbor", modem.address)
@@ -261,15 +382,54 @@ local function safedown()
 	end
 end
 event.listen("shutdown", safedown)
+
+-- Since we're using receivePacket *anyway*, just hook ourselves in and do an os.sleep
+-- Register event listener to receive packets from now on
+event.listen("modem_message", receivePacket)
+
+-- Wait a while to build the neighbor table.
+-- What happens here is that we get RETURNSTART messages, which we don't forward.
+-- Completely new neighbors (anything that'll appear after this is over) send AddNeighbor messages,
+--  which we then forward. It's important this is high enough for all responses to be collated.
+-- The address numbers don't actually matter at all yet
+os.sleep(5)
+
+-- forward neighbor table up the line
+local serialTable = serialize.serialize(neighbors)
+local mncUnavailable = true
+if serialTable ~= "{}" then
+	-- Even if there is no neighbor table, still register to try and form a network regardless
+	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", modem.address, tier, serialTable)
+	if waitWithCancel(5, function () return iAddress end) then
+		addressResolver = function (gAddress)
+			local response
+			addWaitingAddress(gAddress, function (a) response = a end)
+			return waitWithCancel(5, function () return response end)
+		end
+		mncUnavailable = false
+	end
+end
+if mncUnavailable then
+	-- Setup a special mode so that this can be a "print" rather than an "error".
+	-- Network functionality WILL BE IMPAIRED in this state, as it says.
+	-- The idea is that the modem UUID is a reliable source of randomness and potentially uniqueness.
+	tier = 1 -- so we'll add neighbors properly
+	iAddress = emergencyCalcIA((modem or tunnel).address)
+	print("Master Network Controller could not be found. This will result in impaired network functionality. Your address is " .. iAddress .. " - this may conflict with other nodes.")
+end
+
 -- startup procedure is now complete ------------------------------------------------------------------------------------------------------------
 
 -- begin procedure to allow for data transmission
 -- this function allows a connection to the requested destination device, should only be used publicly if low-level operation is desired (e.g. another protocol that sits on top of GERTi to further manage networking)
+-- (Additional note: The parameter "outbound" is actually the original GERT string-address, this is used for GERTe access.
+--                   For GERTe access, destination should be the MNC.)
 function GERTi.openRoute(destination, outbound)
 	local connectNum = 0
 	local isNeighbor = false
 	local neighborKey = 0
 	local isOpen = false
+	local resultGiven = false
 	-- attempt to see if neighbor is local
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
@@ -278,12 +438,37 @@ function GERTi.openRoute(destination, outbound)
 			break
 		end
 	end
+	local function cb(r)
+		isOpen = r
+		resultGiven = true
+	end
 	-- if neighbor is local, then open a direct connection
 	if isNeighbor == true then
-		return orController(neighbors[neighborKey]["address"], modem.address, modem.address, neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], neighbors[neighborKey]["port"], outbound)
+		orController(neighbors[neighborKey]["address"], modem.address, modem.address, neighbors[neighborKey]["address"], neighbors[neighborKey]["port"], neighbors[neighborKey]["port"], cb, outbound)
 	else
 		-- if neighbor is not local, then attempt to contact parent to open an indirect connection (i.e. routed through multiple computers)
-		return orController(destination, modem.address, modem.address, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], outbound)
+		orController(destination, modem.address, modem.address, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], cb, outbound)
+	end
+	waitWithCancel(10, function () return resultGiven end)
+	return isOpen
+end
+
+-- Yet another low-level function
+function GERTi.resolveAddress(gAddress)
+	-- attempt to check cached addresses, otherwise contact MNC for address resolution
+	for key, value in pairs(cachedAddress) do
+		if value["gAddress"] == gAddress then
+			return value["realAddress"]
+		end
+	end
+	if realAddress == nil then
+		local payload = addressResolver(gAddress)
+		if payload then
+			cacheAddress(gAddress, payload)
+			return payload
+		else
+			return nil, "invalid address"
+		end
 	end
 end
 
@@ -330,41 +515,26 @@ end
 
 -- This is the function that allows end-users to open sockets. It will cache previously opened connections to allow for a faster re-opening. It also allows for the function to be called even when openRoute has not been called previously.
 function GERTi.openSocket(gAddress)
-	local realAddress = nil
-	local origination = modem.address
+	local realAddress, err = GERTi.resolveAddress(gAddress)
+	local origination = (modem or tunnel).address
 	local incomingRoute = 0
 	local outgoingRoute = 0
 	local outgoingPort = 0
 	local incomingPort = 0
 	local isValid = true
 	local socket = {}
-	-- attempt to check cached addresses, otherwise contact MNC for address resolution
-	for key, value in pairs(cachedAddress) do
-		if value["gAddress"] == gAddress then
-			realAddress = value["realAddress"]
-			break
-		end
+	if not realAddress then
+		return nil, err
 	end
-	if realAddress == nil then
-		transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
-		local _, _, _, _, _, payload = event.pull(5, "modem_message")
-		if payload ~= nil then
-			cacheAddress(gAddress, payload)
-			realAddress = payload
-		else
-			print("This is not a valid address")
-			return "invalid address"
-		end
-	end
-	outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
+	outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(origination, realAddress)
 	if incomingRoute == 0 or outgoingRoute == 0 then
 		isValid = GERTi.openRoute(realAddress, gAddress)
 		if isValid == true then
-			outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(modem.address, realAddress)
+			outgoingRoute, incomingRoute, outgoingPort, incomingPort = getConnectionPair(origination, realAddress)
 		end
 	end
 	if isValid == true then
-		socket.origin = modem.address
+		socket.origin = origination
 		socket.destination = realAddress
 		socket.outbound = gAddress
 		socket.incomingRoute = incomingRoute
@@ -374,9 +544,9 @@ function GERTi.openSocket(gAddress)
 		socket.write = writeData
 		socket.read = readData
 	else
-		print("Route cannot be opened, please confirm destination and that a valid path exists.")
+		return nil, "Route cannot be opened, please confirm destination and that a valid path exists."
 	end
-	return socket, isValid
+	return socket
 end
 
 function GERTi.getConnections()
