@@ -4,22 +4,9 @@ if not comp then
 	apiRequired("Component")
 end
 
-local fs = require "filesystem"
-
-if not fs then
-	apiRequired("Filesystem")
-end
-
-local proc = require "process"
-
-if not proc then
-	apiRequired("Process")
-end
-
 local api = {}
 local card = comp.proxy(comp.list("internet")())
 local socket
-local path = fs.path(proc.running())
 local connected
 
 local version = "\1\0\0"
@@ -93,22 +80,22 @@ local function unparseAddr(addr)
 end
 
 function api.parse()
-	local msg = socket.read() or ""
-	if msg:len() == 0 then
+	local cmd = socket.read(1) or ""
+	if cmd == "" then
 		return nil
 	end
-	local cmd = msg:sub(1, 1)
-	msg:sub(2)
 
 	if cmd == 2 then
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
+		local addrs = socket.read(12)
 		local addr = unparseAddr(msg)
 		local source = unpauseAddr(msg:sub(7))
+		local length = socket.read(1)
 		return {
 			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
 			source = source,
-			data = msg:sub(13)
+			data = socket.read(length)
 		}
 	elseif cmd == 4 then
 		socket.close()
@@ -120,7 +107,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 	if socket then
 		return
 	end
-	local file = fs.open(path .. "peers.geds", "rb")
+	local file = io.open("peers.geds", "rb")
 	local peers = {}
 	while true do --Loading peers from file
 		local ipNums = file:read(4)
@@ -184,10 +171,10 @@ function api.transmitTo(addr, from, data)
 	local rawFrom = parseAddr("0.0:" .. from)
 	rawFrom = rawFrom:sub(4)
 	cmd = cmd .. rawAddr .. rawFrom
-	if string.len(data) > 247 then
+	if string.len(data) > 255 then
 		return false, "Data too long"
 	end
-	cmd = cmd .. data
+	cmd = cmd .. string.char(data:len()) .. data
 	socket.write(cmd)
 	local result = ""
 	while result:len() < 1 do
