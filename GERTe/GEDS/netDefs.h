@@ -1,10 +1,7 @@
 #ifndef __NETDEFS__
 #define __NETDEFS__
 #include <netinet/ip.h>
-#include <arpa/inet.h>
-#include "libDefs.h"
-#include "logging.h"
-#include "GERTc.h"
+#include <string>
 
 using namespace std;
 
@@ -32,14 +29,5 @@ class ipAddr {
 			UCHAR* rep = (UCHAR*)&addr.s_addr;
 			return to_string(rep[0]) + "." + to_string(rep[1]) + "." + to_string(rep[2]) + "." + to_string(rep[3]);
 		};
-};
-
-class connection {
-	public:
-		void* sock;
-		version* api;
-		UCHAR state = 0;
-		connection(void* socket) : sock(socket), api(nullptr) {};
-		connection(void* socket, version* vers) : sock(socket), api(vers) {};
 };
 #endif

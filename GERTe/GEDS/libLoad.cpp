@@ -11,6 +11,7 @@ typedef void* lib; //Define lib as Unix void pointer for dynamic library
 #include <map> //Load map type for databases
 #include "netty.h" //Load netty header for ... Reason? Notify me if you determine what is required
 #include "libLoad.h"
+#include "logging.h"
 typedef unsigned char UCHAR;
 using namespace std; //Default to using STD namespace
 using namespace experimental::filesystem::v1; //Default to using this really long namespace

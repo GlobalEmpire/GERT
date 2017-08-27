@@ -15,7 +15,7 @@ void sockError(SOCKET * sock, char * err, Peer* me) {
 	delete me;
 }
 
-Peer::Peer(void * sock) : connection(sock) {
+Peer::Peer(void * sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock;
 	char buf[3];
 	recv(*newSocket, buf, 3, 0);
@@ -46,7 +46,7 @@ Peer::Peer(void * sock) : connection(sock) {
 	}
 };
 
-Peer::Peer(void * socket, version * vers, KnownPeer * known) : connection(socket, vers), id(known) {
+Peer::Peer(void * socket, version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
 	peers[id->addr] = this;
 }
 

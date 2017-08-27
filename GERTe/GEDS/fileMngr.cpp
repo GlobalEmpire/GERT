@@ -1,8 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS //Windows grumble grumble
 
 #include "peerManager.h" //Include peer manager so that we can write to the peer database
-#include "keyMngr.h" //Include key manager so we can write to the key database
 #include "fileMngr.h"
+#include "Key.h"
 
 typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
@@ -52,7 +52,7 @@ Status loadResolutions() { //Load key resolutions from a file
 		fread(&buff, 1, 20, resolutionFile); //Fill the key
 		Key key(buff); //Reformat the key
 		log("Imported resolution for " + addr.stringify()); //Print what we've imported
-		addResolution(addr, key); //Add the key to the database
+		resolutions[addr] = key;
 	}
 	fclose(resolutionFile); //Close the file
 	return Status(StatusCodes::OK); //Return without an error

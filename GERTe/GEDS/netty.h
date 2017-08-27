@@ -1,6 +1,5 @@
-#ifndef __NETTY__
-#define __NETTY__
-#include "keyMngr.h"
+#pragma once
+#include "Address.h"
 
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
@@ -19,4 +18,3 @@ extern "C" {
 	void buildWeb();
 	string putAddr(Address);
 }
-#endif

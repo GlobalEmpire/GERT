@@ -3,6 +3,7 @@
 #include "../Key.h"
 #include "../Gateway.h"
 #include "../Peer.h"
+#include "../GERTc.h"
 
 extern "C" {
 	extern bool sendToGateway(Address, string);

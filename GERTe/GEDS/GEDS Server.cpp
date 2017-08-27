@@ -23,6 +23,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include "overwatch.h" //Include overwatch header for error checking and "recovery"
 #include "fileMngr.h" //Include file manager library for loading and saving databases
 #include "Trace.h"
+#include "logging.h"
 #include <exception> //Load exception library for terminate() hook
 #include <iostream>
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap

@@ -8,10 +8,12 @@
 
 typedef int SOCKET;
 
+extern map<Address, Key> resolutions;
+
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
 
-Gateway::Gateway(void* sock) : connection(sock) {
+Gateway::Gateway(void* sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock; //Convert socket to correct type
 	char buf[3]; //Create a buffer for the version data
 	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
@@ -41,7 +43,7 @@ void Gateway::transmit(string data) {
 }
 
 bool Gateway::assign(Address requested, Key key) {
-	if (checkKey(requested, key)) { //Determine if the key is for the address
+	if (resolutions[requested] == key) { //Determine if the key is for the address
 		this->addr = requested; //Set the address
 		gateways[requested] = this; //Add Gateway to the database
 		for (noAddrIter iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
