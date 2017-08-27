@@ -10,13 +10,13 @@
 #include <unistd.h>
 #include <poll.h>
 #include <thread>
-#include <cstring>
 #include "libLoad.h"
 #include "peerManager.h"
 #include "routeManager.h"
 #include "gatewayManager.h"
 #include "query.h"
 #include "netty.h"
+#include "logging.h"
 using namespace std;
 
 typedef timeval TIMEVAL;
@@ -58,53 +58,37 @@ void killConnections() {
 
 void checkUnregistered() {
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		if ((*iter)->sock == nullptr)
-			continue;
-		char buf[255];
 		Gateway* conn = *iter;
-		int result = recv(*(SOCKET*)conn->sock, buf, 255, 0);
-		if (result <= 0)
+		if (conn->sock == nullptr)
+			conn->close();
+		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
+		if (result == -1)
 			continue;
-		string data;
-		data.insert(0, buf, result);
-		conn->process(data);
+		conn->process();
 	}
 }
 
 void checkPeers() {
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		if ((*iter)->sock == nullptr)
-			continue;
-		char buf[256];
 		Peer* conn = *iter;
-		if (conn == nullptr || (SOCKET*)(conn->sock) == nullptr) {
-			error("WHAT THE HECK. IT'S NULL!");
-			abort();
-		}
-		int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-		if (result <= 0)
+		if (conn->sock == nullptr)
+			conn->close();
+		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
+		if (result == -1)
 			continue;
-		string data;
-		data.insert(0, buf, result);
-		conn->process(data);
+		conn->process();
 	}
 }
 
 void checkGateways() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		if ((*iter)->sock == nullptr)
+		Gateway * conn = *iter;
+		if (conn->sock == nullptr)
+			conn->close();
+		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
+		if (result == -1)
 			continue;
-		char buf[256];
-		Gateway* conn = *iter;
-		int result = recv(*(SOCKET*)conn->sock, buf, 256, 0);
-		if (result <= 0) {
-			if (result == -1 && errno != EWOULDBLOCK)
-				debug(to_string(errno));
-			continue;
-		}
-		string data;
-		data.insert(0, buf, result);
-		conn->process(data);
+		conn->process();
 	}
 }
 
@@ -198,8 +182,8 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	version* best = getVersion(highestVersion());
-	versioning vers = best->vers;
+	Version* best = getVersion(highestVersion());
+	Versioning vers = best->vers;
 	for (knownIter iter; !iter.isEnd(); iter++) {
 		KnownPeer known = *iter;
 		ipAddr ip = known.addr;

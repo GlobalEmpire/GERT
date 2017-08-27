@@ -2,6 +2,7 @@
 #include "gatewayManager.h"
 #include "netty.h"
 #include "Peer.h"
+#include "logging.h"
 
 map<Address, Peer*> routes;
 

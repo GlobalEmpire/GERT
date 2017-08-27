@@ -7,7 +7,7 @@
 class Gateway : public Connection {
 	public:
 		Address addr;
-		void process(string data) { api->procGate(this, data); };
+		void process() { api->procGate(this); };
 		void kill() { api->killGate(this); };
 		Gateway(void* socket);
 		void transmit(string);

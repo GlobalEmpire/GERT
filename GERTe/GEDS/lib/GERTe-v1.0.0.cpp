@@ -62,13 +62,20 @@ enum gedsCommands {
 	QUERY
 };
 
+string extract(Connection * conn, int len) {
+	char * buf = conn->read(len);
+	string data{buf, len};
+	delete buf;
+	return data;
+}
+
 STARTEXPORT
 
 DLLExport UCHAR major = 1;
 DLLExport UCHAR minor = 0;
 DLLExport UCHAR patch = 0;
 
-DLLExport void processGateway(Gateway* gate, string packet) {
+DLLExport void processGateway(Gateway* gate) {
 	if (gate->state == FAILURE) {
 		gate->state = CONNECTED;
 		gate->transmit(string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
@@ -82,10 +89,10 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 		 */
 		return;
 	}
-	UCHAR command = packet.data()[0];
-	string rest = packet.erase(0, 1);
+	UCHAR command = *(gate->read());
 	switch (command) {
 		case REGISTER: {
+			string rest = extract(gate, 23);
 			if (gate->state == ASSIGNED) {
 				gate->transmit(string({ STATE, FAILURE, ALREADY_REGISTERED }));
 				/*
@@ -135,6 +142,10 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 			return;
 		}
 		case DATA: {
+			string rest = extract(gate, 9);
+			char * len = gate->read();
+			rest += len + extract(gate, *len);
+			delete len;
 			if (gate->state == CONNECTED) {
 				gate->transmit(string({STATE, FAILURE, NOT_REGISTERED}));
 				/*
@@ -147,7 +158,9 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 			}
 			GERTc target{rest}; //Assign target address as first 4 bytes
 			rest.erase(0, 6);
-			string newCmd = string{DATA} + gate->addr.stringify() + rest;
+			Address source{rest};
+			rest.erase(0, 3);
+			string newCmd = string{DATA} + gate->addr.stringify() + source.stringify() + rest;
 			if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
 				sendToGateway(target.external, newCmd); //Send to target
 			} else {
@@ -205,7 +218,7 @@ DLLExport void processGateway(Gateway* gate, string packet) {
 	}
 }
 
-DLLExport void processGEDS(Peer* geds, string packet) {
+DLLExport void processGEDS(Peer* geds) {
 	if (geds->state == 0) {
 		geds->state = 1;
 		geds->transmit(string({ (char)major, (char)minor, (char)patch }));
@@ -217,10 +230,13 @@ DLLExport void processGEDS(Peer* geds, string packet) {
 		 */
 		return;
 	}
-	UCHAR command = packet.data()[0];
-	string rest = packet.erase(0, 1);
+	UCHAR command = *(geds->read());
 	switch (command) {
 		case ROUTE: {
+			string rest = extract(geds, 12);
+			char * len = geds->read();
+			rest += *len + extract(geds, *len);
+			delete len;
 			Address target{rest};
 			string cmd = { DATA };
 			cmd += rest;
@@ -232,16 +248,19 @@ DLLExport void processGEDS(Peer* geds, string packet) {
 			return;
 		}
 		case REGISTERED: {
+			string rest = extract(geds, 3);
 			Address target{rest};
 			setRoute(target, geds);
 			return;
 		}
 		case UNREGISTERED: {
+			string rest = extract(geds, 3);
 			Address target{rest};
 			removeRoute(target);
 			return;
 		}
 		case RESOLVE: {
+			string rest = extract(geds, 3);
 			Address target{rest};
 			rest.erase(0, 6);
 			Key key = rest;
@@ -249,18 +268,21 @@ DLLExport void processGEDS(Peer* geds, string packet) {
 			return;
 		}
 		case UNRESOLVE: {
+			string rest = extract(geds, 3);
 			Address target{rest};
 			removeResolution(target);
 			return;
 		}
 		case LINK: {
+			string rest = extract(geds, 8);
 			ipAddr target(rest);
-			rest.erase(0, 6);
+			rest.erase(0, 4);
 			portComplex ports = makePorts(rest);
 			addPeer(target, ports);
 			return;
 		}
 		case UNLINK: {
+			string rest = extract(geds, 4);
 			ipAddr target(rest);
 			removePeer(target);
 			return;
@@ -271,6 +293,7 @@ DLLExport void processGEDS(Peer* geds, string packet) {
 			return;
 		}
 		case QUERY: {
+			string rest = extract(geds, 3);
 			Address target{rest};
 			if (isLocal(target)) {
 				string cmd = { REGISTERED };

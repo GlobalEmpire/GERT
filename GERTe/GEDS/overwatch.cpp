@@ -1,6 +1,7 @@
 #include "Key.h"
 #include "peerManager.h"
 #include "gatewayManager.h"
+#include "logging.h"
 #include <thread>
 
 typedef unsigned long long pointer;
@@ -13,7 +14,7 @@ enum scanResult {
 	MAJOR_ERR
 };
 
-int scanAPI(version * checkapi, string addr, string type) {
+int scanAPI(Version * checkapi, string addr, string type) {
 	int errs = 0;
 	if (checkapi == nullptr) {
 		debug("[ESCAN] " + type + " " + addr + " missing api");
@@ -50,7 +51,7 @@ int scanGateway(Gateway * checkgate, string addr) {
 		debug("[ESCAN] Gateway " + addr + " missing socket");
 		errs++;
 	}
-	version * checkapi = checkgate->api;
+	Version * checkapi = checkgate->api;
 	errs += scanAPI(checkapi, addr, "Gateway");
 	return errs;
 }
@@ -73,7 +74,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 			debug("[ESCAN] Peer " + addr + "missing socket");
 			errs++;
 		}
-		version * checkapi = checkpeer->api;
+		Version * checkapi = checkpeer->api;
 		errs += scanAPI(checkapi, addr, "Peer");
 	}
 	debug("[ESCAN] Peer error count: " + to_string(errs));

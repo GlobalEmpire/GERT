@@ -2,6 +2,7 @@
 #define __KEY_GUARD__
 
 #include <string>
+using namespace std;
 
 class Key {
 	friend void saveResolutions();

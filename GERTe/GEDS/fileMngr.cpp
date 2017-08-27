@@ -3,6 +3,8 @@
 #include "peerManager.h" //Include peer manager so that we can write to the peer database
 #include "fileMngr.h"
 #include "Key.h"
+#include "Address.h"
+#include "logging.h"
 
 typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 

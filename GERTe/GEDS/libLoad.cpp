@@ -16,7 +16,7 @@ typedef unsigned char UCHAR;
 using namespace std; //Default to using STD namespace
 using namespace experimental::filesystem::v1; //Default to using this really long namespace
 
-map<UCHAR, version*> registered; //Create protocol library database
+map<UCHAR, Version*> registered; //Create protocol library database
 
 enum libErrors { //Create list of library errors
 	NO_ERR, //We're good!
@@ -51,9 +51,9 @@ lib loadLib(path libPath) { //Load protocol library file
 #endif
 }
 
-void registerVersion(version* registee) { //Register a version in the database
+void registerVersion(Version* registee) { //Register a version in the database
 	if (registered.count(registee->vers.major)) { //If the major version already exists
-		version* test = registered[registee->vers.major]; //Grab the already registered version
+		Version* test = registered[registee->vers.major]; //Grab the already registered version
 		if (test->vers.minor < registee->vers.minor) { //If the new version has a bigger minor version
 			registered[registee->vers.major] = registee; //Replace the old version
 		}
@@ -82,12 +82,12 @@ Status loadLibs() { //Load library files from apis subfolder
 				error("Failed to load " + testPath.filename().string()); //Print that we've failed
 				continue; //Skip loading the file
 			}
-			version* api = new version(); //Create a new version object
+			Version* api = new Version(); //Create a new version object
 			api->vers.major = *(UCHAR*)getValue(&handle, "major"); //Populate the version numbers
 			api->vers.minor = *(UCHAR*)getValue(&handle, "minor");
 			api->vers.patch = *(UCHAR*)getValue(&handle, "patch");
-			api->procGate = (bool(*)(Gateway*, string))getValue(&handle, "processGateway"); //Populate the processing functions
-			api->procPeer = (bool(*)(Peer*, string))getValue(&handle, "processGEDS");
+			api->procGate = (bool(*)(Gateway*))getValue(&handle, "processGateway"); //Populate the processing functions
+			api->procPeer = (bool(*)(Peer*))getValue(&handle, "processGEDS");
 			api->killGate = (void(*)(Gateway*))getValue(&handle, "killGateway"); //Populate the cleanup functions
 			api->killPeer = (void(*)(Peer*))getValue(&handle, "killGEDS");
 			if (api->procGate == nullptr || api->procPeer == nullptr || api->killGate == nullptr || api->killPeer == nullptr) { //If any function failed to load
@@ -108,7 +108,7 @@ Status loadLibs() { //Load library files from apis subfolder
 	return Status(StatusCodes::OK); //Return that we succeeded
 }
 
-version* getVersion(UCHAR major) { //Get a version by the major number
+Version* getVersion(UCHAR major) { //Get a version by the major number
 	if (registered.count(major) != 0) { //If that version is registered
 		return registered[major]; //Return it
 	}
@@ -116,6 +116,6 @@ version* getVersion(UCHAR major) { //Get a version by the major number
 }
 
 UCHAR highestVersion() { //Get the highest version registered
-	map<UCHAR, version*>::iterator last = registered.end(); //Go to the end of the list because it's sorted
+	map<UCHAR, Version*>::iterator last = registered.end(); //Go to the end of the list because it's sorted
 	return (--last)->first; //Move back one (onto the list) and return that version
 }

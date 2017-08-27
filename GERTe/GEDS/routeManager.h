@@ -1,6 +1,7 @@
 #ifndef __ROUTEMANAGER__
 #define __ROUTEMANAGER__
-#include "netDefs.h"
+#include "Peer.h"
+#include "Address.h"
 #include <map>
 using namespace std;
 

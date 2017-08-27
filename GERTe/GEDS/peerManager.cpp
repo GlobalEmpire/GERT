@@ -6,6 +6,7 @@
 #include "peerManager.h"
 #include "netty.h"
 #include "libLoad.h"
+#include "logging.h"
 
 extern map<ipAddr, Peer*> peers;
 extern map<ipAddr, KnownPeer> peerList;

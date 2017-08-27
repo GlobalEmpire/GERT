@@ -4,6 +4,7 @@
 #include "gatewayManager.h"
 #include "netty.h"
 #include "routeManager.h"
+#include "logging.h"
 
 extern map<Address, Gateway*> gateways; //Create Gateway database
 extern vector<Gateway*> noAddrList; //Create list for unregistered gateways

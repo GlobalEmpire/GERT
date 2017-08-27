@@ -2,6 +2,7 @@
 #include "libLoad.h"
 #include "netty.h"
 #include "gatewayManager.h"
+#include "logging.h"
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <map>
@@ -12,6 +13,16 @@ extern map<Address, Key> resolutions;
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
+
+noAddrIter find(Gateway * gate) {
+	noAddrIter iter;
+	for (iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
+		if (*iter == gate) { //If we found the Gateway
+			return iter;
+		}
+	}
+	return iter;
+}
 
 Gateway::Gateway(void* sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock; //Convert socket to correct type
@@ -33,7 +44,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		delete this;
 		throw;
 	} else {
-		this->process(""); //Process empty data (Protocol Library Gateway Initialization)
+		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 		noAddrList.push_back(this);
 	}
 }
@@ -46,12 +57,8 @@ bool Gateway::assign(Address requested, Key key) {
 	if (resolutions[requested] == key) { //Determine if the key is for the address
 		this->addr = requested; //Set the address
 		gateways[requested] = this; //Add Gateway to the database
-		for (noAddrIter iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
-			if (*iter == this) { //If we found the Gateway
-				iter.erase(); //Remove it
-				break; //We're done here
-			}
-		}
+		noAddrIter pos = find(this);
+		pos.erase();
 		log("Association from " + requested.stringify()); //Notify user that the address has registered
 		return true; //Notify the protocol library assignment was successful
 	}
@@ -60,7 +67,11 @@ bool Gateway::assign(Address requested, Key key) {
 
 void Gateway::close() {
 	gateways.erase(this->addr); //Remove connection from universal map
-	destroy((SOCKET*)this->sock); //Close the socket
+	noAddrIter pos = find(this);
+	if (!pos.isEnd())
+		pos.erase();
+	if (this->sock != nullptr)
+		destroy((SOCKET*)this->sock); //Close the socket
 	log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	delete this; //Release the memory used to store the Gateway
 }

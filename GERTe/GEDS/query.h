@@ -1,7 +1,3 @@
-#ifndef __QUERY_SERVICE__
-#define __QUERY_SERVICE__
-#include "netDefs.h"
+#include "Address.h"
 
 bool queryWeb(Address);
-
-#endif

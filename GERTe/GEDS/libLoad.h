@@ -1,10 +1,8 @@
-#ifndef __LIBLOAD__
-#define __LIBLOAD__
-#include "libDefs.h"
+#pragma once
 #include "Status.h"
+#include "Version.h"
 using namespace std;
 
 Status loadLibs();
-version* getVersion(UCHAR);
-UCHAR highestVersion();
-#endif
+Version* getVersion(unsigned char);
+unsigned char highestVersion();

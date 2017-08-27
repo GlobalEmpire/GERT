@@ -7,4 +7,5 @@ public:
 	Version * api;
 	unsigned char state;
 	Connection(void * socket, Version * vers = nullptr) : sock(socket), api(vers) {};
+	char * read(int=1);
 };
