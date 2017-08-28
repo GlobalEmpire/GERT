@@ -23,10 +23,6 @@ noAddrIter::noAddrIter() : ptr(noAddrList.begin()) {};
 Gateway* noAddrIter::operator* () { return *ptr; }
 void noAddrIter::erase() { ptr = noAddrList.erase(ptr); } //Add logic to erase()     Remove this element
 
-Gateway* getGate(Address target) { //Get a Gateway from an address
-	return gateways[target];
-}
-
 bool sendToGateway(Address addr, string data) { //Send to Gateway with address
 	if (gateways.count(addr) != 0) { //If that Gateway is in the database
 		gateways[addr]->transmit(data);
@@ -59,8 +55,4 @@ void noAddrWatcher() {
 			warn("Unassociated gateway was lost");
 		}
 	}
-}
-
-bool isLocal(Address addr) { //Check is an address is locally connected
-	return gateways.count(addr) > 0;
 }

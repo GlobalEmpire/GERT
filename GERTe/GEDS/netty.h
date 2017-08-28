@@ -6,7 +6,7 @@ typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 typedef int SOCKET;
 
-const unsigned int iplen = 16;
+constexpr unsigned int iplen = 16;
 
 extern "C" {
 	void destroy(void*);

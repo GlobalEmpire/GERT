@@ -44,9 +44,20 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		delete this;
 		throw;
 	} else {
+		local = true;
 		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 		noAddrList.push_back(this);
 	}
+}
+
+Gateway::Gateway(Address req) : Connection(nullptr) {
+	if (gateways.count(req) == 0) {
+		delete this;
+		throw;
+	}
+
+	Gateway target = gateways[req];
+	*this = target;
 }
 
 void Gateway::transmit(string data) {

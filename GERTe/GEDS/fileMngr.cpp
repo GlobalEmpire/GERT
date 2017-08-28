@@ -26,12 +26,12 @@ Status loadPeers() { //Load peers from a file
 		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2? Store an IP into previous variable
 		if (feof(peerFile) != 0) //If the file has nothing left
 			break; //We're done
-		USHORT rawPorts[2]; //Make two storage variables for ports
+		unsigned short rawPorts[2]; //Make two storage variables for ports
 		fread(&rawPorts, 2, 2, peerFile); //Fill those variables
 		rawPorts[0] = ntohs(rawPorts[0]); //Fix those variables for platform compatibility
 		rawPorts[1] = ntohs(rawPorts[1]);
-		portComplex ports = {rawPorts[0], rawPorts[1]}; //Reformat those variables into a structure
-		ipAddr ipClass = ip; //Reformat the address into a structure
+		Ports ports = {rawPorts[0], rawPorts[1]}; //Reformat those variables into a structure
+		IP ipClass = ip; //Reformat the address into a structure
 		if (ipClass.stringify() != LOCAL_IP) //If the string version of the address isn't what the local address is set to
 			log("Importing peer " + ipClass.stringify() + ":" + ports.stringify()); //Print out what we've imported
 		addPeer(ipClass, ports); //Add peer to the database
@@ -45,7 +45,7 @@ Status loadResolutions() { //Load key resolutions from a file
 	if (resolutionFile == nullptr) //If the file failed to open
 		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Key File: " + to_string(errno)); //Return with an error
 	while (true) {
-		UCHAR bufE[3]; //Create a storage variable for the external portion of the address
+		unsigned char bufE[3]; //Create a storage variable for the external portion of the address
 		fread(&bufE, 1, 3, resolutionFile); //Fill the external address
 		if (feof(resolutionFile) != 0) //If the file is at the end
 			break; //We're done

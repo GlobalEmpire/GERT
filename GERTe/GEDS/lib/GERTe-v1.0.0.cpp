@@ -62,11 +62,20 @@ enum gedsCommands {
 	QUERY
 };
 
-string extract(Connection * conn, int len) {
+string extract(Connection * conn, unsigned char len) {
 	char * buf = conn->read(len);
 	string data{buf, len};
 	delete buf;
 	return data;
+}
+
+bool isLocal(Address addr) {
+	try {
+		Gateway test{addr};
+		return true;
+	} catch (int e) {
+		return false;
+	}
 }
 
 STARTEXPORT
@@ -275,15 +284,16 @@ DLLExport void processGEDS(Peer* geds) {
 		}
 		case LINK: {
 			string rest = extract(geds, 8);
-			ipAddr target(rest);
+			IP target(rest);
 			rest.erase(0, 4);
-			portComplex ports = makePorts(rest);
+			unsigned short * ptr = (unsigned short*)rest.data();
+			Ports ports{ptr[0], ptr[1]};
 			addPeer(target, ports);
 			return;
 		}
 		case UNLINK: {
 			string rest = extract(geds, 4);
-			ipAddr target(rest);
+			IP target(rest);
 			removePeer(target);
 			return;
 		}

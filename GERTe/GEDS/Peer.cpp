@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <map>
 
-map<ipAddr, Peer*> peers;
+map<IP, Peer*> peers;
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);

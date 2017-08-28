@@ -8,8 +8,8 @@
 #include "libLoad.h"
 #include "logging.h"
 
-extern map<ipAddr, Peer*> peers;
-extern map<ipAddr, KnownPeer> peerList;
+extern map<IP, Peer*> peers;
+extern map<IP, KnownPeer> peerList;
 
 extern bool running;
 
@@ -37,27 +37,27 @@ void peerWatcher() {
 	}
 }
 
-Peer* lookup(ipAddr target) {
+Peer* lookup(IP target) {
 	return peers.at(target);
 }
 
-void _raw_peer(ipAddr key, Peer* value) {
+void _raw_peer(IP key, Peer* value) {
 	peers[key] = value;
 }
 
-void addPeer(ipAddr addr, portComplex ports) {
+void addPeer(IP addr, Ports ports) {
 	peerList[addr] = KnownPeer(addr, ports);
 	if (running)
 		log("New peer " + addr.stringify());
 }
 
-void removePeer(ipAddr addr) {
-	map<ipAddr, KnownPeer>::iterator iter = peerList.find(addr);
+void removePeer(IP addr) {
+	map<IP, KnownPeer>::iterator iter = peerList.find(addr);
 	peerList.erase(iter);
 	log("Removed peer " + addr.stringify());
 }
 
-void sendToPeer(ipAddr addr, string data) {
+void sendToPeer(IP addr, string data) {
 	peers[addr]->transmit(data);
 }
 

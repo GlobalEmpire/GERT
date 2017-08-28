@@ -186,8 +186,8 @@ void buildWeb() {
 	Versioning vers = best->vers;
 	for (knownIter iter; !iter.isEnd(); iter++) {
 		KnownPeer known = *iter;
-		ipAddr ip = known.addr;
-		portComplex ports = known.ports;
+		IP ip = known.addr;
+		Ports ports = known.ports;
 		if (ports.peer == 0) {
 			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
 			continue;
@@ -241,9 +241,4 @@ extern "C" {
 		const unsigned char* chars = addr.getAddr();
 		return string{chars[0], chars[1], chars[2]};
 	}
-}
-
-portComplex makePorts(string data) {
-	USHORT * ptr = (USHORT*)data.c_str();
-	return portComplex{ntohs(*ptr), ntohs(*ptr++)};
 }

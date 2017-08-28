@@ -1,9 +1,9 @@
 #ifndef __GATEWAY_MANAGER__
 #define __GATEWAY_MANAGER__
-#include "netDefs.h"
 #include "Gateway.h"
 #include <map>
 #include <vector>
+#include "Ports.h"
 
 typedef map<Address, Gateway*>::iterator gatewayPtr;
 typedef vector<Gateway*>::iterator noAddrPtr;
@@ -29,7 +29,6 @@ class noAddrIter {
 };
 
 extern "C" {
-	Gateway* getGate(Address);
 	bool sendToGateway(Address, string);
 	void initGate(void *);
 	void gateWatcher();

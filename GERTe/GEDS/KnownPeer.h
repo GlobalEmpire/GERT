@@ -1,10 +1,11 @@
-#include "netDefs.h"
+#include "IP.h"
+#include "Ports.h"
 
 class KnownPeer {
 public:
-	ipAddr addr;
-	portComplex ports;
-	KnownPeer(ipAddr target, portComplex bindings) : addr(target), ports(bindings) {};
+	IP addr;
+	Ports ports;
+	KnownPeer(IP target, Ports bindings) : addr(target), ports(bindings) {};
 	KnownPeer() : addr(0L), ports() {};
 };
 
