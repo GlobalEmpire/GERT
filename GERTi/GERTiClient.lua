@@ -33,7 +33,7 @@ local iAddress = nil
 local cachedAddress = {{}, {}, {}, {}, {}}
 local addressDex = 1
 -- Tables of neighbors and connections
--- [x]{
+-- neighbors[x]{
 --  address
 --  port
 --  tier
@@ -41,7 +41,7 @@ local addressDex = 1
 local neighbors = {}
 local tier = 3
 local neighborDex = 1
--- [x]{
+-- connections[x]{
 --  destination
 --  origin
 --  beforeHop
@@ -338,26 +338,10 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 	-- Just to make it clear, the return value system was a bad idea.
 end
 
-local function emergencyCalcIA(modemAddress)
-	local p = 0
-	for i = 1, 3 do
-		p = p + (modemAddress:byte(i) * (16 ^ i))
-	end
-	p = p % 4096
-	if p == 0 then p = 1 end
-	return p
-end
--- This is used to replace resolveAddress if the MNC is unavailable.
--- Otherwise, this is replaced during startup procedure.
 local function addressResolver(gAddress)
-	-- A gAddress is simply a number in the MNC (unless it has a ':' in which case it goes to GERTe)
-	local addr = tonumber(gAddress)
-	if not addr then return end
-	for _, v in ipairs(neighbors) do
-		if addr == emergencyCalcIA(v.address) then
-			return addr
-		end
-	end
+	local response
+	addWaitingAddress(gAddress, function (a) response = a end)
+	return waitWithCancel(5, function () return response end)
 end
 
 -- Begin startup ---------------------------------------------------------------------------------------------------------------------------
@@ -401,21 +385,11 @@ if serialTable ~= "{}" then
 	-- Even if there is no neighbor table, still register to try and form a network regardless
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", modem.address, tier, serialTable)
 	if waitWithCancel(5, function () return iAddress end) then
-		addressResolver = function (gAddress)
-			local response
-			addWaitingAddress(gAddress, function (a) response = a end)
-			return waitWithCancel(5, function () return response end)
-		end
 		mncUnavailable = false
 	end
 end
 if mncUnavailable then
-	-- Setup a special mode so that this can be a "print" rather than an "error".
-	-- Network functionality WILL BE IMPAIRED in this state, as it says.
-	-- The idea is that the modem UUID is a reliable source of randomness and potentially uniqueness.
-	tier = 1 -- so we'll add neighbors properly
-	iAddress = emergencyCalcIA((modem or tunnel).address)
-	print("Master Network Controller could not be found. This will result in impaired network functionality. Your address is " .. iAddress .. " - this may conflict with other nodes.")
+	print("Unable to contact the MNC. The network will be completely useless.")
 end
 
 -- startup procedure is now complete ------------------------------------------------------------------------------------------------------------
