@@ -2,7 +2,7 @@
 This is the code that provides protocol definition and formatting to the primary server.
 This code should be compiled then placed in the "apis" subfolder of the main server.
 This code is similarly cross-platform as the main server.
-This code DEFINITELY supports Windows and Linux and MIGHT support MacOS (but the main server doesn't.)
+This code DEFINITELY supports Linux and MIGHT support MacOS (but the main server doesn't.)
 
 This code is designed to function with other code from
 https://github.com/GlobalEmpire/GERT/
@@ -62,6 +62,47 @@ enum gedsCommands {
 	QUERY
 };
 
+namespace GEDS {
+	enum class Commands {
+		REGISTERED,
+		UNREGISTERED,
+		ROUTE,
+		RESOLVE,
+		UNRESOLVE,
+		LINK,
+		UNLINK,
+		CLOSE,
+		QUERY
+	};
+}
+
+namespace Gate {
+	enum class Commands {
+		STATE,
+		REGISTER,
+		DATA,
+		STATUS,
+		CLOSE
+	};
+
+	enum class States {
+		FAILURE,
+		CONNECTED,
+		REGISTERED,
+		CLOSED,
+		SENT
+	};
+
+	enum class Errors {
+		VERSION,
+		BAD_KEY,
+		REGISTERED,
+		NOT_REGISTERED,
+		NO_ROUTE,
+		ADDRESS_TAKEN
+	};
+}
+
 string extract(Connection * conn, unsigned char len) {
 	char * buf = conn->read(len);
 	string data{buf, len};
@@ -85,8 +126,8 @@ DLLExport UCHAR minor = 0;
 DLLExport UCHAR patch = 0;
 
 DLLExport void processGateway(Gateway* gate) {
-	if (gate->state == FAILURE) {
-		gate->state = CONNECTED;
+	if (gate->state == (char)Gate::States::FAILURE) {
+		gate->state = (char)Gate::States::CONNECTED;
 		gate->transmit(string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
 		/*
 		 * Response to connection attempt.
@@ -102,8 +143,9 @@ DLLExport void processGateway(Gateway* gate) {
 	switch (command) {
 		case REGISTER: {
 			string rest = extract(gate, 23);
-			if (gate->state == ASSIGNED) {
-				gate->transmit(string({ STATE, FAILURE, ALREADY_REGISTERED }));
+			if (gate->state == (char)Gate::States::REGISTERED) {
+				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::REGISTERED};
+				gate->transmit(cmd);
 				/*
 				 * Response to registration attempt when gateway has address assigned.
 				 * CMD STATE (0)
@@ -114,7 +156,8 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			Address request{rest};
 			if (isLocal(request) || isRemote(request)) {
-				gate->transmit(string({ STATE, FAILURE, ADDRESS_TAKEN }));
+				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::ADDRESS_TAKEN};
+				gate->transmit(cmd);
 				/*
 				 * Response to registration attempt when address is already taken.
 				 * CMD STATE (0)
@@ -126,7 +169,7 @@ DLLExport void processGateway(Gateway* gate) {
 			Key requestkey{rest};
 			if (gate->assign(request, requestkey)) {
 				gate->transmit(string({ STATE, ASSIGNED }));
-				gate->state = ASSIGNED;
+				gate->state = (char)Gate::States::REGISTERED;
 				/*
 				 * Response to successful registration attempt
 				 * CMD STATE (0)
@@ -155,7 +198,7 @@ DLLExport void processGateway(Gateway* gate) {
 			char * len = gate->read();
 			rest += len + extract(gate, *len);
 			delete len;
-			if (gate->state == CONNECTED) {
+			if (gate->state == (char)Gate::States::CONNECTED) {
 				gate->transmit(string({STATE, FAILURE, NOT_REGISTERED}));
 				/*
 				 * Response to data before registration
@@ -211,7 +254,7 @@ DLLExport void processGateway(Gateway* gate) {
 			 * CMD STATE (0)
 			 * STATE CLOSED (3)
 			 */
-			if (gate->state == REGISTERED) {
+			if (gate->state == (char)Gate::States::REGISTERED) {
 				string cmd = {UNREGISTERED};
 				cmd += putAddr(gate->addr);
 				broadcast(cmd);
