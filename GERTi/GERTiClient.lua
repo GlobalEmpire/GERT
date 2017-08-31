@@ -70,19 +70,23 @@ end
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
 -- extremely useful for callback programming
 local function addTempHandler(timeout, code, cb, cbf)
+	local disable = false
 	local function cbi(...)
+		if disable then return end
 		local evn, rc, sd, pt, dt, code2 = ...
 		if code ~= code2 then return end
 		if cb(...) then
 			-- Returning false from the event handler (specifically false) will get rid of the handler.
 			-- I have no idea why an event handler in this code was set up to cause it to return false,
 			--  apart from this one (because it wasn't *the handler holding everything together*)
+			disable = true
 			return false
 		end
 	end
 	event.listen("modem_message", cbi)
 	event.timer(timeout, function ()
 		event.ignore(cbi)
+		if disable then return end
 		cbf()
 	end)
 end
