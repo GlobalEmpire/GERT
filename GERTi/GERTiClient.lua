@@ -295,22 +295,14 @@ handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, p
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RemoveNeighbor", origination)
 end
 
-handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination, tier, serialTable)
-	-- THIS IS COMPLETELY IGNORED. Until I have more knowledge about the organization, I won't touch this,
-	--  but FIX THIS LATER! Also see RegisterComplete and the stuff that happened to ResolveAddress - 20kdc
-	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RetrieveAddress", origination, tier, serialTable)
-	local _, _, _, port, _, payload = event.pull(5, "modem_message")
-	if payload ~= nil then
-		return transmitInformation(sendingModem, port, payload)
-	end
-end
-
-handler["RegisterComplete"] = function (eventName, receivingModem, sendingModem, port, distance, code, targetMA, iResponse)
-	if receivingModem == targetMA then
-		-- This is us!
-		iAddress = iResponse
-	end
-	-- The code that goes in the 'else' depends on what happens to RegisterNode
+handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, sendingPort, distance, code, origination, tier, serialTable)
+	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", origination, tier, serialTable)
+	addTempHandler(5, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
+		if targetMA == origination then
+			transmitInformation(sendingModem, sendingPort, "RegisterComplete", targetMA, iResponse)
+			return true
+		end
+	end, function () end)
 end
 
 handler["RETURNSTART"] = function (eventName, receivingModem, sendingModem, port, distance, code, tier)
@@ -387,7 +379,14 @@ local serialTable = serialize.serialize(neighbors)
 local mncUnavailable = true
 if serialTable ~= "{}" then
 	-- Even if there is no neighbor table, still register to try and form a network regardless
-	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", modem.address, tier, serialTable)
+	local addr = (modem or tunnel).address
+	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", addr, tier, serialTable)
+	addTempHandler(5, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
+		if targetMA == addr then
+			iAddress = iResponse
+			return true
+		end
+	end, function () end)
 	if waitWithCancel(5, function () return iAddress end) then
 		mncUnavailable = false
 	end
