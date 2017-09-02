@@ -44,6 +44,26 @@ local function sortTable(elementOne, elementTwo)
 	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
 end
 
+-- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
+-- extremely useful for callback programming
+local function addTempHandler(timeout, code, cb, cbf)
+        local function cbi(...)
+                local evn, rc, sd, pt, dt, code2 = ...
+                if code ~= code2 then return end
+                if cb(...) then
+                        -- Returning false from the event handler (specifically false) will get rid of the handler.
+                        -- I have no idea why an event handler in this code was set up to cause it to return false,
+                        --  apart from this one (because it wasn't *the handler holding everything together*)
+                        return false
+                end
+        end
+        event.listen("modem_message", cbi)
+        event.timer(timeout, function ()
+                event.ignore(cbi)
+                cbf()
+        end)
+end
+
 local function storeChild(eventName, receivingModem, sendingModem, port, distance, package)
 	-- register neighbors for communication to gateway
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
@@ -146,24 +166,35 @@ end
 
 -- Used in handler["OPENROUTE"]
 -- MNC's openRoute and Client's openRoute DIFFER
-local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound)
-	print("Opening Route")
-	if modem.address ~= destination then
+local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, cb, outbound)
+        print("Opening Route")
+        local function sendOKResponse()
+                transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
+		storeConnections(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+                if cb then
+                        cb(true)
+                end
+        end
+        if modem.address ~= destination then
 		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination)
-		local eventName, receivingModem, _, port, distance, payload = event.pull(2, "modem_message")
-		if payload ~= "ROUTE OPEN" then
-			return false
-		end
-		return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, hopOne, receivedPort)
-	else
-		return transmitInformation(beforeHop, receivedPort, "ROUTE OPEN"), storeConnections(origination, destination, beforeHop, hopOne, receivedPort, outbound)
-	end
+                -- Basically: When the ROUTE OPEN comes along, check if it's the route we want (it's one route per pair anyway)
+                addTempHandler(6, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+                        if (destination == pktDest) and (origination == pktOrig) then
+                                sendOKResponse()
+                                return true -- This terminates the wait
+                        end
+                end, function () if cb then cb(false) end end)
+                return
+        end
+        sendOKResponse()
 end
+
 
 handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination, outbound)
 	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
 	if destination == modem.address then
-		return orController(destination, origination, sendingModem, modem.address, modem.address, port, port, outbound)
+		orController(destination, origination, sendingModem, modem.address, modem.address, port, port, nil, outbound)
+		return
 	end
 
 	local childKey = nil
@@ -172,7 +203,8 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"])
+				orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], nil)
+				return
 			end
 			break
 		end
@@ -183,7 +215,8 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"])
+					orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], nil)
+					return
 				end
 			end
 		end
@@ -197,13 +230,12 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 					-- so much nesting!
 					if value3["address"] == value2["address"] then
 						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						return orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"])
+						orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], nil)
+						return
 					end
 				end
 			end
 		end 
-	else
-		return false
 	end
 end
 
@@ -230,7 +262,7 @@ handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, por
 			subChildDex = subChildDex + 1
 		end
 	end
-	transmitInformation(sendingModem, port, childNodes[nodeDex]["gAddress"])
+	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childNodes[nodeDex]["gAddress"])
 end
 
 handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
@@ -239,11 +271,11 @@ end
 
 handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
 	if string.find(tostring(gAddress), ":") then
-		return transmitInformation(sendingModem, port, modem.address)
+		return transmitInformation(sendingModem, port, "AddressResolution", gAddress, modem.address)
 	else
 		for key, value in pairs(childNodes) do
 			if tonumber(value["gAddress"]) == tonumber(gAddress) then
-				return value["realAddress"], transmitInformation(sendingModem, port, value["realAddress"])
+				return value["realAddress"], transmitInformation(sendingModem, port, "AddressResolution", gAddress, value["realAddress"])
 			end
 		end
 	end
