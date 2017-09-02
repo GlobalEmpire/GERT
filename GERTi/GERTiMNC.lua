@@ -47,16 +47,13 @@ end
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
 -- extremely useful for callback programming
 local function addTempHandler(timeout, code, cb, cbf)
-        local function cbi(...)
-                local evn, rc, sd, pt, dt, code2 = ...
-                if code ~= code2 then return end
-                if cb(...) then
-                        -- Returning false from the event handler (specifically false) will get rid of the handler.
-                        -- I have no idea why an event handler in this code was set up to cause it to return false,
-                        --  apart from this one (because it wasn't *the handler holding everything together*)
-                        return false
-                end
+	local function cbi(...)
+        local evn, rc, sd, pt, dt, code2 = ...
+        if code ~= code2 then return end
+        if cb(...) then
+        	return false
         end
+	end
         event.listen("modem_message", cbi)
         event.timer(timeout, function ()
                 event.ignore(cbi)
@@ -203,8 +200,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], nil)
-				return
+				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], nil)
 			end
 			break
 		end
@@ -215,8 +211,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], nil)
-					return
+					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], nil)
 				end
 			end
 		end
@@ -230,8 +225,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 					-- so much nesting!
 					if value3["address"] == value2["address"] then
 						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], nil)
-						return
+						return orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], nil)
 					end
 				end
 			end
@@ -271,11 +265,11 @@ end
 
 handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
 	if string.find(tostring(gAddress), ":") then
-		return transmitInformation(sendingModem, port, "AddressResolution", gAddress, modem.address)
+		return transmitInformation(sendingModem, port, "ResolveComplete", gAddress, (modem or tunnel).address)
 	else
 		for key, value in pairs(childNodes) do
 			if tonumber(value["gAddress"]) == tonumber(gAddress) then
-				return value["realAddress"], transmitInformation(sendingModem, port, "AddressResolution", gAddress, value["realAddress"])
+				return value["realAddress"], transmitInformation(sendingModem, port, "ResolveComplete", gAddress)
 			end
 		end
 	end
