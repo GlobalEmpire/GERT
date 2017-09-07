@@ -56,7 +56,7 @@ local function addTempHandler(timeout, code, cb, cbf)
 	end
         event.listen("modem_message", cbi)
         event.timer(timeout, function ()
-                event.ignore(cbi)
+                event.ignore("modem_message", cbi)
                 cbf()
         end)
 end
@@ -167,7 +167,7 @@ local function orController(destination, origination, beforeHop, hopOne, hopTwo,
         print("Opening Route")
         local function sendOKResponse()
                 transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
-		storeConnections(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+		storeConnections(origination, destination, beforeHop, hopOne, receivedPort, transmitPort)
                 if cb then
                         cb(true)
                 end
@@ -269,7 +269,7 @@ handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, p
 	else
 		for key, value in pairs(childNodes) do
 			if tonumber(value["gAddress"]) == tonumber(gAddress) then
-				return value["realAddress"], transmitInformation(sendingModem, port, "ResolveComplete", gAddress)
+				return value["realAddress"], transmitInformation(sendingModem, port, "ResolveComplete", value["realAddress"])
 			end
 		end
 	end

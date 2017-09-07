@@ -62,7 +62,7 @@ local function addTempHandler(timeout, code, cb, cbf)
 	end
 	event.listen("modem_message", cbi)
 	event.timer(timeout, function ()
-		event.ignore(cbi)
+		event.ignore("modem_message", cbi)
 		if disable then return end
 		cbf()
 	end)
@@ -288,13 +288,12 @@ local function resolveAddress(gAddress)
 		end
 	end
 	local response
-	local payload = waitWithCancel(5, function () return response end)
-	if payload then
-		cacheAddress(payload)
-		return payload
-	else
-		return(nil, "Cannot resolve address")
-	end
+	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
+	addTempHandler(5, "ResolveComplete", function (_, _, _, _, _, code, returnAddress)
+			response = returnAddress
+		end, function () end)
+	waitWithCancel(5, function () return response end)
+	return response
 end
 
 -- Begin startup ---------------------------------------------------------------------------------------------------------------------------
@@ -410,7 +409,7 @@ end
 
 -- Writes data to an opened connection
 local function writeData(self, data)
-	return transmitInformation(connections[self.outgoingRoute]["nextHop"], self.outPort, "DATA", data, self.destination, modem.address, self.outbound)
+	return transmitInformation(connections[self.outgoingRoute]["nextHop"], self.outPort, "DATA", data, self.destination, modem.address)
 end
 
 -- Reads data from an opened connection
