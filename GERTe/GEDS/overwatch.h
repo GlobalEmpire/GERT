@@ -1,0 +1,2 @@
+int emergencyScan();
+void overwatch();

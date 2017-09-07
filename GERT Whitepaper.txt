@@ -1,5 +1,6 @@
 It's pronounced gurt (as in yogurt)
 Revision 2.0.2 May 9, 2017
+
 1. Introduction
 GERT is described in this document, to help implementations achive compatability and to provide ease of use for developers and users.
 The goal of GERT is to be simple but powerful, and at the time of writing is the main Ocranet routing system. GERTe is an inter-server
@@ -84,7 +85,7 @@ H. Cell: An Ocranet packet.
 		8b. If the command removes a registration, remove it from the remote routes.
 	9. If a peer sends a data route packet, transmit it to the registered gateway.
 	10. Loop to step 6.
-	
+  
   E. GERTi integration details
   Transmission Side:
     1. GERTi makes use of a 3-digit extension code to a GERTe "telephone" number, so monitor all outgoing requests for the 3 digit

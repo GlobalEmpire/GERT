@@ -1,8 +1,9 @@
-Please message MGR or Gavle to apply for reserving a GERTe telephone number. The reserved number can be for an MC server or for another service intended to be attached to the
-Ocranet. Request should include a GERTe phone number in the form of XXX-YYYY and a corresponding IP address and port number.
+Please message MGR or Gavle to apply for reserving a GERTe address. The reserved number can be for an MC server or for another service intended to be attached to the GERT network.
+Request should include a GERTe address in the form of XXXX.YYYY and a corresponding IP address and port number.
 
-000-0000: Reserved for GERTe phone home
-009-7335: Reserved by nxsupert
-019-7335: Reserved by nxsupert
-666-6942: Reserved by viomi
-867-5309: Reserved by Caitlyn Mainer
+0000.0000: Reserved for GERTe phone home
+0097.0335: Reserved by nxsupert - invalid must be changed
+0197.0335: Reserved by nxsupert - invalid must be changed
+1865.1731: Reserved by Major General Relativity for Yuon Survival 1.7.10 server. Standard ports.
+666-6942: Reserved by viomi - invalid must be changed
+867-5309: Reserved by Caitlyn Mainer - invalid must be changed
