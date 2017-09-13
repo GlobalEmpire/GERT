@@ -1,10 +1,11 @@
--- Under Construction
+-- GERT v1.0 - build 2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local filesystem = require("filesystem")
 local GERTe = nil
 local serialize = require("serialization")
+local addressFile = "/usr/programs/addresses.cfg"
 local modem = nil
 local tunnel = nil
 
@@ -20,6 +21,8 @@ local handler = {}
 local addressDex = 1
 local gAddress = nil
 local gKey = nil
+
+local savedAddresses = {}
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
@@ -64,22 +67,35 @@ local function addTempHandler(timeout, code, cb, cbf)
         end)
 end
 
-local function storeChild(sendingModem, port, distance, package)
-	-- register neighbors for communication to gateway
+local function storeChild(rAddress, port, distance, package)
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
 	-- children means the direct connections a comptuer can make to another computer that is a lower tier than it
+	local childGAddress
+	for key, value in pairs(savedAddresses) do
+		if value["rAddress"] == rAddress then
+			childGAddress = value["gAddress"]
+			break
+		end
+	end
 	childNodes[childNum] = {}
-	childNodes[childNum]["realAddress"] = sendingModem
-	childNodes[childNum]["gAddress"] = addressDex
+	childNodes[childNum]["realAddress"] = rAddress
+	childNodes[childNum]["gAddress"] = (childGAddress or addressDex)
 	childNodes[childNum]["tier"] = tonumber(package)
 	childNodes[childNum]["port"] = tonumber(port)
 	childNodes[childNum]["parents"] = {}
 	childNodes[childNum]["children"]={}
-	print("inside store Child")
-	print(childNodes[childNum]["realAddress"])
 	childNum = childNum + 1
-	addressDex = addressDex + 1
 	table.sort(childNodes, sortTable)
+	if not childGAddress then
+		savedAddresses[(#savedAddresses)+1] = {}
+		savedAddresses[#savedAddresses]["rAddress"] = rAddress
+		savedAddresses[#savedAddresses]["gAddress"] = addressDex
+		local f = io.open(addressFile, "a")
+		f:write(tostring(addressDex).."\n")
+		f:write(childNodes[childNum-1]["realAddress"].."\n")
+		f:close()
+		addressDex = addressDex + 1
+	end
 	return (childNum-1), childNodes[childNum-1]["gAddress"]
 end
 
@@ -87,6 +103,7 @@ local function removeChild(address)
 	for key, value in pairs(childNodes) do
 		if value["realAddress"] == address then
 			table.remove(childNodes, key)
+			childNum = (#childNodes+1)
 			break
 		end
 	end
@@ -150,12 +167,12 @@ end
 handler["DATA"] = function (sendingModem, port, distance, code, data, destination, origination, connectionID)
 	for key, value in pairs(paths) do
 		if value["destination"] == destination and value["origination"] == origination then
-			if paths[key]["destination"] ~= modem.address then
-				return transmitInformation(paths[key]["nextHop"], paths[key]["port"], "DATA", data, destination, origination, connectionID)
+			if value["destination"] ~= modem.address then
+				return transmitInformation(value["nextHop"], value["port"], "DATA", data, destination, origination, connectionID)
 			else
 				for key, value in pairs(connections) do
 					if value["destination"] == destination and value["origination"] == origination then
-						computer.pushSignal("DataOut", value["outbound"], data)
+						computer.pushSignal("DataOut", value["outbound"], data, connectionID)
 						if GERTe then
 							local gAddressOrigin = nil
 							for key2, value2 in pairs(childNodes) do
@@ -175,20 +192,20 @@ handler["DATA"] = function (sendingModem, port, distance, code, data, destinatio
 end
 
 -- Used in handler["OPENROUTE"]
--- MNC's openRoute and Client's openRoute DIFFER
 local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound, connectionID)
 	print("Opening Route")
     local function sendOKResponse(isDestination)
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
 			storeConnection(origination, destination, hopOne, outbound, connectionID)
+			storePaths(origination, destination, beforeHop, hopOne, receivedPort, transmitPort)
 		else
-			storePaths(origination, destination, beforeHop, hopeOne, receivedPort, transmitPort)
+			storePaths(origination, destination, beforeHop, hopOne, receivedPort, transmitPort)
 		end
 	end
     if modem.address ~= destination then
 		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination, outbound, connectionID)
-        addTempHandler(5, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+        addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
         	if (destination == pktDest) and (origination == pktOrig) then
         		sendOKResponse(false)
             	return true -- This terminates the wait
@@ -254,7 +271,7 @@ handler["RegisterNode"] = function (sendingModem, port, distance, code, originat
 		end
 	end
 	if nodeDex == 0 then
-		nodeDex = storeChild(sendingModem, port, distance, childTier)
+		nodeDex = storeChild(originatorAddress, port, distance, childTier)
 	end
 	local parentDex = 1
 	local subChildDex = 1
@@ -340,4 +357,22 @@ if GERTe then
 	GERTe.startup()
 	GERTe.register(gAddress, gKey)
 	event.timer(0.1, readGMessage, math.huge)
+end
+
+if filesystem.exists(addressFile) then
+	print("We found the file")
+	local f = io.open(addressFile, "r")
+	local counter = 1
+	local newGAddress = f:read("*l")
+	local newRAddress = f:read("*l")
+	while newGAddress ~= nil do
+		savedAddresses[counter] = {}
+		savedAddresses[counter]["gAddress"] = newGAddress
+		savedAddresses[counter]["rAddress"] = newRAddress
+		counter = counter + 1
+		newGAddress = f:read("*l")
+		newRAddress = f:read("*l")
+	end
+	f:close()
+	addressDex = counter
 end

@@ -1,4 +1,4 @@
--- GERT v1.0 - build 1
+-- GERT v1.0 - build 2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -123,7 +123,7 @@ local function storeConnection(origination, destination, nextHop, connectionID)
 	connections[connectDex]["nextHop"] = nextHop
 	connections[connectDex]["data"] = {}
 	connections[connectDex]["dataDex"] = 1
-	conncetions[connectDex]["connectionID"] = (connectionID or connectDex)
+	connections[connectDex]["connectionID"] = (connectionID or connectDex)
 	connectDex = connectDex + 1
 	return (connectDex-1)
 end
@@ -155,7 +155,7 @@ local function storeData(connectionID, data)
 	end
 
 	connections[connectNum]["data"][dataNum]=data
-	connections[connectNum]["dataDex"] = dataNum + 1
+	connections[connectNum]["dataDex"] = math.min(dataNum + 1, 20)
 
 	return true
 end
@@ -189,10 +189,10 @@ local function resolveAddress(gAddress)
 	end
 	local response
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
-	addTempHandler(5, "ResolveComplete", function (_, _, _, _, _, code, returnAddress)
+	addTempHandler(3, "ResolveComplete", function (_, _, _, _, _, code, returnAddress)
 			response = returnAddress
 		end, function () end)
-	waitWithCancel(5, function () return response end)
+	waitWithCancel(3, function () return response end)
 	return response
 end
 
@@ -210,10 +210,10 @@ handler["DATA"] = function (sendingModem, port, code, data, destination, origina
 	-- Attempt to determine if host is the destination, else send it on to next hop.
 	for key, value in pairs(paths) do
 		if value["destination"] == destination and value["origination"] == origination then
-			if paths[key]["destination"] == (modem or tunnel).address then
+			if value["destination"] == (modem or tunnel).address then
 				return storeData(connectionID, data)
 			else
-				return transmitInformation(paths[key]["nextHop"], paths[key]["port"], "DATA", data, destination, origination, connectionID)
+				return transmitInformation(value["nextHop"], value["port"], "DATA", data, destination, origination, connectionID)
 			end
 		end
 	end
@@ -226,6 +226,7 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
 			computer.pushSignal("GERTConnectionID", connectionID)
+			storePaths(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
 			return storeConnection(origination, destination, nextHop, connectionID)
 		else
 			return storePaths(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
@@ -234,7 +235,7 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 	if modem.address ~= destination then
 		local connect1 = 0
 		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, outbound, connectionID)
-		addTempHandler(5, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+		addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (destination == pktDest) and (origination == pktOrig) then
 				connect1 = sendOKResponse(false)
 				return true -- This terminates the wait
@@ -278,7 +279,7 @@ end
 
 handler["RegisterNode"] = function (sendingModem, sendingPort, code, origination, tier, serialTable)
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", origination, tier, serialTable)
-	addTempHandler(5, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
+	addTempHandler(3, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
 		if targetMA == origination then
 			transmitInformation(sendingModem, sendingPort, "RegisterComplete", targetMA, iResponse)
 			return true
@@ -288,14 +289,14 @@ end
 
 handler["ResolveAddress"] = function (sendingModem, port, code, gAddress)
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
-	addTempHandler(5, "ResolveComplete", function(_, _, sender, _, _, code, realAddress, gAddress)
+	addTempHandler(3, "ResolveComplete", function(_, _, sender, _, _, code, realAddress, gAddress)
 		transmitInformation(sendingModem, port, "ResolveComplete", gAddress)
 		end, function() end)
 end
 
 handler["RETURNSTART"] = function (sendingModem, port, code, tier)
 	-- Store neighbor based on the returning tier
-	storeNeighbors(eventName, sendingModem, port, distance, tier)
+	storeNeighbors(sendingModem, port, tier)
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
@@ -330,7 +331,7 @@ event.listen("shutdown", safedown)
 event.listen("modem_message", receivePacket)
 
 -- Wait a while to build the neighbor table.
-os.sleep(4)
+os.sleep(2)
 
 -- forward neighbor table up the line
 local serialTable = serialize.serialize(neighbors)
@@ -339,7 +340,7 @@ if serialTable ~= "{}" then
 	-- Even if there is no neighbor table, still register to try and form a network regardless
 	local addr = (modem or tunnel).address
 	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "RegisterNode", addr, tier, serialTable)
-	addTempHandler(5, "RegisterComplete", function (_, _, _, _, _, code, targetMA, iResponse)
+	addTempHandler(3, "RegisterComplete", function (_, _, _, _, _, code, targetMA, iResponse)
 		if targetMA == addr then
 			iAddress = iResponse
 			return true
@@ -395,7 +396,7 @@ function GERTi.openSocket(gAddress, incID)
 	end
 	if not isValid then
 		outID = storeConnection(origination, destination, neighbors[1]["address"])
-		nextHop = value["address"]
+		nextHop = neighbors[1]["address"]
 		routeOpener(destination, origination, origination, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], gAddress, outID)
 		isValid = true
 	end
