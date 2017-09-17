@@ -1,4 +1,4 @@
--- GERT v1.0 - build 3
+-- GERT v1.0 - build 4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -36,10 +36,10 @@ local neighbors = {}
 local tier = 3
 local neighborDex = 1
 
--- connections[x]{"destination", "origin", "data", "dataDex"} Connections are established at endpoints
+-- connections[x]{"destination", "origination", "data", "dataDex"} Connections are established at endpoints
 local connections = {}
 local connectDex = 1
--- paths[x]{"destination", "origin", "beforeHop", "nextHop", "port"}
+-- paths[x]{"destination", "origination", "beforeHop", "nextHop", "port"}
 local paths = {}
 local pathDex = 1
 
@@ -137,9 +137,6 @@ local function storePath(origination, destination, nextHop, port)
 	pathDex = pathDex + 1
 	return (pathDex-1)
 end
-local function storePaths(origination, destination, beforeHop, nextHop, beforePort, nextPort)
-	return storePath(origination, destination, nextHop, nextPort), storePath(destination, origination, beforeHop, beforePort)
-end
 -- Stores data inside a connection for use by a program
 local function storeData(connectionID, data)
 	local connectNum
@@ -208,7 +205,24 @@ handler["AddNeighbor"] = function (sendingModem, port, code)
 	return false
 end
 
--- Handlers that manage incoming packets after processing
+handler["CloseConnection"] = function(sendingModem, port, code, connectionID, destination, origin)
+	for key, value in pairs(paths) do
+		if value["destination"] == destination and value["origination"] == origin then
+			if value["nextHop"] ~= (modem or tunnel).address then
+				transmitInformation(value["nextHop"], value["port"], "CloseConnection", connectionID, destination, origin)
+			end
+			table.remove(paths, key)
+			break
+		end
+	end
+	for key, value in pairs(connections) do
+		if value["connectionID"] == connectionID then
+			table.remove(connections, key)
+			break
+		end
+	end
+end
+
 handler["DATA"] = function (sendingModem, port, code, data, destination, origination, connectionID)
 	-- Attempt to determine if host is the destination, else send it on to next hop.
 	for key, value in pairs(paths) do
@@ -229,10 +243,10 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
 			computer.pushSignal("GERTConnectionID", connectionID)
-			storePaths(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+			storePath(origination, destination, nextHop, transmitPort)
 			return storeConnection(origination, destination, nextHop, connectionID)
 		else
-			return storePaths(origination, destination, beforeHop, nextHop, receivedPort, transmitPort)
+			return storePath(origination, destination, nextHop, transmitPort)
 		end
 	end
 	if modem.address ~= destination then
@@ -373,6 +387,9 @@ local function readData(self)
 	return data
 end
 
+local function closeConnection(self)
+	return transmitInformation(self.nextHop, self.outPort, "CloseConnection", self.outID, self.destination, self.origin)
+end
 -- This is the function that allows end-users to open sockets, which are the primary method of reading and writing data with GERT.
 function GERTi.openSocket(gAddress, doEvent, incID)
 	local destination, err = resolveAddress(gAddress)
@@ -414,6 +431,7 @@ function GERTi.openSocket(gAddress, doEvent, incID)
 		socket.incID = (incID or outID)
 		socket.write = writeData
 		socket.read = readData
+		socket.close = closeConnection
 	else
 		return nil, "Route cannot be opened, please confirm destination and that a valid path exists."
 	end
