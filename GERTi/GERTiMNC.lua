@@ -1,11 +1,11 @@
--- GERT v1.0 - build 4
+-- GERT v1.0 - RC2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local filesystem = require("filesystem")
 local GERTe = nil
+local os = require("os")
 local serialize = require("serialization")
-local addressFile = "/usr/programs/addresses.cfg"
 local modem = nil
 local tunnel = nil
 
@@ -45,6 +45,8 @@ if filesystem.exists("/lib/GERTeAPI.lua") then
 	GERTe = require("GERTeAPI")
 end
 
+local directory = os.getenv("_")
+directory = filesystem.path(directory)
 -- functions to store the children and then sort the table
 local function sortTable(elementOne, elementTwo)
 	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
@@ -90,7 +92,7 @@ local function storeChild(rAddress, port, package)
 		savedAddresses[(#savedAddresses)+1] = {}
 		savedAddresses[#savedAddresses]["rAddress"] = rAddress
 		savedAddresses[#savedAddresses]["gAddress"] = addressDex
-		local f = io.open(addressFile, "a")
+		local f = io.open(directory.."GERTaddresses.gert", "a")
 		f:write(tostring(addressDex).."\n")
 		f:write(childNodes[childNum-1]["realAddress"].."\n")
 		f:close()
@@ -366,7 +368,7 @@ event.listen("modem_message", receivePacket)
 event.listen("DataIn", receiveData)
 
 if GERTe then
-	local file = io.open("/lib/GERTConfig.cfg", "r")
+	local file = io.open(directory.."GERTconfig.cfg", "r")
 	gAddress = file:read()
 	gKey = file:read()
 	GERTe.startup()
@@ -374,9 +376,9 @@ if GERTe then
 	event.timer(0.1, readGMessage, math.huge)
 end
 
-if filesystem.exists(addressFile) then
+if filesystem.exists(directory.."GERTaddresses.gert") then
 	print("We found the file")
-	local f = io.open(addressFile, "r")
+	local f = io.open(directory.."GERTaddresses.gert", "r")
 	local counter = 1
 	local newGAddress = f:read("*l")
 	local newRAddress = f:read("*l")

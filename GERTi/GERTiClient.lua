@@ -1,4 +1,4 @@
--- GERT v1.0 - build 4
+-- GERT v1.0 - RC2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -155,7 +155,7 @@ local function storeData(connectionID, data)
 	connections[connectNum]["data"][dataNum]=data
 	connections[connectNum]["dataDex"] = math.min(dataNum + 1, 20)
 	if connections[connectNum]["doEvent"] then
-		computer.pushSignal("GERTData", connections[connectNum]["origination"], connections[connectNum]["destination"], connectionID, data)
+		computer.pushSignal("GERTData", connections[connectNum]["origination"], connections[connectNum]["destination"], connectionID)
 	end
 	return true
 end
