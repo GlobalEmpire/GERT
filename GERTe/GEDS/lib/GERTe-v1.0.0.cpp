@@ -105,8 +105,8 @@ namespace Gate {
 
 string extract(Connection * conn, unsigned char len) {
 	char * buf = conn->read(len);
-	string data{buf, len};
-	delete buf;
+	string data{buf+1, buf[0]};
+	delete[] buf;
 	return data;
 }
 
@@ -139,7 +139,7 @@ DLLExport void processGateway(Gateway* gate) {
 		 */
 		return;
 	}
-	UCHAR command = *(gate->read());
+	UCHAR command = *(gate->read(1));
 	switch (command) {
 		case REGISTER: {
 			string rest = extract(gate, 23);
@@ -196,7 +196,8 @@ DLLExport void processGateway(Gateway* gate) {
 		case DATA: {
 			string rest = extract(gate, 9);
 			char * len = gate->read();
-			rest += len + extract(gate, *len);
+			string data = extract(gate, *len);
+			rest += (char)data.size() + data;
 			delete len;
 			if (gate->state == (char)Gate::States::CONNECTED) {
 				gate->transmit(string({STATE, FAILURE, NOT_REGISTERED}));
@@ -282,12 +283,13 @@ DLLExport void processGEDS(Peer* geds) {
 		 */
 		return;
 	}
-	UCHAR command = *(geds->read());
+	UCHAR command = *(geds->read(1));
 	switch (command) {
 		case ROUTE: {
 			string rest = extract(geds, 12);
 			char * len = geds->read();
-			rest += *len + extract(geds, *len);
+			string data = extract(geds, *len);
+			rest += (char)data.size() + data;
 			delete len;
 			Address target{rest};
 			string cmd = { DATA };
