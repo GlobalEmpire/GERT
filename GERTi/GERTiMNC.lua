@@ -1,4 +1,4 @@
--- GERT v1.0 - RC2
+-- GERT v1.0 - RC3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -310,7 +310,7 @@ end
 
 handler["ResolveAddress"] = function (sendingModem, port, code, gAddress)
 	if string.find(tostring(gAddress), ":") then
-		return transmitInformation(sendingModem, port, "ResolveComplete", gAddress, (modem or tunnel).address)
+		return transmitInformation(sendingModem, port, "ResolveComplete", (modem or tunnel).address)
 	else
 		for key, value in pairs(childNodes) do
 			if tonumber(value["gAddress"]) == tonumber(gAddress) then
