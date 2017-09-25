@@ -40,7 +40,6 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
-		delete newSocket;
 		delete this;
 		throw;
 	} else {

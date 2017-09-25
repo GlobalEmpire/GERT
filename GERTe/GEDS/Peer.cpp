@@ -12,7 +12,6 @@ map<IP, Peer*> peers;
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
 	destroy(sock);
-	delete sock;
 	delete me;
 }
 
