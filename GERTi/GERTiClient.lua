@@ -317,7 +317,6 @@ handler["RETURNSTART"] = function (sendingModem, port, code, tier)
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
-	print(code)
 	-- Attempt to call a handler function to further process the packet
 	if handler[code] ~= nil then
 		handler[code](sendingModem, port, code, ...)
@@ -390,7 +389,7 @@ local function readData(self)
 		for key, value in pairs(connections) do
 			if value["destination"] == self.origination and value["connectionID"] == self.ID then
 				self.incDex = key
-				return nil
+				return self:read()
 			end
 		end
 	end
