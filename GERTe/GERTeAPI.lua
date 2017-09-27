@@ -90,7 +90,7 @@ function api.parse()
 		local addrSegment = addrPart .. "%." .. addrPart
 		local addrs = socket.read(12)
 		local addr = unparseAddr(msg)
-		local source = unpauseAddr(msg:sub(7))
+		local source = unparseAddr(msg:sub(7))
 		local length = socket.read(1)
 		return {
 			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),

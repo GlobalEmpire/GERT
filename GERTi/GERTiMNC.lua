@@ -189,7 +189,6 @@ handler["DATA"] = function (sendingModem, port, code, data, destination, origina
 			else
 				for key, value in pairs(connections) do
 					if value["destination"] == destination and value["origination"] == origination then
-						computer.pushSignal("DataOut", value["outbound"], data, connectionID)
 						if GERTe then
 							local gAddressOrigin = nil
 							for key2, value2 in pairs(childNodes) do
@@ -326,46 +325,36 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 		handler[code](sendingModem, port, code, ...)
 	end
 end
--- Functionality to allow reception of data from outside of the GERTi network, and then to pass it inwards
-local function openExternalConnection(eventName, gDestination, origination)
-	local rDestination = ""
-	if string.find(tostring(gDestination), ":") then
-		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, string.sub(gDestination, (string.find(tostring(gDestination), ":")+1)))
-	else
-		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, gDestination)
-	end
-	computer.pushSignal("modem_message", nil, modem.address, 4378, 1, "OPENROUTE", rDestination, nil, modem.address, origination)
-	computer.pushSignal("addressReturn", rDestination)
-end
-event.listen("OpenRoute", openExternalConnection)
 
-local function receiveData(eventName, data, destination)
-	computer.pushSignal("modem_message", nil, nil, 4378, 1, "DATA", data, destination, modem.address)
-end
-
+-- GERTe Integration
 local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
 	local message = GERTe.parse()
 	while message ~= nil do
 		local found = false
-		local rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4379, nil, nil, message["target"])
+		local rDestination = handler["ResolveAddress"](modem.address, 4378, nil, message["target"])
 		for key, value in pairs(connections) do
 			if value["destination"] == rDestination and value["origination"] == modem.address then
-				handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+				handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, 0)
 				found = true
 				break
 			end
 		end
 		if not found then
 			handler["OPENROUTE"](nil, nil, modem.address, 4378, nil, nil, rDestination, nil, modem.address, nil)
-			handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+			handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, 0)
 		end
 		message = GERTe.parse()
 	end
 end
+
+local function safedown()
+	if GERTe then
+		GERTe.shutdown()
+	end
+end
 ------------------------ Startup procedure
 event.listen("modem_message", receivePacket)
-event.listen("DataIn", receiveData)
 
 if GERTe then
 	local file = io.open(directory.."GERTconfig.cfg", "r")
@@ -374,6 +363,7 @@ if GERTe then
 	GERTe.startup()
 	GERTe.register(gAddress, gKey)
 	event.timer(0.1, readGMessage, math.huge)
+	event.listen("shutdown", safedown)
 end
 
 if filesystem.exists(directory.."GERTaddresses.gert") then
