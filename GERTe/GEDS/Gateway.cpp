@@ -40,7 +40,6 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
-		delete this;
 		throw;
 	} else {
 		local = true;
@@ -51,7 +50,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 
 Gateway::Gateway(Address req) : Connection(nullptr) {
 	if (gateways.count(req) == 0) {
-		delete this;
+		//delete this; Removed due to unknown memory fault in this region. Potential memory leak without it
 		throw;
 	}
 
