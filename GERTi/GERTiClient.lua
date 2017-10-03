@@ -389,6 +389,9 @@ local function readData(self)
 		for key, value in pairs(connections) do
 			if value["destination"] == self.origination and value["connectionID"] == self.ID then
 				self.incDex = key
+				if self.doEvent then
+					value["doEvent"] = true
+				end
 				return self:read()
 			end
 		end
@@ -396,7 +399,8 @@ local function readData(self)
 end
 
 local function closeConnection(self)
-	return transmitInformation(self.nextHop, self.outPort, "CloseConnection", self.ID, self.destination, self.origination)
+	transmitInformation(self.nextHop, self.outPort, "CloseConnection", self.ID, self.destination, self.origination)
+	handler["CloseConnection"]((modem or tunnel).address, 4378, "CloseConnection", self.ID, self.destination, self.origination)
 end
 -- This is the function that allows end-users to open sockets, which are the primary method of reading and writing data with GERT.
 function GERTi.openSocket(gAddress, doEvent, provID)
@@ -417,7 +421,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 	end
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
-			outDex = storeConnection(origination, destination, doEvent, provID)
+			outDex = storeConnection(origination, destination, false, provID)
 			nextHop = value["address"]
 			routeOpener(destination, origination, origination, value["address"], value["port"], value["port"], gAddress, outID)
 			isValid = true
@@ -425,7 +429,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 		end
 	end
 	if not isValid then
-		outDex = storeConnection(origination, destination, doEvent, provID)
+		outDex = storeConnection(origination, destination, false, provID)
 		nextHop = neighbors[1]["address"]
 		routeOpener(destination, origination, origination, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], gAddress, outID)
 		isValid = true
@@ -443,6 +447,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 		socket.write = writeData
 		socket.read = readData
 		socket.close = closeConnection
+		socket.doEvent = doEvent
 	else
 		return nil, "Route cannot be opened, please confirm destination and that a valid path exists."
 	end
