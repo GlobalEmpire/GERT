@@ -40,18 +40,19 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
+		warn("Gateway failed to connect");
 		throw;
 	} else {
 		local = true;
-		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 		noAddrList.push_back(this);
+		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 	}
 }
 
 Gateway::Gateway(Address req) : Connection(nullptr) {
 	if (gateways.count(req) == 0) {
 		//delete this; Removed due to unknown memory fault in this region. Potential memory leak without it
-		throw;
+		throw 0;
 	}
 
 	Gateway target = gateways[req];
@@ -77,10 +78,11 @@ bool Gateway::assign(Address requested, Key key) {
 void Gateway::close() {
 	gateways.erase(this->addr); //Remove connection from universal map
 	noAddrIter pos = find(this);
-	if (!pos.isEnd())
+	if (!pos.isEnd()) {
 		pos.erase();
+		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
+	}
 	if (this->sock != nullptr)
 		destroy((SOCKET*)this->sock); //Close the socket
-	log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	delete this; //Release the memory used to store the Gateway
 }
