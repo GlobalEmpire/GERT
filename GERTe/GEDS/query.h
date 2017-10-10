@@ -1,3 +1,5 @@
 #include "Address.h"
 
-bool queryWeb(Address);
+extern "C" {
+	bool queryWeb(Address);
+}

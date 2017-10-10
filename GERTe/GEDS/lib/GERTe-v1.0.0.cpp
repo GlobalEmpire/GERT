@@ -139,7 +139,7 @@ DLLExport void processGateway(Gateway* gate) {
 		 */
 		return;
 	}
-	UCHAR command = *(gate->read(1));
+	UCHAR command = (gate->read(1))[1];
 	switch (command) {
 		case REGISTER: {
 			string rest = extract(gate, 23);
@@ -283,7 +283,7 @@ DLLExport void processGEDS(Peer* geds) {
 		 */
 		return;
 	}
-	UCHAR command = *(geds->read(1));
+	UCHAR command = (geds->read(1))[1];
 	switch (command) {
 		case ROUTE: {
 			string rest = extract(geds, 12);
