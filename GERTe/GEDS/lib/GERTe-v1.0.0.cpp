@@ -164,6 +164,7 @@ DLLExport void processGateway(Gateway* gate) {
 				 * STATE FAILURE (0)
 				 * REASON ADDRESS_TAKEN (5)
 				 */
+				return;
 			}
 			rest.erase(0, 3);
 			Key requestkey{rest};
@@ -259,7 +260,6 @@ DLLExport void processGateway(Gateway* gate) {
 				string cmd = {UNREGISTERED};
 				cmd += putAddr(gate->addr);
 				broadcast(cmd);
-				removeRoute(gate->addr);
 				/*
 				 * Broadcast that registered gateway left.
 				 * CMD UNREGISTERED (1)
