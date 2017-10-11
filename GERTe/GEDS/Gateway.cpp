@@ -41,7 +41,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
 		warn("Gateway failed to connect");
-		throw;
+		throw 1;
 	} else {
 		local = true;
 		noAddrList.push_back(this);
