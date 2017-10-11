@@ -55,8 +55,7 @@ Gateway::Gateway(Address req) : Connection(nullptr) {
 		throw 0;
 	}
 
-	Gateway target = gateways[req];
-	*this = target;
+	*this = *gateways[req];
 }
 
 void Gateway::transmit(string data) {

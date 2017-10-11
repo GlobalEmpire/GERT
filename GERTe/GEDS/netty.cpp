@@ -236,7 +236,6 @@ void buildWeb() {
 }
 
 extern "C" {
-
 	string putAddr(Address addr) {
 		const unsigned char* chars = addr.getAddr();
 		return string{chars[0], chars[1], chars[2]};

@@ -4,10 +4,12 @@
 
 std::map<Address, Key> resolutions;
 
-void addResolution(Address addr, Key key) {
-	resolutions[addr] = key;
-}
+extern "C" {
+	void addResolution(Address addr, Key key) {
+		resolutions[addr] = key;
+	}
 
-void removeResolution(Address addr) {
-	resolutions.erase(addr);
+	void removeResolution(Address addr) {
+		resolutions.erase(addr);
+	}
 }

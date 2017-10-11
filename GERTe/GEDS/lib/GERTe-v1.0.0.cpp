@@ -259,7 +259,7 @@ DLLExport void processGateway(Gateway* gate) {
 				string cmd = {UNREGISTERED};
 				cmd += putAddr(gate->addr);
 				broadcast(cmd);
-				removeResolution(gate->addr);
+				removeRoute(gate->addr);
 				/*
 				 * Broadcast that registered gateway left.
 				 * CMD UNREGISTERED (1)
