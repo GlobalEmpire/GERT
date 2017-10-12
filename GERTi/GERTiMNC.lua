@@ -1,4 +1,4 @@
--- GERT v1.0 - RC3
+-- GERT v1.0 - RC6
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -18,7 +18,8 @@ local pathDex = 1
 
 local tier = 0
 local handler = {}
-local addressDex = 1
+local addressP1 = 1
+local addressP2 = 1
 local gAddress = nil
 local gKey = nil
 
@@ -81,7 +82,7 @@ local function storeChild(rAddress, port, package)
 	end
 	childNodes[childNum] = {}
 	childNodes[childNum]["realAddress"] = rAddress
-	childNodes[childNum]["gAddress"] = (childGAddress or addressDex)
+	childNodes[childNum]["gAddress"] = (childGAddress or (tostring(addressP1).."."..tostring(addressP2)))
 	childNodes[childNum]["tier"] = tonumber(package)
 	childNodes[childNum]["port"] = tonumber(port)
 	childNodes[childNum]["parents"] = {}
@@ -91,12 +92,18 @@ local function storeChild(rAddress, port, package)
 	if not childGAddress then
 		savedAddresses[(#savedAddresses)+1] = {}
 		savedAddresses[#savedAddresses]["rAddress"] = rAddress
-		savedAddresses[#savedAddresses]["gAddress"] = addressDex
+		savedAddresses[#savedAddresses]["gAddress"] = tostring(addressP1).."."..tostring(addressP2)
 		local f = io.open(directory.."GERTaddresses.gert", "a")
-		f:write(tostring(addressDex).."\n")
+		f:write(tostring(addressP1).."."..tostring(addressP2).."\n")
 		f:write(childNodes[childNum-1]["realAddress"].."\n")
 		f:close()
-		addressDex = addressDex + 1
+		if addressP2 == 4095 then
+			addressP2 = 0
+			addressP1 = addressP1 + 1
+			if addressP1 >= 4096 then
+				io.stderr:write("Warning! Maximum number of clients exceeded! Please clean the GERTaddresses.gert file of excess addresses. If error persists, please contact MajGenRelativity at https://discord.gg/f7VYMfJ")
+			end
+		end
 	end
 	return (childNum-1), childNodes[childNum-1]["gAddress"]
 end
@@ -119,7 +126,7 @@ local function storeConnection(origination, destination, nextHop, outbound, conn
 	connections[connectDex]["data"] = {}
 	connections[connectDex]["dataDex"] = 1
 	connections[connectDex]["outbound"] = outbound
-	conncetions[connectDex]["connectionID"] = (connectionID or connectDex)
+	connections[connectDex]["connectionID"] = (connectionID or connectDex)
 	connectDex = connectDex + 1
 	return (connectDex-1)
 end
@@ -381,5 +388,7 @@ if filesystem.exists(directory.."GERTaddresses.gert") then
 		newRAddress = f:read("*l")
 	end
 	f:close()
-	addressDex = counter
+	local dividerDex = string.find(savedAddresses[counter-1]["gAddress"], "%.")
+	addressP1 = string.sub(savedAddresses[counter-1]["gAddress"], 1, (dividerDex-1))
+	addressP2 = string.sub(savedAddresses[counter-1]["gAddress"], (dividerDex+1))
 end
