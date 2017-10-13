@@ -51,7 +51,6 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 
 Gateway::Gateway(Address req) : Connection(nullptr) {
 	if (gateways.count(req) == 0) {
-		//delete this; Removed due to unknown memory fault in this region. Potential memory leak without it
 		throw 0;
 	}
 
@@ -75,10 +74,11 @@ bool Gateway::assign(Address requested, Key key) {
 }
 
 void Gateway::close() {
-	gateways.erase(this->addr); //Remove connection from universal map
 	noAddrIter pos = find(this);
 	if (!pos.isEnd()) {
 		pos.erase();
+	} else {
+		gateways.erase(this->addr); //Remove connection from universal map
 		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	}
 	if (this->sock != nullptr)
