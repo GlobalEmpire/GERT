@@ -22,7 +22,7 @@ local addressP1 = 1
 local addressP2 = 1
 local gAddress = nil
 local gKey = nil
-
+local timerID = nil
 local savedAddresses = {}
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
@@ -357,6 +357,7 @@ end
 
 local function safedown()
 	if GERTe then
+		event.cancel(timerID)
 		GERTe.shutdown()
 	end
 end
@@ -369,7 +370,7 @@ if GERTe then
 	gKey = file:read()
 	GERTe.startup()
 	GERTe.register(gAddress, gKey)
-	event.timer(0.1, readGMessage, math.huge)
+	timerID = event.timer(0.1, readGMessage, math.huge)
 	event.listen("shutdown", safedown)
 end
 

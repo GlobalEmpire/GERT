@@ -36,6 +36,8 @@ local function parseError(err)
 		return "NOT_REGISTERED"
 	elseif err == 4 then
 		return "NO_ROUTE"
+	elseif err == 5 then
+		return "ADDRESS_TAKEN"
 	end
 end
 
@@ -89,13 +91,13 @@ function api.parse()
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
 		local addrs = socket.read(12)
-		local addr = unparseAddr(msg)
-		local source = unparseAddr(msg:sub(7))
+		local addr = unparseAddr(addrs)
+		local source = unparseAddr(addrs:sub(7))
 		local length = socket.read(1)
 		return {
 			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
 			source = source,
-			data = socket.read(length)
+			data = socket.read(length:byte())
 		}
 	elseif cmd == 4 then
 		socket.close()
