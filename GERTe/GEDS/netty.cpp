@@ -57,30 +57,6 @@ void killConnections() {
 	}
 }
 
-void checkUnregistered() {
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway* conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
-	}
-}
-
-void checkPeers() {
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		Peer* conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
-	}
-}
-
 //PUBLIC
 void processGateways() {
 	pause();
@@ -193,7 +169,7 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			try {
 				new Gateway(newSock);
 				gatefd.push_back(*newSock);
-				pthread_kill(*(thread::native_handle_type*)gateways, -1);
+				pthread_kill(*(thread::native_handle_type*)gateways, SIGINT);
 			} catch(int e) {}
 		}
 		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
@@ -203,7 +179,7 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			try {
 				peer = new Peer(newSocket);
 				peerfd.push_back(*newSocket);
-				pthread_kill(*(thread::native_handle_type*)peers, -1);
+				pthread_kill(*(thread::native_handle_type*)peers, SIGINT);
 			} catch(int e) {}
 		}
 		this_thread::yield(); //Release CPU
