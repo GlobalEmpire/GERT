@@ -85,6 +85,10 @@ void errHandler() { //Error catcher, provides minor error recovery facilities
 	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
 }
 
+void fakeIgnore(int bleh) {
+	return;
+}
+
 void printHelp() { //Prints help on parameters
 	cout << "Requires atleast the -a parameter\n";
 	cout << "-a publicIP   Specifies the public IP to prevent loops.\n";
@@ -132,9 +136,12 @@ int main( int argc, char* argv[] ) {
 
 	startLog(); //Create log handles
 
+	//Note to self: Apparently SIGNAL() is bad. Replace with SIGACTION()
+
 	//set_terminate(errHandler); //Causes terminate() to trigger our code instead
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
+	signal(SIGUSR1, &fakeIgnore); //Hook SIGUSR1 so it counts as "invoking a signal handler"
 
 	debug("Loading libraries"); //Use debug to notify user where we are in the loading process
 	Status libErr = loadLibs(); //Load protocol library files

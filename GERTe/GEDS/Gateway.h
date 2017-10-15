@@ -12,7 +12,6 @@ class Gateway : public Connection {
 		void kill() { api->killGate(this); };
 		Gateway(void*);
 		Gateway(Address);
-		Gateway(int);
 		void transmit(string);
 		bool assign(Address, Key);
 		void close();

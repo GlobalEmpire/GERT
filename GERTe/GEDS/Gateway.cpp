@@ -13,7 +13,6 @@ extern map<Address, Key> resolutions;
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
-map<int, Gateway*> sockToGate;
 
 noAddrIter find(Gateway * gate) {
 	noAddrIter iter;
@@ -57,14 +56,6 @@ Gateway::Gateway(Address req) : Connection(nullptr) {
 	}
 
 	*this = *gateways[req];
-}
-
-Gateway::Gateway(int fd) : Connection(nullptr) {
-	if (sockToGate.count(fd) == 0) {
-		throw 0;
-	}
-
-	*this = *sockToGate[fd];
 }
 
 void Gateway::transmit(string data) {

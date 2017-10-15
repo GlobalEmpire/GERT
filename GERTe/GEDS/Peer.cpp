@@ -8,7 +8,6 @@
 #include <map>
 
 map<IP, Peer*> peers;
-map<int, Peer*> sockToPeer;
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -46,14 +45,6 @@ Peer::Peer(void * sock) : Connection(sock) {
 		this->process();
 	}
 };
-
-Peer::Peer(int fd) : Connection(nullptr) {
-	if (sockToPeer.count(fd) == 0) {
-		throw 0;
-	}
-
-	*this = *sockToPeer[fd];
-}
 
 Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
 	peers[id->addr] = this;
