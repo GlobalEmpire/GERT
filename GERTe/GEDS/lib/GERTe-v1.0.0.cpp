@@ -196,8 +196,8 @@ DLLExport void processGateway(Gateway* gate) {
 		}
 		case DATA: {
 			string rest = extract(gate, 9);
-			char * len = gate->read();
-			string data = extract(gate, *len);
+			char * len = gate->read(1);
+			string data = extract(gate, len[1]);
 			rest += (char)data.size() + data;
 			delete len;
 			if (gate->state == (char)Gate::States::CONNECTED) {
@@ -214,7 +214,8 @@ DLLExport void processGateway(Gateway* gate) {
 			rest.erase(0, 6);
 			Address source{rest};
 			rest.erase(0, 3);
-			string newCmd = string{DATA} + gate->addr.stringify() + source.stringify() + rest;
+			string newCmd = string{DATA} + putAddr(target.external) + putAddr(target.internal) +
+					putAddr(gate->addr) + putAddr(source) + rest;
 			if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
 				sendToGateway(target.external, newCmd); //Send to target
 			} else {
