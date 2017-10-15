@@ -164,12 +164,14 @@ int main( int argc, char* argv[] ) {
 
 	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
 	thread gateways(processGateways); //Create message processor thread
+	thread::native_handle_type gatewaysHandle = gateways.native_handle();
 
 	debug("Starting peer message processor");
 	thread peers(processPeers);
+	thread::native_handle_type peersHandle = peers.native_handle();
 
 	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
-	runServer(); //Process incoming connections (not messages)
+	runServer(&gatewaysHandle, &peersHandle); //Process incoming connections (not messages)
 	warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
 
 	//Shutdown and Cleanup sequence

@@ -12,7 +12,7 @@ extern "C" {
 	void destroy(void*);
 	void startup();
 	void cleanup();
-	void runServer();
+	void runServer(void*, void*);
 	void killConnections();
 	void processGateways();
 	void processPeers();

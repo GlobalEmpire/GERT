@@ -17,12 +17,14 @@
 #include "query.h"
 #include "netty.h"
 #include "logging.h"
+#include <signal.h>
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set testSet; //Define test sets and null set
 
-vector<int> fds;
+vector<int> gatefd;
+vector<int> peerfd;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -79,32 +81,24 @@ void checkPeers() {
 	}
 }
 
-void process(int fd) {
-	Gateway conn = Gateway(fd);
-	if (conn.sock == nullptr)
-		conn.close();
-	int result = recv(*(SOCKET*)conn.sock, nullptr, 0, 0);
-	if (result == 0) {
-		conn.close();
-		return;
-	}
-	conn.process();
-}
-
 //PUBLIC
 void processGateways() {
+	pause();
 	while (running) {
-		pollfd set[fds.size()];
-		for (int i = 0; i < fds.size(); i++) {
+		pollfd set[gatefd.size()];
+		for (int i = 0; i < gatefd.size(); i++) {
 			set[i] = {
-				fds[0],
+				gatefd[i],
 				POLLIN,
 				0
 			};
 		}
-		for (int i = 0; i < fds.size(); i++) {
-			if ((set[i].revents & POLLIN) == POLLIN) {
-				process(set[i].fd);
+		poll(set, gatefd.size(), -1);
+		for (int i = 0; i < gatefd.size(); i++) {
+			if (set[i].revents & POLLIN) {
+				Gateway(set[i].fd).process();
+			} else if (set[i].revents & POLLHUP) {
+				Gateway(set[i].fd).close();
 			}
 		}
 		this_thread::yield();
@@ -112,8 +106,24 @@ void processGateways() {
 }
 
 void processPeers() {
+	pause();
 	while (running) {
-		checkPeers();
+		pollfd set[peerfd.size()];
+		for (int i = 0; i < peerfd.size(); i++) {
+			set[i] = {
+				peerfd[i],
+				POLLIN,
+				0
+			};
+		}
+		poll(set, peerfd.size(), -1);
+		for (int i = 0; i < peerfd.size(); i++) {
+			if (set[i].revents & POLLIN) {
+				Peer(set[i].fd).process();
+			} else if (set[i].revents & POLLHUP) {
+				Peer(set[i].fd).close();
+			}
+		}
 		this_thread::yield();
 	}
 }
@@ -169,7 +179,7 @@ void cleanup() {
 }
 
 //PUBLIC
-void runServer() { //Listen for new connections
+void runServer(void * gateways, void * peers) { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		FD_ZERO(&testSet);
 		FD_SET(gateServer, &testSet);
@@ -182,7 +192,8 @@ void runServer() { //Listen for new connections
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
 				new Gateway(newSock);
-				fds.push_back(*newSock);
+				gatefd.push_back(*newSock);
+				pthread_kill(*(thread::native_handle_type*)gateways, -1);
 			} catch(int e) {}
 		}
 		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
@@ -191,6 +202,8 @@ void runServer() { //Listen for new connections
 			Peer * peer;
 			try {
 				peer = new Peer(newSocket);
+				peerfd.push_back(*newSocket);
+				pthread_kill(*(thread::native_handle_type*)peers, -1);
 			} catch(int e) {}
 		}
 		this_thread::yield(); //Release CPU

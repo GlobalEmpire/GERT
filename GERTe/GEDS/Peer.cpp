@@ -47,6 +47,14 @@ Peer::Peer(void * sock) : Connection(sock) {
 	}
 };
 
+Peer::Peer(int fd) : Connection(nullptr) {
+	if (sockToPeer.count(fd) == 0) {
+		throw 0;
+	}
+
+	*this = *sockToPeer[fd];
+}
+
 Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
 	peers[id->addr] = this;
 }
