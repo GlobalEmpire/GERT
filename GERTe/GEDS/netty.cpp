@@ -19,11 +19,10 @@
 #include "logging.h"
 using namespace std;
 
-typedef timeval TIMEVAL;
-
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set testSet; //Define test sets and null set
-TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
+
+vector<int> fds;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -80,27 +79,43 @@ void checkPeers() {
 	}
 }
 
-void checkGateways() {
-	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		Gateway * conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
+void process(int fd) {
+	Gateway conn = Gateway(fd);
+	if (conn.sock == nullptr)
+		conn.close();
+	int result = recv(*(SOCKET*)conn.sock, nullptr, 0, 0);
+	if (result == 0) {
+		conn.close();
+		return;
 	}
+	conn.process();
 }
 
 //PUBLIC
-void process() {
+void processGateways() {
 	while (running) {
-		checkGateways();
-		checkPeers();
-		checkUnregistered();
+		pollfd set[fds.size()];
+		for (int i = 0; i < fds.size(); i++) {
+			set[i] = {
+				fds[0],
+				POLLIN,
+				0
+			};
+		}
+		for (int i = 0; i < fds.size(); i++) {
+			if ((set[i].revents & POLLIN) == POLLIN) {
+				process(set[i].fd);
+			}
+		}
 		this_thread::yield();
 	}
-	killConnections();
+}
+
+void processPeers() {
+	while (running) {
+		checkPeers();
+		this_thread::yield();
+	}
 }
 
 //PUBLIC
@@ -159,7 +174,7 @@ void runServer() { //Listen for new connections
 		FD_ZERO(&testSet);
 		FD_SET(gateServer, &testSet);
 		FD_SET(gedsServer, &testSet);
-		int result = select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
+		int result = select(FD_SETSIZE, &testSet, NULL, NULL, NULL);
 		if (result == -1)
 			break;
 		if (FD_ISSET(gateServer, &testSet)) {
@@ -167,6 +182,7 @@ void runServer() { //Listen for new connections
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
 				new Gateway(newSock);
+				fds.push_back(*newSock);
 			} catch(int e) {}
 		}
 		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket

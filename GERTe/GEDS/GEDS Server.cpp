@@ -162,16 +162,21 @@ int main( int argc, char* argv[] ) {
 
 	running = true; //We've officially started running! SIGINT is now not evil!
 
-	debug("Starting message processor"); //Use debug to notify user where we are in the loading process
-	thread processor(process); //Create message processor thread
+	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
+	thread gateways(processGateways); //Create message processor thread
+
+	debug("Starting peer message processor");
+	thread peers(processPeers);
 
 	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
 	runServer(); //Process incoming connections (not messages)
 	warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
 
 	//Shutdown and Cleanup sequence
-	debug("Waiting for message processor to exit"); //Notify user where we are in the shutdown process
-	processor.join(); //Cleanup processor (wait for it to die)
+	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
+	gateways.join(); //Cleanup processor (wait for it to die)
+	peers.join();
+	killConnections();
 	warn("Processor killed, program ending."); //Notify the user we've stopped processing messages
 
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process

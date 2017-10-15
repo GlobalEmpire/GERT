@@ -14,7 +14,8 @@ extern "C" {
 	void cleanup();
 	void runServer();
 	void killConnections();
-	void process();
+	void processGateways();
+	void processPeers();
 	void buildWeb();
 	string putAddr(Address);
 }

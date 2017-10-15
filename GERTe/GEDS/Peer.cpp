@@ -8,6 +8,7 @@
 #include <map>
 
 map<IP, Peer*> peers;
+map<int, Peer*> sockToPeer;
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
