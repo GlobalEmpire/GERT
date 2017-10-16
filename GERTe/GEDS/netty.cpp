@@ -171,9 +171,8 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
-				gate = new Gateway(newSock);
+				Gateway gate = new Gateway(newSock);
 				gatefd.push_back(*newSock);
-				fdToGate[*newSock] = gate;
 				pthread_kill(*(thread::native_handle_type*)gateways, SIGUSR1);
 			} catch(int e) {}
 		}
@@ -182,9 +181,8 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			*newSocket = accept(gedsServer, NULL, NULL);
 			Peer * peer;
 			try {
-				peer = new Peer(newSocket);
+				Peer peer = new Peer(newSocket);
 				peerfd.push_back(*newSocket);
-				fdToPeer[*newSocket] = peer;
 				pthread_kill(*(thread::native_handle_type*)peers, SIGUSR1);
 			} catch(int e) {}
 		}

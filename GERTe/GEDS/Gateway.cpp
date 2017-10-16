@@ -11,6 +11,8 @@ typedef int SOCKET;
 
 extern map<Address, Key> resolutions;
 
+extern map<int, Gateway*> fdToGate;
+
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
 
@@ -45,7 +47,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	} else {
 		local = true;
 		noAddrList.push_back(this);
-		sockToGate[*newSocket] = this;
+		fdToGate[*newSocket] = this;
 		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 	}
 }
@@ -82,7 +84,7 @@ void Gateway::close() {
 		gateways.erase(this->addr); //Remove connection from universal map
 		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	}
-	sockToGate.erase(*(SOCKET*)this->sock);
+	fdToGate.erase(*(SOCKET*)this->sock);
 	if (this->sock != nullptr)
 		destroy((SOCKET*)this->sock); //Close the socket
 	delete this; //Release the memory used to store the Gateway

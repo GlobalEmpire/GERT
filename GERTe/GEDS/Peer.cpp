@@ -9,6 +9,8 @@
 
 map<IP, Peer*> peers;
 
+extern map<int, Peer*> fdToPeer;
+
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
 	destroy(sock);
@@ -42,6 +44,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 		}
 		peers[id->addr] = this;
 		log("Peer connected from " + id->addr.stringify());
+		fdToPeer[*newSocket] = this;
 		this->process();
 	}
 };
@@ -53,6 +56,7 @@ Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket
 void Peer::close() {
 	killAssociated(this);
 	peers.erase(this->id->addr);
+	fdToPeer.erase(*(SOCKET*)this->sock);
 	destroy((SOCKET*)this->sock);
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 	delete this;

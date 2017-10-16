@@ -182,6 +182,9 @@ int main( int argc, char* argv[] ) {
 	warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
 
 	//Shutdown and Cleanup sequence
+	debug("Signaling message processors to close");
+	pthread_kill(gatewaysHandle, SIGUSR1);
+	pthread_kill(peersHandle, SIGUSR1);
 	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
 	gateways.join(); //Cleanup processor (wait for it to die)
 	peers.join();
