@@ -112,7 +112,7 @@ string extract(Connection * conn, unsigned char len) {
 
 bool isLocal(Address addr) {
 	try {
-		Gateway test{addr};
+		Gateway* test = Gateway::lookup(addr);
 		return true;
 	} catch (int e) {
 		return false;

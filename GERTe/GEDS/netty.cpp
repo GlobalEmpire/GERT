@@ -160,14 +160,21 @@ void cleanup() {
 
 //PUBLIC
 void runServer(void * gateways, void * peers) { //Listen for new connections
+	pollfd servers[2] = {
+			{
+					gateServer,
+					POLLIN,
+					0
+			},
+			{
+					gedsServer,
+					POLLIN,
+					0
+			}
+	};
 	while (running) { //Dies on SIGINT
-		FD_ZERO(&testSet);
-		FD_SET(gateServer, &testSet);
-		FD_SET(gedsServer, &testSet);
-		int result = select(FD_SETSIZE, &testSet, NULL, NULL, NULL);
-		if (result == -1)
-			break;
-		if (FD_ISSET(gateServer, &testSet)) {
+		poll(servers, 2, -1);
+		if (servers[0].revents & POLLIN) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
@@ -176,10 +183,9 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 				pthread_kill(*(thread::native_handle_type*)gateways, SIGUSR1);
 			} catch(int e) {}
 		}
-		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
+		if (servers[1].revents & POLLIN) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
-			Peer * peer;
 			try {
 				Peer peer = new Peer(newSocket);
 				peerfd.push_back(*newSocket);

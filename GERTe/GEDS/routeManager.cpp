@@ -14,8 +14,8 @@ routePtr routeIter::operator-> () { return ptr; }
 void killAssociated(Peer* target) {
 	for (routeIter iter; !iter.isEnd(); iter++) {
 		if (iter->second == target) {
-			Gateway toDie{iter->first};
-			toDie.kill();
+			Gateway* toDie = Gateway::lookup(iter->first);
+			toDie->kill();
 			routes.erase(iter->first);
 		}
 	}

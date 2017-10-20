@@ -8,11 +8,12 @@ typedef int SOCKET;
 
 constexpr unsigned int iplen = 16;
 
+void runServer(void*, void*);
+
 extern "C" {
 	void destroy(void*);
 	void startup();
 	void cleanup();
-	void runServer(void*, void*);
 	void killConnections();
 	void processGateways();
 	void processPeers();

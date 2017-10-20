@@ -5,13 +5,17 @@
 #include "Ports.h"
 
 class Gateway : public Connection {
+	Gateway(void*);
+
+	friend void runServer(void*, void*);
+
 	public:
 		Address addr;
 		bool local = false;
 		void process() { api->procGate(this); };
 		void kill() { api->killGate(this); };
-		Gateway(void*);
-		Gateway(Address);
+		static Gateway* lookup(Address);
+		//~Gateway();
 		void transmit(string);
 		bool assign(Address, Key);
 		void close();

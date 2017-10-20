@@ -52,13 +52,17 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	}
 }
 
-Gateway::Gateway(Address req) : Connection(nullptr) {
+Gateway* Gateway::lookup(Address req) {
 	if (gateways.count(req) == 0) {
 		throw 0;
 	}
 
-	*this = *gateways[req];
+	return gateways[req];
 }
+
+/*Gateway::~Gateway() {
+
+}*/
 
 void Gateway::transmit(string data) {
 	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
