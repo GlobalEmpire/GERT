@@ -86,7 +86,7 @@ function api.parse()
 	if cmd == "" then
 		return nil
 	end
-
+	cmd = cmd:byte()
 	if cmd == 2 then
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
@@ -95,7 +95,7 @@ function api.parse()
 		local source = unparseAddr(addrs:sub(7))
 		local length = socket.read(1)
 		return {
-			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
+			target = addr:match(addrSegment .. ":(" .. addrSegment .. ")"),
 			source = source,
 			data = socket.read(length:byte())
 		}

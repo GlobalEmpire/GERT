@@ -36,7 +36,7 @@ local neighbors = {}
 local tier = 3
 local neighborDex = 1
 
--- connections[x]{"destination", "origination", "data", "dataDex"} Connections are established at endpoints
+-- connections[x]{"destination", "origination", "data", "dataDex", "connectionID", "doEvent"} Connections are established at endpoints
 local connections = {}
 local connectDex = 1
 -- paths[x]{"destination", "origination", "beforeHop", "nextHop", "port"}
@@ -332,17 +332,6 @@ if modem then
 	modem.broadcast(4378, "AddNeighbor")
 end
 
--- Override computer.shutdown to allow for better network leaves
-local function safedown()
-	if tunnel then
-		tunnel.send("RemoveNeighbor", modem.address)
-	end
-	if modem then
-		modem.broadcast(4378, "RemoveNeighbor", modem.address)
-	end
-end
-event.listen("shutdown", safedown)
-
 -- Register event listener to receive packets from now on
 event.listen("modem_message", receivePacket)
 
@@ -369,6 +358,20 @@ end
 if mncUnavailable then
 	print("Unable to contact the MNC. Functionality will be impaired.")
 end
+
+-- Override computer.shutdown to allow for better network leaves
+local function safedown()
+	if tunnel then
+		tunnel.send("RemoveNeighbor", modem.address)
+	end
+	if modem then
+		modem.broadcast(4378, "RemoveNeighbor", modem.address)
+	end
+	for key, value in pairs(connections) do
+		handler["CloseConnection"]((modem or tunnel).address, 4378, "CloseConnection", value["connectionID"]), value["destination"], value["origination"])
+	end
+end
+event.listen("shutdown", safedown)
 
 -- startup procedure is now complete ------------------------------------------------------------------------------------------------------------
 -- begin procedure to allow for data transmission

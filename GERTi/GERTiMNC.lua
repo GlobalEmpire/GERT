@@ -18,7 +18,7 @@ local pathDex = 1
 
 local tier = 0
 local handler = {}
-local addressP1 = 1
+local addressP1 = 0
 local addressP2 = 1
 local gAddress = nil
 local gKey = nil
