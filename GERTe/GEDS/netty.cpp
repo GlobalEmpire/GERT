@@ -75,9 +75,12 @@ void processGateways() {
 		poll(set, gatefd.size(), -1);
 		for (int i = 0; i < size; i++) {
 			if (set[i].revents & POLLIN) {
-				fdToGate[set[i].fd]->process();
-			} else if (set[i].revents & POLLHUP) {
-				fdToGate[set[i].fd]->close();
+				char test[1];
+				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
+					fdToGate[set[i].fd]->close();
+				} else {
+					fdToGate[set[i].fd]->process();
+				}
 			}
 		}
 		this_thread::yield();
@@ -99,9 +102,12 @@ void processPeers() {
 		poll(set, peerfd.size(), -1);
 		for (int i = 0; i < size; i++) {
 			if (set[i].revents & POLLIN) {
-				fdToPeer[set[i].fd]->process();
-			} else if (set[i].revents & POLLHUP) {
-				fdToPeer[set[i].fd]->close();
+				char test[1];
+				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
+					fdToPeer[set[i].fd]->close();
+				} else {
+					fdToPeer[set[i].fd]->process();
+				}
 			}
 		}
 		this_thread::yield();
@@ -173,12 +179,14 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			}
 	};
 	while (running) { //Dies on SIGINT
+		servers[0].revents = 0;
+		servers[1].revents = 0;
 		poll(servers, 2, -1);
 		if (servers[0].revents & POLLIN) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
-				Gateway gate = new Gateway(newSock);
+				Gateway * gate = new Gateway(newSock);
 				gatefd.push_back(*newSock);
 				pthread_kill(*(thread::native_handle_type*)gateways, SIGUSR1);
 			} catch(int e) {}
@@ -187,7 +195,7 @@ void runServer(void * gateways, void * peers) { //Listen for new connections
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
 			try {
-				Peer peer = new Peer(newSocket);
+				Peer * peer = new Peer(newSocket);
 				peerfd.push_back(*newSocket);
 				pthread_kill(*(thread::native_handle_type*)peers, SIGUSR1);
 			} catch(int e) {}

@@ -15,7 +15,6 @@ class Gateway : public Connection {
 		void process() { api->procGate(this); };
 		void kill() { api->killGate(this); };
 		static Gateway* lookup(Address);
-		//~Gateway();
 		void transmit(string);
 		bool assign(Address, Key);
 		void close();

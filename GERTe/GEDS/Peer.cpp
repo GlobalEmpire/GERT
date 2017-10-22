@@ -10,6 +10,17 @@
 map<IP, Peer*> peers;
 
 extern map<int, Peer*> fdToPeer;
+extern vector<int> peerfd;
+
+vector<int>::iterator findFd(int fd) {
+	vector<int>::iterator iter = gatefd.begin();
+	for (iter; iter < gatefd.end(); iter++) { //Loop through list of non-registered gateways
+			if (*iter == fd) { //If we found the Gateway
+				return iter;
+			}
+		}
+	return iter;
+}
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -57,6 +68,8 @@ void Peer::close() {
 	killAssociated(this);
 	peers.erase(this->id->addr);
 	fdToPeer.erase(*(SOCKET*)this->sock);
+	vector<int>::iterator iter = findFd(*(SOCKET*)this->sock);
+	peerfd.erase(iter);
 	destroy((SOCKET*)this->sock);
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 	delete this;
