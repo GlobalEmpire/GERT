@@ -27,7 +27,7 @@ Status loadPeers() { //Load peers from a file
 		if (feof(peerFile) != 0) //If the file has nothing left
 			break; //We're done
 		unsigned short rawPorts[2]; //Make two storage variables for ports
-		fread(&rawPorts, 2, 2, peerFile); //Fill those variables
+		fread(rawPorts, 2, 2, peerFile); //Fill those variables
 		rawPorts[0] = ntohs(rawPorts[0]); //Fix those variables for platform compatibility
 		rawPorts[1] = ntohs(rawPorts[1]);
 		Ports ports = {rawPorts[0], rawPorts[1]}; //Reformat those variables into a structure
@@ -46,12 +46,12 @@ Status loadResolutions() { //Load key resolutions from a file
 		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Key File: " + to_string(errno)); //Return with an error
 	while (true) {
 		unsigned char bufE[3]; //Create a storage variable for the external portion of the address
-		fread(&bufE, 1, 3, resolutionFile); //Fill the external address
+		fread(bufE, 1, 3, resolutionFile); //Fill the external address
 		if (feof(resolutionFile) != 0) //If the file is at the end
 			break; //We're done
 		Address addr{bufE}; //Reformat the address portions into a single structure
 		char buff[20]; //Create a storage variable for the key
-		fread(&buff, 1, 20, resolutionFile); //Fill the key
+		fread(buff, 1, 20, resolutionFile); //Fill the key
 		Key key(buff); //Reformat the key
 		log("Imported resolution for " + addr.stringify()); //Print what we've imported
 		resolutions[addr] = key;

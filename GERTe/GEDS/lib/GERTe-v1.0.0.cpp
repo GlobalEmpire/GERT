@@ -112,7 +112,7 @@ string extract(Connection * conn, unsigned char len) {
 
 bool isLocal(Address addr) {
 	try {
-		Gateway test{addr};
+		Gateway* test = Gateway::lookup(addr);
 		return true;
 	} catch (int e) {
 		return false;
@@ -156,6 +156,7 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			Address request{rest};
 			if (isLocal(request) || isRemote(request)) {
+				warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
 				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::ADDRESS_TAKEN};
 				gate->transmit(cmd);
 				/*
