@@ -47,7 +47,10 @@ namespace Gate {
 		STATE,
 		REGISTER,
 		DATA,
-		CLOSE
+		CLOSE,
+		TUNNEL,
+		STRICT_TUNNEL,
+		USE_TUNNEL
 	};
 
 	enum class States : char {
@@ -240,6 +243,37 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			gate->close();
 		}
+		case Gate::Commands::STRICT_TUNNEL: {
+			Address internal = Address{extract(gate, 3)};
+			GERTc target = GERTc{extract(gate, 6)};
+			Gateway * tgt;
+			try {
+				tgt = lookup(target.external);
+			} catch (int e) {
+				gate->transmit({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE});
+				return;
+			}
+
+			string id = createTunnel(gate->addr, target.external);
+			gate->transmit({(char)Gate::Commands::TUNNEL, id});
+			tgt->transmit({(char)Gate::Commands::TUNNEL, id, putAddr(gate->addr), putAddr(target.internal), putAddr(internal)});
+		}
+		case Gate::Commands::TUNNEL: {
+			Address target = Address{extract(gate, 3)};
+			Gateway * tgt;
+			try {
+				tgt = lookup(target);
+			} catch (int e) {
+				gate->transmit({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE});
+				return;
+			}
+
+			string id = createTunnel(gate->addr, target);
+			gate->transmit({(char)Gate::Commands::STRICT_TUNNEL, id});
+			tgt->transmit({(char)Gate::Commands::STRICT_TUNNEL, id, putAddr(gate->addr)});
+		}
+
+
 	}
 }
 
