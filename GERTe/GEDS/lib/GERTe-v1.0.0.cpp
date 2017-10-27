@@ -56,7 +56,6 @@ namespace Gate {
 		STATE,
 		REGISTER,
 		DATA,
-		STATUS,
 		CLOSE
 	};
 
@@ -216,7 +215,7 @@ DLLExport void processGateway(Gateway* gate) {
 			 */
 			return;
 		}
-		case Gate::Commands::STATUS: {
+		case Gate::Commands::STATE: {
 			gate->transmit(string({ (char)Gate::Commands::STATE, (char)gate->state }));
 			/*
 			 * Response to state request
