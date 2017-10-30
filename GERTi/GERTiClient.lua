@@ -1,4 +1,4 @@
--- GERT v1.0 - RC6
+-- GERT v1.0 - Release
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -39,7 +39,7 @@ local neighborDex = 1
 -- connections[x]{"destination", "origination", "data", "dataDex", "connectionID", "doEvent"} Connections are established at endpoints
 local connections = {}
 local connectDex = 1
--- paths[x]{"destination", "origination", "beforeHop", "nextHop", "port"}
+-- paths[x]{"destination", "origination",  "nextHop", "port"}
 local paths = {}
 local pathDex = 1
 
@@ -125,7 +125,7 @@ local function storeConnection(origination, destination, doEvent, connectionID)
 	connections[connectDex]["connectionID"] = (connectionID or connectDex)
 	connections[connectDex]["doEvent"] = (doEvent or false)
 	connectDex = connectDex + 1
-	return (connectDex-1)
+	return connectionID or (connectDex-1)
 end
 local function storePath(origination, destination, nextHop, port)
 	paths[pathDex] = {}
@@ -241,9 +241,9 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 	local function sendOKResponse(isDestination)
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
-			computer.pushSignal("GERTConnectionID", connectionID)
 			storePath(origination, destination, nextHop, transmitPort)
-			return storeConnection(origination, destination, false, connectionID)
+			local newID = storeConnection(origination, destination, false, connectionID)
+			return computer.pushSignal("GERTConnectionID", newID)
 		else
 			return storePath(origination, destination, nextHop, transmitPort)
 		end
@@ -368,7 +368,7 @@ local function safedown()
 		modem.broadcast(4378, "RemoveNeighbor", modem.address)
 	end
 	for key, value in pairs(connections) do
-		handler["CloseConnection"]((modem or tunnel).address, 4378, "CloseConnection", value["connectionID"]), value["destination"], value["origination"])
+		handler["CloseConnection"]((modem or tunnel).address, 4378, "CloseConnection", value["connectionID"], value["destination"], value["origination"])
 	end
 end
 event.listen("shutdown", safedown)
@@ -398,6 +398,7 @@ local function readData(self)
 				return self:read()
 			end
 		end
+		return {}
 	end
 end
 
@@ -410,7 +411,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 	local destination, err = resolveAddress(gAddress)
 	local origination = (modem or tunnel).address
 	local nextHop
-	local outID = (provID or (connectDex+1))
+	local outID = (provID or connectDex)
 	local outDex = 0
 	local incDex = nil
 	local outgoingPort = 0
