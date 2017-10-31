@@ -17,13 +17,16 @@
 #include "query.h"
 #include "netty.h"
 #include "logging.h"
+#include <signal.h>
 using namespace std;
-
-typedef timeval TIMEVAL;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 fd_set testSet; //Define test sets and null set
-TIMEVAL nonBlock = { 0, 0 }; //Define 0 duration timer
+
+vector<int> gatefd;
+vector<int> peerfd;
+map<int, Gateway*> fdToGate;
+map<int, Peer*> fdToPeer;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -56,51 +59,59 @@ void killConnections() {
 	}
 }
 
-void checkUnregistered() {
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway* conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
-	}
-}
-
-void checkPeers() {
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		Peer* conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
-	}
-}
-
-void checkGateways() {
-	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		Gateway * conn = *iter;
-		if (conn->sock == nullptr)
-			conn->close();
-		int result = recv(*(SOCKET*)conn->sock, nullptr, 0, 0);
-		if (result == -1)
-			continue;
-		conn->process();
-	}
-}
-
 //PUBLIC
-void process() {
+void processGateways() {
+	pause();
 	while (running) {
-		checkGateways();
-		checkPeers();
-		checkUnregistered();
+		int size = gatefd.size();
+		pollfd set[size];
+		for (int i = 0; i < size; i++) {
+			set[i] = {
+				gatefd[i],
+				POLLIN,
+				0
+			};
+		}
+		poll(set, gatefd.size(), -1);
+		for (int i = 0; i < size; i++) {
+			if (set[i].revents & POLLIN) {
+				char test[1];
+				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
+					fdToGate[set[i].fd]->close();
+				} else {
+					fdToGate[set[i].fd]->process();
+				}
+			}
+		}
 		this_thread::yield();
 	}
-	killConnections();
+}
+
+void processPeers() {
+	pause();
+	while (running) {
+		int size = peerfd.size();
+		pollfd set[size];
+		for (int i = 0; i < size; i++) {
+			set[i] = {
+				peerfd[i],
+				POLLIN,
+				0
+			};
+		}
+		poll(set, peerfd.size(), -1);
+		for (int i = 0; i < size; i++) {
+			if (set[i].revents & POLLIN) {
+				char test[1];
+				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
+					fdToPeer[set[i].fd]->close();
+				} else {
+					fdToPeer[set[i].fd]->process();
+				}
+			}
+		}
+		this_thread::yield();
+	}
 }
 
 //PUBLIC
@@ -154,27 +165,39 @@ void cleanup() {
 }
 
 //PUBLIC
-void runServer() { //Listen for new connections
+void runServer(void * gateways, void * peers) { //Listen for new connections
+	pollfd servers[2] = {
+			{
+					gateServer,
+					POLLIN,
+					0
+			},
+			{
+					gedsServer,
+					POLLIN,
+					0
+			}
+	};
 	while (running) { //Dies on SIGINT
-		FD_ZERO(&testSet);
-		FD_SET(gateServer, &testSet);
-		FD_SET(gedsServer, &testSet);
-		int result = select(FD_SETSIZE, &testSet, NULL, NULL, &nonBlock);
-		if (result == -1)
-			break;
-		if (FD_ISSET(gateServer, &testSet)) {
+		servers[0].revents = 0;
+		servers[1].revents = 0;
+		poll(servers, 2, -1);
+		if (servers[0].revents & POLLIN) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
-				new Gateway(newSock);
+				Gateway * gate = new Gateway(newSock);
+				gatefd.push_back(*newSock);
+				pthread_kill(*(thread::native_handle_type*)gateways, SIGUSR1);
 			} catch(int e) {}
 		}
-		if (FD_ISSET(gedsServer, &testSet)) {//Tests GEDS P2P inbound socket
+		if (servers[1].revents & POLLIN) {//Tests GEDS P2P inbound socket
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
-			Peer * peer;
 			try {
-				peer = new Peer(newSocket);
+				Peer * peer = new Peer(newSocket);
+				peerfd.push_back(*newSocket);
+				pthread_kill(*(thread::native_handle_type*)peers, SIGUSR1);
 			} catch(int e) {}
 		}
 		this_thread::yield(); //Release CPU
@@ -236,7 +259,6 @@ void buildWeb() {
 }
 
 extern "C" {
-
 	string putAddr(Address addr) {
 		const unsigned char* chars = addr.getAddr();
 		return string{chars[0], chars[1], chars[2]};

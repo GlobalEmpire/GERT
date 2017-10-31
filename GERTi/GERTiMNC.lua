@@ -1,9 +1,10 @@
--- Under Construction
+-- GERT v1.0 - Release
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local filesystem = require("filesystem")
 local GERTe = nil
+local os = require("os")
 local serialize = require("serialization")
 local modem = nil
 local tunnel = nil
@@ -12,11 +13,17 @@ local childNodes = {}
 local childNum = 1
 local connections = {}
 local connectDex = 1
+local paths = {}
+local pathDex = 1
+
 local tier = 0
 local handler = {}
-local addressDex = 1
+local addressP1 = 0
+local addressP2 = 1
 local gAddress = nil
 local gKey = nil
+local timerID = nil
+local savedAddresses = {}
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
@@ -39,13 +46,14 @@ if filesystem.exists("/lib/GERTeAPI.lua") then
 	GERTe = require("GERTeAPI")
 end
 
+local directory = os.getenv("_")
+directory = filesystem.path(directory)
 -- functions to store the children and then sort the table
 local function sortTable(elementOne, elementTwo)
 	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
 end
 
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
--- extremely useful for callback programming
 local function addTempHandler(timeout, code, cb, cbf)
 	local function cbi(...)
         local evn, rc, sd, pt, dt, code2 = ...
@@ -61,22 +69,55 @@ local function addTempHandler(timeout, code, cb, cbf)
         end)
 end
 
-local function storeChild(eventName, receivingModem, sendingModem, port, distance, package)
-	-- register neighbors for communication to gateway
+local function waitWithCancel(timeout, cancelCheck)
+	local now = computer.uptime()
+	local deadline = now + 5
+	while now < deadline do
+		event.pull(deadline - now, "modem_message")
+		local response = cancelCheck()
+		if response then return response end
+		now = computer.uptime()
+	end
+	return cancelCheck()
+end
+
+local function storeChild(rAddress, port, package)
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
-	-- children means the direct connections a comptuer can make to another computer that is a lower tier than it
+	-- children means the direct connections a computer can make to another computer that is a lower tier than it
+	local childGAddress
+	for key, value in pairs(savedAddresses) do
+		if value["rAddress"] == rAddress then
+			childGAddress = value["gAddress"]
+			break
+		end
+	end
 	childNodes[childNum] = {}
-	childNodes[childNum]["realAddress"] = sendingModem
-	childNodes[childNum]["gAddress"] = addressDex
+	childNodes[childNum]["realAddress"] = rAddress
+	childNodes[childNum]["gAddress"] = (childGAddress or (tostring(addressP1).."."..tostring(addressP2)))
 	childNodes[childNum]["tier"] = tonumber(package)
 	childNodes[childNum]["port"] = tonumber(port)
 	childNodes[childNum]["parents"] = {}
 	childNodes[childNum]["children"]={}
-	print("inside store Child")
-	print(childNodes[childNum]["realAddress"])
 	childNum = childNum + 1
-	addressDex = addressDex + 1
 	table.sort(childNodes, sortTable)
+	if not childGAddress then
+		savedAddresses[(#savedAddresses)+1] = {}
+		savedAddresses[#savedAddresses]["rAddress"] = rAddress
+		savedAddresses[#savedAddresses]["gAddress"] = tostring(addressP1).."."..tostring(addressP2)
+		local f = io.open(directory.."GERTaddresses.gert", "a")
+		f:write(tostring(addressP1).."."..tostring(addressP2).."\n")
+		f:write(childNodes[childNum-1]["realAddress"].."\n")
+		f:close()
+		if addressP2 == 4095 then
+			addressP2 = 0
+			addressP1 = addressP1 + 1
+			if addressP1 >= 4096 then
+				io.stderr:write("Warning! Maximum number of clients exceeded! Please clean the GERTaddresses.gert file of excess addresses. If error persists, please contact MajGenRelativity at https://discord.gg/f7VYMfJ")
+			end
+		else
+			addressP2 = addressP2 + 1
+		end
+	end
 	return (childNum-1), childNodes[childNum-1]["gAddress"]
 end
 
@@ -84,28 +125,32 @@ local function removeChild(address)
 	for key, value in pairs(childNodes) do
 		if value["realAddress"] == address then
 			table.remove(childNodes, key)
+			childNum = (#childNodes+1)
 			break
 		end
 	end
 end
 
-local function storeConnection(destination, origination, beforeHop, nextHop, port, ...)
+local function storeConnection(origination, destination, nextHop, outbound, connectionID)
 	connections[connectDex] = {}
 	connections[connectDex]["destination"] = destination
 	connections[connectDex]["origination"] = origination
-	connections[connectDex]["beforeHop"] = beforeHop
 	connections[connectDex]["nextHop"] = nextHop
-	connections[connectDex]["port"] = port
 	connections[connectDex]["data"] = {}
 	connections[connectDex]["dataDex"] = 1
-	connections[connectDex]["outbound"] = ...
+	connections[connectDex]["outbound"] = outbound
+	connections[connectDex]["connectionID"] = (connectionID or connectDex)
 	connectDex = connectDex + 1
-	return (connectDex-1)
+	return connectionID or (connectDex-1)
 end
-
-local function storeConnections(origination, destination, beforeHop, nextHop, port, ...)
-	storeConnection(origination, destination, nextHop, beforeHop, port, ...)
-	storeConnection(destination, origination, beforeHop, nextHop, port, ...)
+local function storePath(origination, destination, nextHop, port)
+	paths[pathDex] = {}
+	paths[pathDex]["origination"] = origination
+	paths[pathDex]["destination"] = destination
+	paths[pathDex]["nextHop"] = nextHop
+	paths[pathDex]["port"] = port
+	pathDex = pathDex + 1
+	return (pathDex-1)
 end
 
 local function transmitInformation(sendTo, port, ...)
@@ -118,7 +163,7 @@ local function transmitInformation(sendTo, port, ...)
 	return false
 end
 
-handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code)
+handler["AddNeighbor"] = function (sendingModem, port, code)
 	local doesExist = false
 	local childTier = 1
 	print("GERTiStartReceived")
@@ -133,65 +178,82 @@ handler["AddNeighbor"] = function (eventName, receivingModem, sendingModem, port
 		end
 	end
 	if doesExist == false then
-		storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
+		storeChild(sendingModem, port, childTier)
 	end
 	transmitInformation(sendingModem, port, "RETURNSTART", tier)
 end
 
-handler["DATA"] = function (eventName, receivingModem, sendingModem, port, distance, code, data, destination, origination)
+handler["CloseConnection"] = function(sendingModem, port, code, connectionID, destination, origin)
+	for key, value in pairs(paths) do
+		if value["destination"] == destination and value["origination"] == origin then
+			if value["nextHop"] ~= (modem or tunnel).address then
+				transmitInformation(value["nextHop"], value["port"], "CloseConnection", connectionID, destination, origin)
+			end
+			table.remove(paths, key)
+			break
+		end
+	end
 	for key, value in pairs(connections) do
-		if value["destination"] == destination and value["origination"] == origination then
-			if connections[key]["destination"] ~= modem.address then
-				return transmitInformation(connections[key]["nextHop"], connections[key]["port"], "DATA", data, destination, origination)
-			else
-				computer.pushSignal("DataOut", value["outbound"], data)
-				if GERTe then
-					local gAddressOrigin = nil
-					for key2, value2 in pairs(childNodes) do
-						if value2["realAddress"] == value["origination"] then
-							gAddressOrigin = value2["gAddress"]
-							break
-						end
+		if value["connectionID"] == connectionID then
+			table.remove(connections, key)
+			break
+		end
+	end
+end
+
+handler["DATA"] = function (sendingModem, port, code, data, destination, origination, connectionID)
+	if destination == (modem or tunnel).address and GERTe then
+		for key, value in pairs (connections) do
+			if value["origination"] == origination then
+				for key2, value2 in pairs(childNodes) do
+					if value2["realAddress"] == value["origination"] then
+						return GERTe.transmitTo(value["outbound"], value2["gAddress"], data)
 					end
-					GERTe.transmitTo(value["outbound"], gAddressOrigin, data)
 				end
 			end
 		end
+	else
+		for key, value in pairs(paths) do
+			if value["destination"] == destination and value["origination"] == origination then
+				return transmitInformation(value["nextHop"], value["port"], "DATA", data, destination, origination, connectionID)
+			end
+		end
 	end
-	return false
 end
 
 -- Used in handler["OPENROUTE"]
--- MNC's openRoute and Client's openRoute DIFFER
-local function orController(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, cb, outbound)
-        print("Opening Route")
-        local function sendOKResponse()
-                transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
-		storeConnections(origination, destination, beforeHop, hopOne, receivedPort, transmitPort)
-                if cb then
-                        cb(true)
-                end
-        end
-        if modem.address ~= destination then
-		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination)
-                -- Basically: When the ROUTE OPEN comes along, check if it's the route we want (it's one route per pair anyway)
-                addTempHandler(6, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
-                        if (destination == pktDest) and (origination == pktOrig) then
-                                sendOKResponse()
-                                return true -- This terminates the wait
-                        end
-                end, function () if cb then cb(false) end end)
-                return
-        end
-        sendOKResponse()
+local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound, connectionID)
+	print("Opening Route")
+    local function sendOKResponse(isDestination)
+		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
+		if isDestination then
+			storeConnection(origination, destination, hopOne, outbound, connectionID)
+			storePath(origination, destination, hopOne, transmitPort)
+		else
+			storePath(origination, destination, hopOne, transmitPort)
+			if origination == (modem or tunnel).address then
+				storeConnection(origination, destination, hopOne, outbound, connectionID)
+			end
+		end
+	end
+    if modem.address ~= destination then
+		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination, outbound, connectionID)
+        addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+        	if (destination == pktDest) and (origination == pktOrig) then
+        		sendOKResponse(false)
+            	return true -- This terminates the wait
+			end
+            end, function () end)
+		waitWithCancel(3, function () return response end)
+        return
+    end
+    sendOKResponse(true)
 end
 
-
-handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, distance, code, destination, intermediary, origination, outbound)
+handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID)
 	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
 	if destination == modem.address then
-		orController(destination, origination, sendingModem, modem.address, modem.address, port, port, nil, outbound)
-		return
+		return routeOpener(destination, origination, sendingModem, modem.address, modem.address, port, port, outbound, connectionID)
 	end
 
 	local childKey = nil
@@ -200,7 +262,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return orController(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], nil)
+				return routeOpener(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound, connectionID)
 			end
 			break
 		end
@@ -211,7 +273,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return orController(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], nil)
+					return routeOpener(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound, connectionID)
 				end
 			end
 		end
@@ -225,7 +287,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 					-- so much nesting!
 					if value3["address"] == value2["address"] then
 						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						return orController(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], nil)
+						return routeOpener(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], outbound, connectionID)
 					end
 				end
 			end
@@ -233,7 +295,7 @@ handler["OPENROUTE"] = function (eventName, receivingModem, sendingModem, port, 
 	end
 end
 
-handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, port, distance, code, originatorAddress, childTier, neighborTable)
+handler["RegisterNode"] = function (sendingModem, port, code, originatorAddress, childTier, neighborTable)
 	neighborTable = serialize.unserialize(neighborTable)
 	local nodeDex = 0
 	for key, value in pairs(childNodes) do
@@ -243,7 +305,7 @@ handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, por
 		end
 	end
 	if nodeDex == 0 then
-		nodeDex = storeChild(eventName, receivingModem, sendingModem, port, distance, childTier)
+		nodeDex = storeChild(originatorAddress, port, childTier)
 	end
 	local parentDex = 1
 	local subChildDex = 1
@@ -259,13 +321,13 @@ handler["RegisterNode"] = function (eventName, receivingModem, sendingModem, por
 	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childNodes[nodeDex]["gAddress"])
 end
 
-handler["RemoveNeighbor"] = function (eventName, receivingModem, sendingModem, port, distance, code, origination)
+handler["RemoveNeighbor"] = function (sendingModem, port, code, origination)
 	removeChild(origination)
 end
 
-handler["ResolveAddress"] = function (eventName, receivingModem, sendingModem, port, distance, code, gAddress)
+handler["ResolveAddress"] = function (sendingModem, port, code, gAddress)
 	if string.find(tostring(gAddress), ":") then
-		return transmitInformation(sendingModem, port, "ResolveComplete", gAddress, (modem or tunnel).address)
+		return transmitInformation(sendingModem, port, "ResolveComplete", (modem or tunnel).address)
 	else
 		for key, value in pairs(childNodes) do
 			if tonumber(value["gAddress"]) == tonumber(gAddress) then
@@ -278,55 +340,75 @@ end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
 	print(code)
 	if handler[code] ~= nil then
-		handler[code](eventName, receivingModem, sendingModem, port, distance, code, ...)
+		handler[code](sendingModem, port, code, ...)
 	end
 end
--- Functionality to allow reception of data from outside of the GERTi network, and then to pass it inwards
-local function openExternalConnection(eventName, gDestination, origination)
-	local rDestination = ""
-	if string.find(tostring(gDestination), ":") then
-		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, string.sub(gDestination, (string.find(tostring(gDestination), ":")+1)))
-	else
-		rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4378, nil, nil, gDestination)
-	end
-	computer.pushSignal("modem_message", nil, modem.address, 4378, 1, "OPENROUTE", rDestination, nil, modem.address, origination)
-	computer.pushSignal("addressReturn", rDestination)
-end
-event.listen("OpenRoute", openExternalConnection)
 
-local function receiveData(eventName, data, destination)
-	computer.pushSignal("modem_message", nil, nil, 4378, 1, "DATA", data, destination, modem.address)
-end
-
+-- GERTe Integration
 local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
 	local message = GERTe.parse()
 	while message ~= nil do
 		local found = false
-		local rDestination = handler["ResolveAddress"](nil, nil, modem.address, 4379, nil, nil, message["target"])
+		local rDestination = handler["ResolveAddress"](modem.address, 4378, nil, message["target"])
 		for key, value in pairs(connections) do
 			if value["destination"] == rDestination and value["origination"] == modem.address then
-				handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+				handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, value["connectionID"])
 				found = true
 				break
 			end
 		end
 		if not found then
-			handler["OPENROUTE"](nil, nil, modem.address, 4378, nil, nil, rDestination, nil, modem.address, nil)
-			handler["DATA"](nil, nil, nil, nil, nil, nil, message["data"], rDestination, modem.address)
+			for key, value in pairs(connections) do
+				if value["destination"] == (modem or tunnel).address and value["origination"] == rDestination then
+					handler["OPENROUTE"](modem.address, 4378, nil, rDestination, nil, modem.address, (gAddress..":"..message["target"]), value["connectionID"])
+					handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, value["connectionID"])
+					break
+				end
+			end
 		end
 		message = GERTe.parse()
 	end
 end
+
+local function safedown()
+	if GERTe then
+		event.cancel(timerID)
+		GERTe.shutdown()
+	end
+end
 ------------------------ Startup procedure
 event.listen("modem_message", receivePacket)
-event.listen("DataIn", receiveData)
 
 if GERTe then
-	local file = io.open("/lib/GERTConfig.cfg", "r")
+	local file = io.open(directory.."GERTconfig.cfg", "r")
 	gAddress = file:read()
 	gKey = file:read()
 	GERTe.startup()
-	GERTe.register(gAddress, gKey)
-	event.timer(0.1, readGMessage, math.huge)
+	local success, errCode = GERTe.register(gAddress, gKey)
+	if not success then
+		io.stderr:write("Error in connecting to GEDS! Error code: "..errCode)
+	end
+	timerID = event.timer(0.1, readGMessage, math.huge)
+	event.listen("shutdown", safedown)
+end
+
+if filesystem.exists(directory.."GERTaddresses.gert") then
+	print("Address file located; loading now.")
+	local f = io.open(directory.."GERTaddresses.gert", "r")
+	local counter = 1
+	local newGAddress = f:read("*l")
+	local newRAddress = f:read("*l")
+	while newGAddress ~= nil do
+		savedAddresses[counter] = {}
+		savedAddresses[counter]["gAddress"] = newGAddress
+		savedAddresses[counter]["rAddress"] = newRAddress
+		counter = counter + 1
+		newGAddress = f:read("*l")
+		newRAddress = f:read("*l")
+	end
+	f:close()
+	local dividerDex = string.find(savedAddresses[counter-1]["gAddress"], "%.")
+	addressP1 = string.sub(savedAddresses[counter-1]["gAddress"], 1, (dividerDex-1))
+	addressP2 = math.ceil(string.sub(savedAddresses[counter-1]["gAddress"], (dividerDex+1))+1)
 end

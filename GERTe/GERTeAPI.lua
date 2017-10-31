@@ -1,7 +1,14 @@
+-- GERT v1.0 - Release
 local comp = require "component"
+local os = require "os"
+local filesystem = require "filesystem"
 
 if not comp then
 	apiRequired("Component")
+end
+
+if not os then
+	apiRequired("os")
 end
 
 local api = {}
@@ -9,6 +16,8 @@ local card = comp.proxy(comp.list("internet")())
 local socket
 local connected
 
+local directory = os.getenv("_")
+directory = filesystem.path(directory)
 local version = "\1\0\0"
 local readableVersion = "1.0.0"
 
@@ -36,6 +45,8 @@ local function parseError(err)
 		return "NOT_REGISTERED"
 	elseif err == 4 then
 		return "NO_ROUTE"
+	elseif err == 5 then
+		return "ADDRESS_TAKEN"
 	end
 end
 
@@ -84,20 +95,20 @@ function api.parse()
 	if cmd == "" then
 		return nil
 	end
-
+	cmd = cmd:byte()
 	if cmd == 2 then
 		local addrPart = "%d?%d?%d?%d"
 		local addrSegment = addrPart .. "%." .. addrPart
 		local addrs = socket.read(12)
-		local addr = unparseAddr(msg)
-		local source = unpauseAddr(msg:sub(7))
+		local addr = unparseAddr(addrs)
+		local source = unparseAddr(addrs:sub(7))
 		local length = socket.read(1)
 		return {
-			target = addr:match(addrSegment .. "%.(" .. addrSegment .. ")"),
+			target = addr:match(addrSegment .. ":(" .. addrSegment .. ")"),
 			source = source,
-			data = socket.read(length)
+			data = socket.read(length:byte())
 		}
-	elseif cmd == 4 then
+	elseif cmd == 3 then
 		socket.close()
 		error("Server closed connection")
 	end
@@ -107,7 +118,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 	if socket then
 		return
 	end
-	local file = io.open("peers.geds", "rb")
+	local file = io.open(directory.."peers.geds", "rb")
 	local peers = {}
 	while true do --Loading peers from file
 		local ipNums = file:read(4)
@@ -188,7 +199,7 @@ end
 
 function api.shutdown()
 	if socket then
-		socket.write("\4")
+		socket.write("\3")
 		socket.close()
 		socket = nil
 	end

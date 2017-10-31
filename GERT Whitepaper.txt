@@ -1,5 +1,5 @@
 It's pronounced gurt (as in yogurt)
-Revision 2.1.0 October 6, 2017
+Revision 2.0.2 May 9, 2017
 
 1. Introduction
 GERT is described in this document, to help implementations achive compatability and to provide ease of use for developers and users.

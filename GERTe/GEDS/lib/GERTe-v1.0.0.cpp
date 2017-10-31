@@ -25,31 +25,6 @@ using namespace std;
 
 typedef unsigned char UCHAR;
 
-enum gatewayCommands {
-	STATE,
-	REGISTER,
-	DATA,
-	STATUS,
-	CLOSE
-};
-
-enum gatewayStates {
-	FAILURE,
-	CONNECTED,
-	ASSIGNED,
-	CLOSED,
-	SENT
-};
-
-enum gatewayErrors {
-	VERSION,
-	BAD_KEY,
-	ALREADY_REGISTERED,
-	NOT_REGISTERED,
-	NO_ROUTE,
-	ADDRESS_TAKEN
-};
-
 enum gedsCommands {
 	REGISTERED,
 	UNREGISTERED,
@@ -63,7 +38,7 @@ enum gedsCommands {
 };
 
 namespace GEDS {
-	enum class Commands {
+	enum class Commands : char {
 		REGISTERED,
 		UNREGISTERED,
 		ROUTE,
@@ -77,15 +52,14 @@ namespace GEDS {
 }
 
 namespace Gate {
-	enum class Commands {
+	enum class Commands : char {
 		STATE,
 		REGISTER,
 		DATA,
-		STATUS,
 		CLOSE
 	};
 
-	enum class States {
+	enum class States : char {
 		FAILURE,
 		CONNECTED,
 		REGISTERED,
@@ -93,7 +67,7 @@ namespace Gate {
 		SENT
 	};
 
-	enum class Errors {
+	enum class Errors : char {
 		VERSION,
 		BAD_KEY,
 		REGISTERED,
@@ -105,14 +79,14 @@ namespace Gate {
 
 string extract(Connection * conn, unsigned char len) {
 	char * buf = conn->read(len);
-	string data{buf, len};
-	delete buf;
+	string data{buf+1, buf[0]};
+	delete[] buf;
 	return data;
 }
 
 bool isLocal(Address addr) {
 	try {
-		Gateway test{addr};
+		Gateway* test = Gateway::lookup(addr);
 		return true;
 	} catch (int e) {
 		return false;
@@ -128,7 +102,7 @@ DLLExport UCHAR patch = 0;
 DLLExport void processGateway(Gateway* gate) {
 	if (gate->state == (char)Gate::States::FAILURE) {
 		gate->state = (char)Gate::States::CONNECTED;
-		gate->transmit(string({ STATE, CONNECTED, (char)major, (char)minor, (char)patch }));
+		gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CONNECTED, (char)major, (char)minor, (char)patch }));
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
@@ -139,9 +113,9 @@ DLLExport void processGateway(Gateway* gate) {
 		 */
 		return;
 	}
-	UCHAR command = *(gate->read());
+	Gate::Commands command = (Gate::Commands)(gate->read(1))[1];
 	switch (command) {
-		case REGISTER: {
+		case Gate::Commands::REGISTER: {
 			string rest = extract(gate, 23);
 			if (gate->state == (char)Gate::States::REGISTERED) {
 				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::REGISTERED};
@@ -156,6 +130,7 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			Address request{rest};
 			if (isLocal(request) || isRemote(request)) {
+				warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
 				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::ADDRESS_TAKEN};
 				gate->transmit(cmd);
 				/*
@@ -164,18 +139,19 @@ DLLExport void processGateway(Gateway* gate) {
 				 * STATE FAILURE (0)
 				 * REASON ADDRESS_TAKEN (5)
 				 */
+				return;
 			}
 			rest.erase(0, 3);
 			Key requestkey{rest};
 			if (gate->assign(request, requestkey)) {
-				gate->transmit(string({ STATE, ASSIGNED }));
+				gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::REGISTERED }));
 				gate->state = (char)Gate::States::REGISTERED;
 				/*
 				 * Response to successful registration attempt
 				 * CMD STATE (0)
 				 * STATE REGISTERED (2)
 				 */
-				string cmd = {REGISTERED};
+				string cmd = {(char)GEDS::Commands::REGISTERED};
 				cmd += putAddr(request);
 				broadcast(cmd);
 				/*
@@ -184,7 +160,7 @@ DLLExport void processGateway(Gateway* gate) {
 				 * Address (4 bytes)
 				 */
 			} else
-				gate->transmit(string({ STATE, FAILURE, BAD_KEY }));
+				gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::BAD_KEY }));
 				/*
 				 * Response to failed registration attempt.
 				 * CMD STATE (0)
@@ -193,13 +169,14 @@ DLLExport void processGateway(Gateway* gate) {
 				 */
 			return;
 		}
-		case DATA: {
+		case Gate::Commands::DATA: {
 			string rest = extract(gate, 9);
-			char * len = gate->read();
-			rest += len + extract(gate, *len);
+			char * len = gate->read(1);
+			string data = extract(gate, len[1]);
+			rest += (char)data.size() + data;
 			delete len;
 			if (gate->state == (char)Gate::States::CONNECTED) {
-				gate->transmit(string({STATE, FAILURE, NOT_REGISTERED}));
+				gate->transmit(string({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NOT_REGISTERED}));
 				/*
 				 * Response to data before registration
 				 * CMD STATE (0)
@@ -212,14 +189,15 @@ DLLExport void processGateway(Gateway* gate) {
 			rest.erase(0, 6);
 			Address source{rest};
 			rest.erase(0, 3);
-			string newCmd = string{DATA} + gate->addr.stringify() + source.stringify() + rest;
+			string newCmd = string{(char)Gate::Commands::DATA} + putAddr(target.external) + putAddr(target.internal) +
+					putAddr(gate->addr) + putAddr(source) + rest;
 			if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
 				sendToGateway(target.external, newCmd); //Send to target
 			} else {
 				if (queryWeb(target.external)) {
 					sendToGateway(target.external, newCmd);
 				} else {
-					gate->transmit(string({ STATE, FAILURE, NO_ROUTE }));
+					gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE }));
 					/*
 					 * Response to failed data send request.
 					 * CMD STATE (0)
@@ -229,7 +207,7 @@ DLLExport void processGateway(Gateway* gate) {
 					return;
 				}
 			}
-			gate->transmit(string({ STATE, SENT }));
+			gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
 			/*
 			 * Response to successful data send request.
 			 * CMD STATE (0)
@@ -237,8 +215,8 @@ DLLExport void processGateway(Gateway* gate) {
 			 */
 			return;
 		}
-		case STATUS: {
-			gate->transmit(string({ STATE, (char)gate->state }));
+		case Gate::Commands::STATE: {
+			gate->transmit(string({ (char)Gate::Commands::STATE, (char)gate->state }));
 			/*
 			 * Response to state request
 			 * CMD STATE (0)
@@ -247,18 +225,17 @@ DLLExport void processGateway(Gateway* gate) {
 			 */
 			return;
 		}
-		case CLOSE: {
-			gate->transmit(string({ STATE, CLOSED }));
+		case Gate::Commands::CLOSE: {
+			gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
 			/*
 			 * Response to close request.
 			 * CMD STATE (0)
 			 * STATE CLOSED (3)
 			 */
 			if (gate->state == (char)Gate::States::REGISTERED) {
-				string cmd = {UNREGISTERED};
+				string cmd = {(char)GEDS::Commands::UNREGISTERED};
 				cmd += putAddr(gate->addr);
 				broadcast(cmd);
-				removeResolution(gate->addr);
 				/*
 				 * Broadcast that registered gateway left.
 				 * CMD UNREGISTERED (1)
@@ -282,15 +259,16 @@ DLLExport void processGEDS(Peer* geds) {
 		 */
 		return;
 	}
-	UCHAR command = *(geds->read());
+	UCHAR command = (geds->read(1))[1];
 	switch (command) {
 		case ROUTE: {
 			string rest = extract(geds, 12);
 			char * len = geds->read();
-			rest += *len + extract(geds, *len);
+			string data = extract(geds, *len);
+			rest += (char)data.size() + data;
 			delete len;
 			Address target{rest};
-			string cmd = { DATA };
+			string cmd = { (char)GEDS::Commands::ROUTE };
 			cmd += rest;
 			if (!sendToGateway(target, cmd)) {
 				string errCmd = { UNREGISTERED };
@@ -363,8 +341,8 @@ DLLExport void processGEDS(Peer* geds) {
 }
 
 DLLExport void killGateway(Gateway* gate) {
-	gate->transmit(string({ CLOSE })); //SEND CLOSE REQUEST
-	gate->transmit(string({ STATE, CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
+	gate->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
+	gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	gate->close();
 }
 
