@@ -6,15 +6,16 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <map>
+#include <vector>
 
 map<IP, Peer*> peers;
 
 extern map<int, Peer*> fdToPeer;
 extern vector<int> peerfd;
 
-vector<int>::iterator findFd(int fd) {
-	vector<int>::iterator iter = gatefd.begin();
-	for (iter; iter < gatefd.end(); iter++) { //Loop through list of non-registered gateways
+vector<int>::iterator findPeerFd(int fd) {
+	vector<int>::iterator iter = peerfd.begin();
+	for (iter; iter < peerfd.end(); iter++) { //Loop through list of non-registered gateways
 			if (*iter == fd) { //If we found the Gateway
 				return iter;
 			}
@@ -68,7 +69,7 @@ void Peer::close() {
 	killAssociated(this);
 	peers.erase(this->id->addr);
 	fdToPeer.erase(*(SOCKET*)this->sock);
-	vector<int>::iterator iter = findFd(*(SOCKET*)this->sock);
+	vector<int>::iterator iter = findPeerFd(*(SOCKET*)this->sock);
 	peerfd.erase(iter);
 	destroy((SOCKET*)this->sock);
 	log("Peer " + this->id->addr.stringify() + " disconnected");
