@@ -1,13 +1,3 @@
-# Require GERTi Developers' permission to update GERTi code and some maintainence files
-/GERTi/ @MajorGeneralRelativity @Gavle
-"GERT Whitepaper.txt" @MajorGeneralRelativity @Gavle
 
-# Require MajorGeneralRelativity's (owner) permission to update certain metadata files
-"Reserved OC network card ports.txt" @MajorGeneralRelativity
-*.md @MajorGeneralRelativity
-
-# Require Owner and GERTe developers' permission to update GERTe Metadata
-"Reserved GERTe numbers.txt" @MajorGeneralRelativity @TYKUHN2
-
-# Require GERTe Developers' permission to update GERTe code
-/GERTe/ @TYKUHN2
+#Require all developer's approval to merge with the master branch
+* @GlobalEmpire/gert-dev
