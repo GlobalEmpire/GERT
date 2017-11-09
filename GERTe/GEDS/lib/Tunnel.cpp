@@ -44,9 +44,11 @@ char* createTunnel(Address start, Address end) {
 		id = genID();
 	}
 
-	tunnels[String{id}] = Tunnel{start, end};
-
-	return id;
+	return Tunnel{
+		id,
+		start,
+		end
+	};
 }
 
 void destroyTunnel(char * id) {

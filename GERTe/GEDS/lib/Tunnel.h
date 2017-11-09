@@ -1,6 +1,7 @@
 #include "../Address.h"
 
 struct Tunnel {
+	char * id;
 	Address start;
 	Address end;
 };
