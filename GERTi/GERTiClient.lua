@@ -237,20 +237,20 @@ handler["DATA"] = function (sendingModem, port, code, data, destination, origina
 end
 
 -- opens a route using the given information, used in handler["OPENROUTE"] and GERTi.openSocket
-local function routeOpener(destination, origination, beforeHop, nextHop, receivedPort, transmitPort, outbound, connectionID)
+local function routeOpener(destination, origination, beforeHop, nextHop, receivedPort, transmitPort, outbound, connectionID, originGAddress)
 	local function sendOKResponse(isDestination)
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
 			storePath(origination, destination, nextHop, transmitPort)
 			local newID = storeConnection(origination, destination, false, connectionID)
-			return computer.pushSignal("GERTConnectionID", newID)
+			return computer.pushSignal("GERTConnectionID", originGAddress, newID)
 		else
 			return storePath(origination, destination, nextHop, transmitPort)
 		end
 	end
 	if modem.address ~= destination then
 		local connect1 = 0
-		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, outbound, connectionID)
+		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, outbound, connectionID, originGAddress)
 		addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (destination == pktDest) and (origination == pktOrig) then
 				connect1 = sendOKResponse(false)
@@ -263,28 +263,28 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 	return sendOKResponse(true)
 end
 
-handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID)
+handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID, originGAddress)
 	-- Attempt to determine if the intended destination is this computer
 	if destination == modem.address then
-		return routeOpener(modem.address, origination, sendingModem, modem.address, port, port, outbound, connectionID)
+		return routeOpener(modem.address, origination, sendingModem, modem.address, port, port, outbound, connectionID, originGAddress)
 	end
 
 	-- attempt to check if destination is a neighbor to this computer, if so, re-transmit OPENROUTE message to the neighbor so routing can be completed
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
-			return routeOpener(destination, origination, sendingModem, neighbors[key]["address"], port, neighbors[key]["port"], outbound, connectionID)
+			return routeOpener(destination, origination, sendingModem, neighbors[key]["address"], port, neighbors[key]["port"], outbound, connectionID, originGAddress)
 		end
 	end
 
 	-- if it is not a neighbor, and no intermediary was found, then contact parent to forward indirect connection request
 	if intermediary == modem.address then
-		return routeOpener(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"], outbound, connectionID)
+		return routeOpener(destination, origination, sendingModem, neighbors[1]["address"], port, neighbors[1]["port"], outbound, connectionID, originGAddress)
 	end
 
 	-- If an intermediary is found (likely because MNC was already contacted), then attempt to forward request to intermediary
 	for key, value in pairs(neighbors) do
 		if value["address"] == intermediary then
-			return routeOpener(destination, origination, sendingModem, intermediary, port, neighbors[key]["port"], outbound, connectionID)
+			return routeOpener(destination, origination, sendingModem, intermediary, port, neighbors[key]["port"], outbound, connectionID, originGAddress)
 		end
 	end
 end
@@ -427,7 +427,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 		if value["address"] == destination then
 			outDex = storeConnection(origination, destination, false, provID)
 			nextHop = value["address"]
-			routeOpener(destination, origination, origination, value["address"], value["port"], value["port"], gAddress, outID)
+			routeOpener(destination, origination, origination, value["address"], value["port"], value["port"], gAddress, outID, iAddress)
 			isValid = true
 			break
 		end
@@ -435,7 +435,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 	if not isValid then
 		outDex = storeConnection(origination, destination, false, provID)
 		nextHop = neighbors[1]["address"]
-		routeOpener(destination, origination, origination, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], gAddress, outID)
+		routeOpener(destination, origination, origination, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], gAddress, outID, iAddress)
 		isValid = true
 	end
 			
