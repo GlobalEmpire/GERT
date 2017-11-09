@@ -222,7 +222,7 @@ handler["DATA"] = function (sendingModem, port, code, data, destination, origina
 end
 
 -- Used in handler["OPENROUTE"]
-local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound, connectionID)
+local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound, connectionID, originGAddress)
 	print("Opening Route")
     local function sendOKResponse(isDestination)
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
@@ -237,7 +237,7 @@ local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, 
 		end
 	end
     if modem.address ~= destination then
-		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination, outbound, connectionID)
+		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination, outbound, connectionID, originGAddress)
         addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
         	if (destination == pktDest) and (origination == pktOrig) then
         		sendOKResponse(false)
@@ -250,7 +250,7 @@ local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, 
     sendOKResponse(true)
 end
 
-handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID)
+handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID, originGAddress)
 	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
 	if destination == modem.address then
 		return routeOpener(destination, origination, sendingModem, modem.address, modem.address, port, port, outbound, connectionID)
@@ -262,7 +262,7 @@ handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermed
 		if value["realAddress"] == destination then
 			childKey = key
 			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return routeOpener(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound, connectionID)
+				return routeOpener(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound, connectionID, originGAddress)
 			end
 			break
 		end
@@ -273,7 +273,7 @@ handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermed
 			for key2, value2 in pairs(childNodes) do
 				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
 					-- If an intermediate is found, then use that to open a connection
-					return routeOpener(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound, connectionID)
+					return routeOpener(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound, connectionID, originGAddress)
 				end
 			end
 		end
@@ -287,7 +287,7 @@ handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermed
 					-- so much nesting!
 					if value3["address"] == value2["address"] then
 						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						return routeOpener(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], outbound, connectionID)
+						return routeOpener(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], outbound, connectionID, originGAddress)
 					end
 				end
 			end
