@@ -321,13 +321,6 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 	if handler[code] ~= nil then
 		handler[code](sendingModem, port, code, ...)
 	end
-	local response
-	transmitInformation(neighbors[1]["address"], neighbors[1]["port"], "ResolveAddress", gAddress)
-	addTempHandler(5, "ResolveComplete", function (_, _, _, _, _, code, returnAddress)
-			response = returnAddress
-		end, function () end)
-	waitWithCancel(5, function () return response end)
-	return response
 end
 
 -- Begin startup ---------------------------------------------------------------------------------------------------------------------------
@@ -361,8 +354,6 @@ if serialTable ~= "{}" then
 	if waitWithCancel(5, function () return iAddress end) then
 		mncUnavailable = false
 	end
-	waitWithCancel(10, function () return resultGiven end)
-	return isOpen
 end
 if mncUnavailable then
 	print("Unable to contact the MNC. Functionality will be impaired.")
