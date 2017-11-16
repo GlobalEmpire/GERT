@@ -338,7 +338,6 @@ end
 if modem then
 	modem.broadcast(4378, "AddNeighbor")
 end
-event.listen("shutdown", safedown)
 
 -- Register event listener to receive packets from now on
 event.listen("modem_message", receivePacket)
