@@ -1,11 +1,6 @@
 #include "../Address.h"
-
-struct Tunnel {
-	char * id;
-	Address start;
-	Address end;
-};
+#define ID_LENGTH 3
 
 char* createTunnel(Address, Address);
-Tunnel* getTunnel(char*);
-void destroyTunnel(char*);
+Address* getTunnel(Address, char*);
+void destroyTunnel(Address, char*);

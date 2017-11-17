@@ -38,7 +38,9 @@ namespace GEDS {
 		LINK,
 		UNLINK,
 		CLOSE,
-		QUERY
+		QUERY,
+		TUNNEL,
+		TUNNEL_DATA
 	};
 }
 
@@ -49,8 +51,7 @@ namespace Gate {
 		DATA,
 		CLOSE,
 		TUNNEL,
-		STRICT_TUNNEL,
-		USE_TUNNEL
+		TUNNEL_DATA
 	};
 
 	enum class States : char {
@@ -67,7 +68,8 @@ namespace Gate {
 		REGISTERED,
 		NOT_REGISTERED,
 		NO_ROUTE,
-		ADDRESS_TAKEN
+		ADDRESS_TAKEN,
+		NO_TUNNEL
 	};
 }
 
@@ -107,9 +109,9 @@ void globalChange(const GEDS::Commands change, const char * parameter, const cha
 
 STARTEXPORT
 
-DLLExport constexpr UCHAR major = 1;
-DLLExport constexpr UCHAR minor = 0;
-DLLExport constexpr UCHAR patch = 0;
+DLLExport UCHAR major = 1;
+DLLExport UCHAR minor = 1;
+DLLExport UCHAR patch = 0;
 constexpr char vers[3] = { major, minor, patch };
 
 DLLExport void processGateway(Gateway* gate) {
@@ -243,37 +245,74 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			gate->close();
 		}
-		case Gate::Commands::STRICT_TUNNEL: {
-			Address internal = Address{extract(gate, 3)};
-			GERTc target = GERTc{extract(gate, 6)};
-			Gateway * tgt;
-			try {
-				tgt = lookup(target.external);
-			} catch (int e) {
-				gate->transmit({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE});
-				return;
-			}
-
-			string id = createTunnel(gate->addr, target.external);
-			gate->transmit({(char)Gate::Commands::TUNNEL, id});
-			tgt->transmit({(char)Gate::Commands::TUNNEL, id, putAddr(gate->addr), putAddr(target.internal), putAddr(internal)});
-		}
 		case Gate::Commands::TUNNEL: {
 			Address target = Address{extract(gate, 3)};
-			Gateway * tgt;
-			try {
-				tgt = lookup(target);
-			} catch (int e) {
-				gate->transmit({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE});
+			Address source = gate->addr;
+			string strict = extract(gate, 6);
+
+			char cmd = 0;
+
+			char * id = createTunnel(source, target);
+
+			if (isLocal(target)) {
+				string result = string{(char)Gate::Commands::TUNNEL};
+				result += putAddr(source);
+				result.append(id, ID_LENGTH);
+				result += strict;
+				sendToGateway(target, result);
+			}
+			else if (isRemote(target) || queryWeb(target)) {
+				string result = string{(char)GEDS::Commands::TUNNEL};
+				result += putAddr(source);
+				result.append(id, ID_LENGTH);
+				result += strict;
+				sendToGateway(target, result);
+			}
+			else {
+				gate->transmit(string{
+					(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE
+				}); //Tranmit error to gateway
 				return;
 			}
 
-			string id = createTunnel(gate->addr, target);
-			gate->transmit({(char)Gate::Commands::STRICT_TUNNEL, id});
-			tgt->transmit({(char)Gate::Commands::STRICT_TUNNEL, id, putAddr(gate->addr)});
+			string result = string{(char)Gate::Commands::TUNNEL};
+			result.append(id, ID_LENGTH);
+			gate->transmit(result);
 		}
+		case Gate::Commands::TUNNEL_DATA: {
+			char * id = gate->read(ID_LENGTH);
+			char * len = gate->read(1);
+			string data = extract(gate, len[1]);
 
+			if (id[0] < ID_LENGTH || len[0] != 1) {
+				return;
+			}
 
+			Address target = *getTunnel(gate->addr, id+1);
+			if (target == nullptr) {
+				gate->transmit({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_TUNNEL});
+				return;
+			}
+
+			if (isLocal(target)) {
+				string result = string{(char)Gate::Commands::TUNNEL_DATA};
+				result.append(id+1, ID_LENGTH);
+				result += (char)data.size();
+				result += data;
+				sendToGateway(target, result);
+			} else if (isRemote(target) || queryWeb(target)) {
+				string result = string{(char)GEDS::Commands::TUNNEL_DATA};
+				result.append(id+1, ID_LENGTH);
+				result += (char)data.size();
+				result += data;
+				sendToGateway(target, result);
+			} else {
+				gate->transmit({
+					(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE
+				});
+				destroyTunnel(gate->addr, id+1);
+			}
+		}
 	}
 }
 

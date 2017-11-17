@@ -1,5 +1,3 @@
-#define ID_LENGTH 3
-
 #include "Tunnel.h"
 #include <random>
 #include <map>
@@ -10,9 +8,8 @@ default_random_engine gen(device());
 uniform_int_distribution<short> dis(0, 255);
 
 class String {
-	char * ptr;
-
 public:
+	char * ptr;
 	String(char * start) : ptr(start) {};
 	bool operator<(const String& rhs) const {
 		for (int i = 0; i < ID_LENGTH; i++) {
@@ -23,40 +20,61 @@ public:
 		}
 		return false;
 	}
+	bool operator==(const String& comp) {
+		for (int i = 0; i < ID_LENGTH; i++) {
+			if (this->ptr[i] != comp.ptr[i])
+				return false;
+		}
+		return true;
+	}
 };
 
-map<String, Tunnel> tunnels;
+typedef map<String, Address> Tunnel;
 
-char * genID() {
-	char * id = new char[ID_LENGTH];
+map<Address, Tunnel*> tunnels;
+
+String genID() {
+	char* id = new char[ID_LENGTH];
 	for (int i = 0; i < ID_LENGTH; i++) {
 		id[i] = (char)dis(gen);
 	}
 
-	return id;
+	return String{id};
 }
 
 char* createTunnel(Address start, Address end) {
-	char * id = genID();
+	String id = genID();
+	Tunnel * startTable = tunnels[start];
+	Tunnel * endTable = tunnels[start];
 
-	while (tunnels.count(String{ID}) == 1) {
-		delete id;
+	while (startTable->count(id) || endTable->count(id)) {
+		delete id.ptr;
 		id = genID();
 	}
 
-	return Tunnel{
-		id,
-		start,
-		end
-	};
+	(*startTable)[id] = end;
+	(*endTable)[id] = start;
+
+	return id.ptr;
 }
 
-void destroyTunnel(char * id) {
-	tunnels.erase(String{id});
+void destroyTunnel(Address ref, char* id) {
+	Tunnel * refTable = tunnels[ref];
+	String str = String{id};
+	if (refTable->count(str) == 0)
+		return;
+
+	Tunnel * other = tunnels[(*refTable)[str]];
+	other->erase(str);
+	refTable->erase(str);
 }
 
-Tunnel* getTunnel(char * id) {
-	if (tunnels.count(String{id}) == 0)
+Address * getTunnel(Address ref, char* id) {
+	if (not tunnels.count(ref))
 		return nullptr;
-	return &tunnels[String{id}];
+	Tunnel * refTable = tunnels[ref];
+	String str = String{id};
+	if (not refTable->count(str))
+		return nullptr;
+	return &(*refTable)[str];
 }
