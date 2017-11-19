@@ -78,3 +78,9 @@ Address * getTunnel(Address ref, char* id) {
 		return nullptr;
 	return &(*refTable)[str];
 }
+
+void addTunnel(Address one, Address two, char * id) {
+	String str = String{id};
+	tunnels[one] = Tunnel{str, two};
+	tunnels[two] = Tunnel{str, one};
+}

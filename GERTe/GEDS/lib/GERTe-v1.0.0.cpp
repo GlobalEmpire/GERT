@@ -40,7 +40,9 @@ namespace GEDS {
 		CLOSE,
 		QUERY,
 		TUNNEL,
-		TUNNEL_DATA
+		TUNNEL_DATA,
+		TUNNEL_ERROR,
+		TUNNEL_OK
 	};
 }
 
@@ -250,8 +252,6 @@ DLLExport void processGateway(Gateway* gate) {
 			Address source = gate->addr;
 			string strict = extract(gate, 6);
 
-			char cmd = 0;
-
 			char * id = createTunnel(source, target);
 
 			if (isLocal(target)) {
@@ -260,9 +260,13 @@ DLLExport void processGateway(Gateway* gate) {
 				result.append(id, ID_LENGTH);
 				result += strict;
 				sendToGateway(target, result);
+				string result = string{(char)Gate::Commands::TUNNEL};
+				result.append(id, ID_LENGTH);
+				gate->transmit(result);
 			}
 			else if (isRemote(target) || queryWeb(target)) {
 				string result = string{(char)GEDS::Commands::TUNNEL};
+				result += putAddr(target);
 				result += putAddr(source);
 				result.append(id, ID_LENGTH);
 				result += strict;
@@ -274,10 +278,7 @@ DLLExport void processGateway(Gateway* gate) {
 				}); //Tranmit error to gateway
 				return;
 			}
-
-			string result = string{(char)Gate::Commands::TUNNEL};
-			result.append(id, ID_LENGTH);
-			gate->transmit(result);
+			delete id;
 		}
 		case Gate::Commands::TUNNEL_DATA: {
 			char * id = gate->read(ID_LENGTH);
@@ -302,6 +303,7 @@ DLLExport void processGateway(Gateway* gate) {
 				sendToGateway(target, result);
 			} else if (isRemote(target) || queryWeb(target)) {
 				string result = string{(char)GEDS::Commands::TUNNEL_DATA};
+				result += putAddr(target);
 				result.append(id+1, ID_LENGTH);
 				result += (char)data.size();
 				result += data;
@@ -312,6 +314,8 @@ DLLExport void processGateway(Gateway* gate) {
 				});
 				destroyTunnel(gate->addr, id+1);
 			}
+			delete id;
+			delete len;
 		}
 	}
 }
@@ -392,6 +396,63 @@ DLLExport void processGEDS(Peer* geds) {
 				geds->transmit(cmd);
 			}
 			return;
+		}
+		case (char)GEDS::Commands::TUNNEL: {
+			Address target = Address{extract(geds, 3)};
+			Address source = Address{extract(geds, 3)};
+			char * id = geds->read(ID_LENGTH);
+			string strict = extract(gate, 6);
+
+			if (isLocal(target) && getTunnel(target, id+1) == nullptr) {
+				string result = string{(char)Gate::Commands::TUNNEL};
+				result += putAddr(source);
+				result.append(id, ID_LENGTH);
+				result += strict;
+				sendToGateway(target, result);
+
+				result = string{(char)GEDS::Commands::TUNNEL_OK};
+				result.append(id+1, ID_LENGTH);
+				geds->transmit(result);
+
+				addTunnel(target, source, id+1);
+			} else {
+				result = string{(char)GEDS::Commands::TUNNEL_ERROR};
+				result.append(id+1, ID_LENGTH);
+				geds->transmit(result);
+			}
+			delete id;
+		}
+		case (char)GEDS::Commands::TUNNEL_DATA: {
+			Address target = extract(gate, 3);
+			char * id = geds->read(ID_LENGTH);
+			char * len = geds->read(1);
+			string data = extract(gate, len[1]);
+
+			if (id[0] < ID_LENGTH || len[0] != 1) {
+				return;
+			}
+
+			if (getTunnel(target, id+1) == nullptr) {
+				string result = string{GEDS::Commands::TUNNEL_ERROR};
+				result.append(id+1, ID_LENGTH);
+				geds->transmit(result);
+				return;
+			}
+
+			if (isLocal(target)) {
+				string result = string{(char)Gate::Commands::TUNNEL_DATA};
+				result.append(id+1, ID_LENGTH);
+				result += (char)data.size();
+				result += data;
+				sendToGateway(target, result);
+			} else {
+				string result = string{GEDS::Commands::TUNNEL_ERROR};
+				result.append(id+1, ID_LENGTH);
+				geds->transmit(result);
+				destroyTunnel(target, id+1);
+			}
+			delete id;
+			delete len;
 		}
 	}
 }
