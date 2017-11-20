@@ -16,18 +16,6 @@ using namespace std;
 
 typedef unsigned char UCHAR;
 
-enum gedsCommands {
-	REGISTERED,
-	UNREGISTERED,
-	ROUTE,
-	RESOLVE,
-	UNRESOLVE,
-	LINK,
-	UNLINK,
-	CLOSEPEER,
-	QUERY
-};
-
 namespace GEDS {
 	enum class Commands : char {
 		REGISTERED,
@@ -260,7 +248,7 @@ DLLExport void processGateway(Gateway* gate) {
 				result.append(id, ID_LENGTH);
 				result += strict;
 				sendToGateway(target, result);
-				string result = string{(char)Gate::Commands::TUNNEL};
+				result = string{(char)Gate::Commands::TUNNEL};
 				result.append(id, ID_LENGTH);
 				gate->transmit(result);
 			}
@@ -332,76 +320,76 @@ DLLExport void processGEDS(Peer* geds) {
 		 */
 		return;
 	}
-	UCHAR command = (geds->read(1))[1];
+	GEDS::Commands command = (GEDS::Commands)(geds->read(1))[1];
 	switch (command) {
-		case ROUTE: {
+		case GEDS::Commands::ROUTE: {
 			GERTc target = GERTc::extract(geds);
 			GERTc source = GERTc::extract(geds);
 			NetString data = NetString::extract(geds);
 			string cmd = { (char)GEDS::Commands::ROUTE };
 			cmd += target.tostring() + source.tostring() + data.tostring();
 			if (!sendToGateway(target.external, cmd)) {
-				string errCmd = { UNREGISTERED };
+				string errCmd = { (char)GEDS::Commands::UNREGISTERED };
 				errCmd += target.tostring();
 				geds->transmit(errCmd);
 			}
 			return;
 		}
-		case REGISTERED: {
+		case GEDS::Commands::REGISTERED: {
 			Address target = Address::extract(geds);
 			setRoute(target, geds);
 			return;
 		}
-		case UNREGISTERED: {
+		case GEDS::Commands::UNREGISTERED: {
 			Address target = Address::extract(geds);
 			removeRoute(target);
 			return;
 		}
-		case RESOLVE: {
+		case GEDS::Commands::RESOLVE: {
 			Address target = Address::extract(geds);
 			Key key = Key::extract(geds);
 			addResolution(target, key);
 			return;
 		}
-		case UNRESOLVE: {
+		case GEDS::Commands::UNRESOLVE: {
 			Address target = Address::extract(geds);
 			removeResolution(target);
 			return;
 		}
-		case LINK: {
+		case GEDS::Commands::LINK: {
 			IP target = IP::extract(geds);
 			Ports ports = Ports::extract(geds);
 			addPeer(target, ports);
 			return;
 		}
-		case UNLINK: {
+		case GEDS::Commands::UNLINK: {
 			IP target = IP::extract(geds);
 			removePeer(target);
 			return;
 		}
-		case CLOSEPEER: {
-			geds->transmit(string({ CLOSEPEER }));
+		case GEDS::Commands::CLOSE: {
+			geds->transmit(string({ (char)GEDS::Commands::CLOSE }));
 			geds->close();
 			return;
 		}
-		case QUERY: {
+		case GEDS::Commands::QUERY: {
 			Address target = Address::extract(geds);
 			if (isLocal(target)) {
-				string cmd = { REGISTERED };
+				string cmd = { (char)GEDS::Commands::REGISTERED };
 				cmd += target.tostring();
 				sendToGateway(target, cmd);
 			} else {
-				string cmd = { UNREGISTERED };
+				string cmd = { (char)GEDS::Commands::UNREGISTERED };
 				cmd += target.tostring();
 				geds->transmit(cmd);
 			}
 			return;
 		}
-		case (char)GEDS::Commands::TUNNEL: {
+		case GEDS::Commands::TUNNEL: {
 			Address target = Address{extract(geds, 3)};
 			Address source = Address{extract(geds, 3)};
 			char * id = geds->read(ID_LENGTH);
-			string strict = extract(gate, 6);
+			string strict = extract(geds, 6);
 
 			if (isLocal(target) && getTunnel(target, id+1) == nullptr) {
 				string result = string{(char)Gate::Commands::TUNNEL};
@@ -416,24 +404,24 @@ DLLExport void processGEDS(Peer* geds) {
 
 				addTunnel(target, source, id+1);
 			} else {
-				result = string{(char)GEDS::Commands::TUNNEL_ERROR};
+				string result = string{(char)GEDS::Commands::TUNNEL_ERROR};
 				result.append(id+1, ID_LENGTH);
 				geds->transmit(result);
 			}
 			delete id;
 		}
-		case (char)GEDS::Commands::TUNNEL_DATA: {
-			Address target = extract(gate, 3);
+		case GEDS::Commands::TUNNEL_DATA: {
+			Address target = extract(geds, 3);
 			char * id = geds->read(ID_LENGTH);
 			char * len = geds->read(1);
-			string data = extract(gate, len[1]);
+			string data = extract(geds, len[1]);
 
 			if (id[0] < ID_LENGTH || len[0] != 1) {
 				return;
 			}
 
 			if (getTunnel(target, id+1) == nullptr) {
-				string result = string{GEDS::Commands::TUNNEL_ERROR};
+				string result = string{(char)GEDS::Commands::TUNNEL_ERROR};
 				result.append(id+1, ID_LENGTH);
 				geds->transmit(result);
 				return;
@@ -446,7 +434,7 @@ DLLExport void processGEDS(Peer* geds) {
 				result += data;
 				sendToGateway(target, result);
 			} else {
-				string result = string{GEDS::Commands::TUNNEL_ERROR};
+				string result = string{(char)GEDS::Commands::TUNNEL_ERROR};
 				result.append(id+1, ID_LENGTH);
 				geds->transmit(result);
 				destroyTunnel(target, id+1);
@@ -464,7 +452,7 @@ DLLExport void killGateway(Gateway* gate) {
 }
 
 DLLExport void killGEDS(Peer* geds) {
-	geds->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
+	geds->transmit(string({ (char)GEDS::Commands::CLOSE })); //SEND CLOSE REQUEST
 	geds->close();
 }
 
