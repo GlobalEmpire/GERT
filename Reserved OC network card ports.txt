@@ -1,7 +1,14 @@
 Centralized repository of reserved OpenComputers network card port numbers to prevent conflicts of use. Please contact MajGenRelativity or
-Gavle to register port numbers on
-this list.
+Gavle to register port numbers on this list.
 
-Port 14: Ethernet over OC : SolraBizna
-Port 4096: MultICE Networking: Izaya
-Ports 4378-4379: Reserved for GERTi use
+Port 14: Ethernet over OC: Reserved by SolraBizna
+
+Port 148: GUI service: Reserved by Dustpuppy
+
+Port 4096: MultICE Networking: Reserved by Izaya
+
+Ports 4378-4379: GERTi: Reserved by Global Empire
+
+Port 4662: Short messages: Reserved by Dustpuppy
+
+Port 9100: Network Print Service: Reserved by Dustpuppy

@@ -116,10 +116,11 @@ local function removeNeighbor(address)
 	end
 end
 
-local function storeConnection(origination, destination, doEvent, connectionID)
+local function storeConnection(origination, destination, doEvent, connectionID, originGAddress)
 	connections[connectDex] = {}
 	connections[connectDex]["destination"] = destination
 	connections[connectDex]["origination"] = origination
+	connections[connectDex]["originationGAddress"] = originGAddress
 	connections[connectDex]["data"] = {}
 	connections[connectDex]["dataDex"] = 1
 	connections[connectDex]["connectionID"] = (connectionID or connectDex)
@@ -137,10 +138,10 @@ local function storePath(origination, destination, nextHop, port)
 	return (pathDex-1)
 end
 -- Stores data inside a connection for use by a program
-local function storeData(connectionID, data, destination)
+local function storeData(connectionID, data, origination)
 	local connectNum
 	for key, value in pairs(connections) do
-		if value["connectionID"] == connectionID and value["destination"] == destination then
+		if value["connectionID"] == connectionID and value["origination"] == origination then
 			connectNum = key
 			break
 		end
@@ -154,7 +155,7 @@ local function storeData(connectionID, data, destination)
 	connections[connectNum]["data"][dataNum]=data
 	connections[connectNum]["dataDex"] = math.min(dataNum + 1, 20)
 	if connections[connectNum]["doEvent"] then
-		computer.pushSignal("GERTData", connections[connectNum]["origination"], connections[connectNum]["destination"], connectionID)
+		computer.pushSignal("GERTData", connections[connectNum]["originationGAddress"], connections[connectNum]["origination"], connectionID)
 	end
 	return true
 end
@@ -227,7 +228,7 @@ handler["DATA"] = function (sendingModem, port, code, data, destination, origina
 	for key, value in pairs(paths) do
 		if value["destination"] == destination and value["origination"] == origination then
 			if value["destination"] == (modem or tunnel).address then
-				return storeData(connectionID, data, destination)
+				return storeData(connectionID, data, origination)
 			else
 				return transmitInformation(value["nextHop"], value["port"], "DATA", data, destination, origination, connectionID)
 			end
@@ -242,13 +243,13 @@ local function routeOpener(destination, origination, beforeHop, nextHop, receive
 		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
 		if isDestination then
 			storePath(origination, destination, nextHop, transmitPort)
-			local newID = storeConnection(origination, destination, false, connectionID)
+			local newID = storeConnection(origination, destination, false, connectionID, originGAddress)
 			return computer.pushSignal("GERTConnectionID", originGAddress, newID)
 		else
 			return storePath(origination, destination, nextHop, transmitPort)
 		end
 	end
-	if modem.address ~= destination then
+	if (modem or tunnel).address ~= destination then
 		local connect1 = 0
 		transmitInformation(nextHop, transmitPort, "OPENROUTE", destination, nextHop, origination, outbound, connectionID, originGAddress)
 		addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
@@ -362,7 +363,7 @@ end
 -- Override computer.shutdown to allow for better network leaves
 local function safedown()
 	if tunnel then
-		tunnel.send("RemoveNeighbor", modem.address)
+		tunnel.send("RemoveNeighbor", tunnel.address)
 	end
 	if modem then
 		modem.broadcast(4378, "RemoveNeighbor", modem.address)
@@ -390,7 +391,7 @@ local function readData(self)
 		return data
 	else
 		for key, value in pairs(connections) do
-			if value["destination"] == self.origination and value["connectionID"] == self.ID then
+			if value["destination"] == self.origination and value["connectionID"] == self.ID and value["origination"] == self.destination then
 				self.incDex = key
 				if self.doEvent then
 					value["doEvent"] = true
@@ -425,7 +426,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 	end
 	for key, value in pairs(neighbors) do
 		if value["address"] == destination then
-			outDex = storeConnection(origination, destination, false, provID)
+			outDex = storeConnection(origination, destination, false, provID, iAddress)
 			nextHop = value["address"]
 			routeOpener(destination, origination, origination, value["address"], value["port"], value["port"], gAddress, outID, iAddress)
 			isValid = true
@@ -433,7 +434,7 @@ function GERTi.openSocket(gAddress, doEvent, provID)
 		end
 	end
 	if not isValid then
-		outDex = storeConnection(origination, destination, false, provID)
+		outDex = storeConnection(origination, destination, false, provID, iAddress)
 		nextHop = neighbors[1]["address"]
 		routeOpener(destination, origination, origination, neighbors[1]["address"], neighbors[1]["port"], neighbors[1]["port"], gAddress, outID, iAddress)
 		isValid = true

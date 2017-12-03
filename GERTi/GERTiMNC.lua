@@ -271,7 +271,7 @@ handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermed
 		-- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
 		for key, value in pairs(childNodes[childKey]["parents"]) do
 			for key2, value2 in pairs(childNodes) do
-				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == modem.address then
+				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == (modem or tunnel).address then
 					-- If an intermediate is found, then use that to open a connection
 					return routeOpener(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound, connectionID, originGAddress)
 				end
