@@ -2,8 +2,8 @@ Please message MGR or Gavle to apply for reserving a GERTe address. The reserved
 Request should include a GERTe address in the form of XXXX.YYYY and a corresponding IP address and port number.
 
 0000.0000: Reserved for GERTe phone home
-0097.0335: Reserved by nxsupert - invalid must be changed
-0197.0335: Reserved by nxsupert - invalid must be changed
+0097.0335: Reserved by nxsupert
+0197.0335: Reserved by nxsupert
 1865.1731: Reserved by Major General Relativity for Yuon Survival 1.7.10 server. Standard ports.
 666-6942: Reserved by viomi - invalid must be changed
 867-5309: Reserved by Caitlyn Mainer - invalid must be changed
