@@ -1,2 +1,8 @@
-#Require all developer's approval to merge with the master branch
-* @GlobalEmpire/gert-dev
+# Protects root directory files
+* @TYKUHN2 @Gavel @MajorGeneralRelativity
+
+#GERTe requires GERTe dev approval
+GERTe @TYKUHN2
+
+#GERTi requires GERTi dev approval
+GERTi @Gavel @MajorGeneralRelativity
