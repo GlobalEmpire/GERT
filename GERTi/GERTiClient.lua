@@ -1,4 +1,4 @@
--- GERT v1.0 - Release
+-- GERT v1.0.2 - Release
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -72,7 +72,7 @@ end
 local function waitWithCancel(timeout, cancelCheck)
 	-- Wait for the response.
 	local now = computer.uptime()
-	local deadline = now + 5
+	local deadline = now + timeout
 	while now < deadline do
 		event.pull(deadline - now, "modem_message")
 		-- The listeners were called, so as far as we're concerned anything cancel-worthy should have happened
@@ -155,7 +155,7 @@ local function storeData(connectionID, data, origination)
 	connections[connectNum]["data"][dataNum]=data
 	connections[connectNum]["dataDex"] = math.min(dataNum + 1, 20)
 	if connections[connectNum]["doEvent"] then
-		computer.pushSignal("GERTData", connections[connectNum]["originationGAddress"], connections[connectNum]["origination"], connectionID)
+		computer.pushSignal("GERTData", connections[connectNum]["originationGAddress"], connectionID)
 	end
 	return true
 end

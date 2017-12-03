@@ -1,4 +1,4 @@
--- GERT v1.0 - Release
+-- GERT v1.0.2 - Release
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -71,7 +71,7 @@ end
 
 local function waitWithCancel(timeout, cancelCheck)
 	local now = computer.uptime()
-	local deadline = now + 5
+	local deadline = now + timeout
 	while now < deadline do
 		event.pull(deadline - now, "modem_message")
 		local response = cancelCheck()
