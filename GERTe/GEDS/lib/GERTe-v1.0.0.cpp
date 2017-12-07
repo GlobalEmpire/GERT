@@ -11,15 +11,6 @@ This code falls under the license located at
 https://github.com/GlobalEmpire/GERT/blob/master/License.md
 */
 
-#ifdef _WIN32
-#define DLLExport __declspec(dllexport)
-#else
-#define DLLExport
-#endif
-
-#define STARTEXPORT extern "C" {
-#define ENDEXPORT }
-
 #include "libHelper.h"
 using namespace std;
 
@@ -77,13 +68,6 @@ namespace Gate {
 	};
 }
 
-string extract(Connection * conn, unsigned char len) {
-	char * buf = conn->read(len);
-	string data{buf+1, buf[0]};
-	delete[] buf;
-	return data;
-}
-
 bool isLocal(Address addr) {
 	try {
 		Gateway* test = Gateway::lookup(addr);
@@ -116,7 +100,8 @@ DLLExport void processGateway(Gateway* gate) {
 	Gate::Commands command = (Gate::Commands)(gate->read(1))[1];
 	switch (command) {
 		case Gate::Commands::REGISTER: {
-			string rest = extract(gate, 23);
+			Address request = Address::extract(gate);
+			Key requestkey = Key::extract(gate);
 			if (gate->state == (char)Gate::States::REGISTERED) {
 				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::REGISTERED};
 				gate->transmit(cmd);
@@ -128,7 +113,6 @@ DLLExport void processGateway(Gateway* gate) {
 				 */
 				return;
 			}
-			Address request{rest};
 			if (isLocal(request) || isRemote(request)) {
 				warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
 				string cmd{(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::ADDRESS_TAKEN};
@@ -141,8 +125,6 @@ DLLExport void processGateway(Gateway* gate) {
 				 */
 				return;
 			}
-			rest.erase(0, 3);
-			Key requestkey{rest};
 			if (gate->assign(request, requestkey)) {
 				gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::REGISTERED }));
 				gate->state = (char)Gate::States::REGISTERED;
@@ -152,7 +134,7 @@ DLLExport void processGateway(Gateway* gate) {
 				 * STATE REGISTERED (2)
 				 */
 				string cmd = {(char)GEDS::Commands::REGISTERED};
-				cmd += putAddr(request);
+				cmd += request.tostring();
 				broadcast(cmd);
 				/*
 				 * Broadcast to all peers registration
@@ -170,12 +152,11 @@ DLLExport void processGateway(Gateway* gate) {
 			return;
 		}
 		case Gate::Commands::DATA: {
-			string rest = extract(gate, 9);
-			char * len = gate->read(1);
-			string data = extract(gate, len[1]);
-			rest += (char)data.size() + data;
-			delete len;
+			GERTc target = GERTc::extract(gate);
+			Address source = Address::extract(gate);
+			NetString data = NetString::extract(gate);
 			if (gate->state == (char)Gate::States::CONNECTED) {
+
 				gate->transmit(string({(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NOT_REGISTERED}));
 				/*
 				 * Response to data before registration
@@ -185,12 +166,8 @@ DLLExport void processGateway(Gateway* gate) {
 				 */
 				break;
 			}
-			GERTc target{rest}; //Assign target address as first 4 bytes
-			rest.erase(0, 6);
-			Address source{rest};
-			rest.erase(0, 3);
-			string newCmd = string{(char)Gate::Commands::DATA} + putAddr(target.external) + putAddr(target.internal) +
-					putAddr(gate->addr) + putAddr(source) + rest;
+			string newCmd = string{(char)Gate::Commands::DATA} + target.tostring() + gate->addr.tostring() +
+					source.tostring() + data.tostring();
 			if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
 				sendToGateway(target.external, newCmd); //Send to target
 			} else {
@@ -234,7 +211,7 @@ DLLExport void processGateway(Gateway* gate) {
 			 */
 			if (gate->state == (char)Gate::States::REGISTERED) {
 				string cmd = {(char)GEDS::Commands::UNREGISTERED};
-				cmd += putAddr(gate->addr);
+				cmd += gate->addr.tostring();
 				broadcast(cmd);
 				/*
 				 * Broadcast that registered gateway left.
@@ -262,59 +239,47 @@ DLLExport void processGEDS(Peer* geds) {
 	UCHAR command = (geds->read(1))[1];
 	switch (command) {
 		case ROUTE: {
-			string rest = extract(geds, 12);
-			char * len = geds->read();
-			string data = extract(geds, *len);
-			rest += (char)data.size() + data;
-			delete len;
-			Address target{rest};
+			GERTc target = GERTc::extract(geds);
+			GERTc source = GERTc::extract(geds);
+			NetString data = NetString::extract(geds);
 			string cmd = { (char)GEDS::Commands::ROUTE };
-			cmd += rest;
-			if (!sendToGateway(target, cmd)) {
+			cmd += target.tostring() + source.tostring() + data.tostring();
+			if (!sendToGateway(target.external, cmd)) {
 				string errCmd = { UNREGISTERED };
-				errCmd += putAddr(target);
+				errCmd += target.tostring();
 				geds->transmit(errCmd);
 			}
 			return;
 		}
 		case REGISTERED: {
-			string rest = extract(geds, 3);
-			Address target{rest};
+			Address target = Address::extract(geds);
 			setRoute(target, geds);
 			return;
 		}
 		case UNREGISTERED: {
-			string rest = extract(geds, 3);
-			Address target{rest};
+			Address target = Address::extract(geds);
 			removeRoute(target);
 			return;
 		}
 		case RESOLVE: {
-			string rest = extract(geds, 3);
-			Address target{rest};
-			rest.erase(0, 6);
-			Key key = rest;
+			Address target = Address::extract(geds);
+			Key key = Key::extract(geds);
 			addResolution(target, key);
 			return;
 		}
 		case UNRESOLVE: {
-			string rest = extract(geds, 3);
-			Address target{rest};
+			Address target = Address::extract(geds);
 			removeResolution(target);
 			return;
 		}
 		case LINK: {
-			string rest = extract(geds, 8);
-			IP target(rest);
-			rest.erase(0, 4);
-			unsigned short * ptr = (unsigned short*)rest.data();
-			Ports ports{ptr[0], ptr[1]};
+			IP target = IP::extract(geds);
+			Ports ports = Ports::extract(geds);
 			addPeer(target, ports);
 			return;
 		}
 		case UNLINK: {
-			string rest = extract(geds, 4);
-			IP target(rest);
+			IP target = IP::extract(geds);
 			removePeer(target);
 			return;
 		}
@@ -324,15 +289,14 @@ DLLExport void processGEDS(Peer* geds) {
 			return;
 		}
 		case QUERY: {
-			string rest = extract(geds, 3);
-			Address target{rest};
+			Address target = Address::extract(geds);
 			if (isLocal(target)) {
 				string cmd = { REGISTERED };
-				cmd += putAddr(target);
+				cmd += target.tostring();
 				sendToGateway(target, cmd);
 			} else {
 				string cmd = { UNREGISTERED };
-				cmd += putAddr(target);
+				cmd += target.tostring();
 				geds->transmit(cmd);
 			}
 			return;

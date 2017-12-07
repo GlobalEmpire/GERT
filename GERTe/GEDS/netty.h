@@ -18,5 +18,4 @@ extern "C" {
 	void processGateways();
 	void processPeers();
 	void buildWeb();
-	string putAddr(Address);
 }

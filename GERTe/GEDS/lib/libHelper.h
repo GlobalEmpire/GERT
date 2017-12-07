@@ -1,20 +1,34 @@
+#ifdef _WIN32
+#define DLLExport __declspec(dllexport)
+#define DLLImport __declspec(dllimport)
+#else
+#define DLLExport
+#define DLLImport extern
+#endif
+
+#define STARTEXPORT extern "C" {
+#define ENDEXPORT }
+#define STARTIMPORT STARTEXPORT
+#define ENDIMPORT ENDEXPORT
+
 #define __DYNLIB__
 #include "../Key.h"
 #include "../Gateway.h"
 #include "../Peer.h"
 #include "../GERTc.h"
 #include "../logging.h"
+#include "NetString.h"
 
-extern "C" {
-	extern bool sendToGateway(Address, string);
-	extern bool isRemote(Address);
-	extern void setRoute(Address, Peer*);
-	extern void removeRoute(Address);
-	extern void addResolution(Address, Key);
-	extern void removeResolution(Address);
-	extern void addPeer(IP, Ports);
-	extern void removePeer(IP);
-	extern void broadcast(string);
-	extern string putAddr(Address);
-	extern bool queryWeb(Address);
-}
+
+STARTIMPORT
+	DLLImport bool sendToGateway(Address, string);
+	DLLImport bool isRemote(Address);
+	DLLImport void setRoute(Address, Peer*);
+	DLLImport void removeRoute(Address);
+	DLLImport void addResolution(Address, Key);
+	DLLImport void removeResolution(Address);
+	DLLImport void addPeer(IP, Ports);
+	DLLImport void removePeer(IP);
+	DLLImport void broadcast(string);
+	DLLImport bool queryWeb(Address);
+ENDIMPORT

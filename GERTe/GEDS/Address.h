@@ -1,4 +1,5 @@
 #pragma once
+#include "Connection.h"
 #include <string>
 using namespace std;
 
@@ -11,8 +12,10 @@ public:
 	Address(const string&);
 	Address(const unsigned char*);
 	Address() : addr{0, 0, 0} {};
+	Address static extract(Connection*);
 	const unsigned char* getAddr() const;
 	string stringify() const;
+	string tostring() const;
 };
 
 typedef Address GERTeAddr;
