@@ -1,9 +1,14 @@
-#include "Peer.h"
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
+#include <sys/socket.h>
+#endif
+
 #include "libLoad.h"
 #include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <map>
 #include <vector>

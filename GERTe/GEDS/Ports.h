@@ -1,7 +1,13 @@
 #ifndef __NETDEFS__
 #define __NETDEFS__
-#include <string>
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
 #include <netinet/ip.h>
+#endif
+
 #include "Connection.h"
 using namespace std;
 

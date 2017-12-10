@@ -1,6 +1,12 @@
 #pragma once
-#include <string>
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
 #include <netinet/ip.h>
+#endif
+
 #include "Connection.h"
 using namespace std;
 
