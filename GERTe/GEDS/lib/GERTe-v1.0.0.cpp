@@ -99,9 +99,9 @@ void globalChange(const GEDS::Commands change, const char * parameter, const cha
 
 STARTEXPORT
 
-DLLExport UCHAR major = 1;
-DLLExport UCHAR minor = 1;
-DLLExport UCHAR patch = 0;
+DLLExport constexpr UCHAR major = 1;
+DLLExport constexpr UCHAR minor = 1;
+DLLExport constexpr UCHAR patch = 0;
 constexpr char vers[3] = { major, minor, patch };
 
 DLLExport void processGateway(Gateway* gate) {
@@ -236,15 +236,17 @@ DLLExport void processGateway(Gateway* gate) {
 			gate->close();
 		}
 		case Gate::Commands::TUNNEL: {
-			Address target = Address{extract(gate, 3)};
+			Address target = Address::extract(gate);
 			Address source = gate->addr;
-			string strict = extract(gate, 6);
+			char * raw = gate->read(6);
+			string strict = {raw + 1, 6};
+			delete raw;
 
 			char * id = createTunnel(source, target);
 
 			if (isLocal(target)) {
 				string result = string{(char)Gate::Commands::TUNNEL};
-				result += putAddr(source);
+				result += source.tostring();
 				result.append(id, ID_LENGTH);
 				result += strict;
 				sendToGateway(target, result);
@@ -254,8 +256,7 @@ DLLExport void processGateway(Gateway* gate) {
 			}
 			else if (isRemote(target) || queryWeb(target)) {
 				string result = string{(char)GEDS::Commands::TUNNEL};
-				result += putAddr(target);
-				result += putAddr(source);
+				result += target.tostring() + source.tostring();
 				result.append(id, ID_LENGTH);
 				result += strict;
 				sendToGateway(target, result);
@@ -263,17 +264,16 @@ DLLExport void processGateway(Gateway* gate) {
 			else {
 				gate->transmit(string{
 					(char)Gate::Commands::STATE, (char)Gate::States::FAILURE, (char)Gate::Errors::NO_ROUTE
-				}); //Tranmit error to gateway
+				}); //Transmit error to gateway
 				return;
 			}
 			delete id;
 		}
 		case Gate::Commands::TUNNEL_DATA: {
 			char * id = gate->read(ID_LENGTH);
-			char * len = gate->read(1);
-			string data = extract(gate, len[1]);
+			NetString data = NetString::extract(gate);
 
-			if (id[0] < ID_LENGTH || len[0] != 1) {
+			if (id[0] < ID_LENGTH) {
 				return;
 			}
 
@@ -286,15 +286,13 @@ DLLExport void processGateway(Gateway* gate) {
 			if (isLocal(target)) {
 				string result = string{(char)Gate::Commands::TUNNEL_DATA};
 				result.append(id+1, ID_LENGTH);
-				result += (char)data.size();
-				result += data;
+				result += data.tostring();
 				sendToGateway(target, result);
 			} else if (isRemote(target) || queryWeb(target)) {
 				string result = string{(char)GEDS::Commands::TUNNEL_DATA};
-				result += putAddr(target);
+				result += target.tostring();
 				result.append(id+1, ID_LENGTH);
-				result += (char)data.size();
-				result += data;
+				result += data.tostring();
 				sendToGateway(target, result);
 			} else {
 				gate->transmit({
@@ -303,7 +301,6 @@ DLLExport void processGateway(Gateway* gate) {
 				destroyTunnel(gate->addr, id+1);
 			}
 			delete id;
-			delete len;
 		}
 	}
 }
@@ -386,14 +383,16 @@ DLLExport void processGEDS(Peer* geds) {
 			return;
 		}
 		case GEDS::Commands::TUNNEL: {
-			Address target = Address{extract(geds, 3)};
-			Address source = Address{extract(geds, 3)};
+			Address target = Address::extract(geds);
+			Address source = Address::extract(geds);
 			char * id = geds->read(ID_LENGTH);
-			string strict = extract(geds, 6);
+			char * raw = geds->read(6);
+			string strict = string{raw + 1, 6};
+			delete raw;
 
 			if (isLocal(target) && getTunnel(target, id+1) == nullptr) {
 				string result = string{(char)Gate::Commands::TUNNEL};
-				result += putAddr(source);
+				result += source.tostring();
 				result.append(id, ID_LENGTH);
 				result += strict;
 				sendToGateway(target, result);
@@ -411,12 +410,11 @@ DLLExport void processGEDS(Peer* geds) {
 			delete id;
 		}
 		case GEDS::Commands::TUNNEL_DATA: {
-			Address target = extract(geds, 3);
+			Address target = Address::extract(geds);
 			char * id = geds->read(ID_LENGTH);
-			char * len = geds->read(1);
-			string data = extract(geds, len[1]);
+			NetString data = NetString::extract(geds);
 
-			if (id[0] < ID_LENGTH || len[0] != 1) {
+			if (id[0] < ID_LENGTH) {
 				return;
 			}
 
@@ -430,8 +428,7 @@ DLLExport void processGEDS(Peer* geds) {
 			if (isLocal(target)) {
 				string result = string{(char)Gate::Commands::TUNNEL_DATA};
 				result.append(id+1, ID_LENGTH);
-				result += (char)data.size();
-				result += data;
+				result += data.tostring();
 				sendToGateway(target, result);
 			} else {
 				string result = string{(char)GEDS::Commands::TUNNEL_ERROR};
@@ -440,7 +437,6 @@ DLLExport void processGEDS(Peer* geds) {
 				destroyTunnel(target, id+1);
 			}
 			delete id;
-			delete len;
 		}
 	}
 }
