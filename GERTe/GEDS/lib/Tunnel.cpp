@@ -81,6 +81,20 @@ Address * getTunnel(Address ref, char* id) {
 
 void addTunnel(Address one, Address two, char * id) {
 	String str = String{id};
-	tunnels[one] = Tunnel{str, two};
-	tunnels[two] = Tunnel{str, one};
+
+	if (tunnels[one]) {
+		(*tunnels[one])[str] = two;
+	} else {
+		Tunnel * newTunnel = new Tunnel;
+		(*newTunnel)[str] = two;
+		tunnels[one] = newTunnel;
+	}
+
+	if (tunnels[two]) {
+		(*tunnels[two])[str] = one;
+	} else {
+		Tunnel * newTunnel = new Tunnel;
+		(*newTunnel)[str] = one;
+		tunnels[two] = newTunnel;
+	}
 }

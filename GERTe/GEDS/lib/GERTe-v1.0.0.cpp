@@ -75,7 +75,7 @@ bool isLocal(Address addr) {
 void changeState(Gateway * gate, const Gate::States newState, const char numextra=0, const char * extra=nullptr) {
 	gate->state = (char)newState;
 
-	string update = string{(char)newState};
+	string update = string{(char)Gate::Commands::STATE};
 	update += (char)newState;
 	update += string{extra, numextra};
 

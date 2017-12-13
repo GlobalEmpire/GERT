@@ -18,7 +18,7 @@
 #include "../GERTc.h"
 #include "../logging.h"
 #include "NetString.h"
-#include "./Tunnel.h"
+#include "Tunnel.h"
 
 
 STARTIMPORT
