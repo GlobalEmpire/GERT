@@ -99,10 +99,10 @@ void globalChange(const GEDS::Commands change, const char * parameter, const cha
 
 STARTEXPORT
 
-DLLExport constexpr UCHAR major = 1;
-DLLExport constexpr UCHAR minor = 1;
-DLLExport constexpr UCHAR patch = 0;
-constexpr char vers[3] = { major, minor, patch };
+DLLExport UCHAR major = 1;
+DLLExport UCHAR minor = 1;
+DLLExport UCHAR patch = 0;
+char vers[3] = { major, minor, patch };
 
 DLLExport void processGateway(Gateway* gate) {
 	if (gate->state == (char)Gate::States::FAILURE) {
@@ -246,8 +246,8 @@ DLLExport void processGateway(Gateway* gate) {
 
 			if (isLocal(target)) {
 				string result = string{(char)Gate::Commands::TUNNEL};
-				result += source.tostring();
 				result.append(id, ID_LENGTH);
+				result += source.tostring();
 				result += strict;
 				sendToGateway(target, result);
 				result = string{(char)Gate::Commands::TUNNEL};
