@@ -1,4 +1,10 @@
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
 #include <sys/socket.h>
+#endif
+
 #include <fcntl.h>
 #include "libLoad.h"
 #include "gatewayManager.h"

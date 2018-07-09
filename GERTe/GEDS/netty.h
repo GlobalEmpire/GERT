@@ -4,7 +4,10 @@
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
+
+#ifndef _WIN32
 typedef int SOCKET;
+#endif
 
 constexpr unsigned int iplen = 16;
 
@@ -18,5 +21,4 @@ extern "C" {
 	void processGateways();
 	void processPeers();
 	void buildWeb();
-	string putAddr(Address);
 }

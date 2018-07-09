@@ -6,9 +6,7 @@
 #include <netdb.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/select.h>
 #include <unistd.h>
-#include <poll.h>
 #include <thread>
 #include "libLoad.h"
 #include "peerManager.h"
@@ -18,15 +16,14 @@
 #include "netty.h"
 #include "logging.h"
 #include <signal.h>
+#include "Poll.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
-fd_set testSet; //Define test sets and null set
 
-vector<int> gatefd;
-vector<int> peerfd;
-map<int, Gateway*> fdToGate;
-map<int, Peer*> fdToPeer;
+Poll gatePoll;
+Poll peerPoll;
+Poll serverPoll;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -61,56 +58,32 @@ void killConnections() {
 
 //PUBLIC
 void processGateways() {
-	pause();
 	while (running) {
-		int size = gatefd.size();
-		pollfd set[size];
-		for (int i = 0; i < size; i++) {
-			set[i] = {
-				gatefd[i],
-				POLLIN,
-				0
-			};
-		}
-		poll(set, gatefd.size(), -1);
-		for (int i = 0; i < size; i++) {
-			if (set[i].revents & POLLIN) {
-				char test[1];
-				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
-					fdToGate[set[i].fd]->close();
-				} else {
-					fdToGate[set[i].fd]->process();
-				}
-			}
-		}
-		this_thread::yield();
+		Event_Data data = gatePoll.wait();
+
+		SOCKET sock = data.fd;
+		Gateway * gate = data.ptr;
+
+		char test[1];
+		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+			gate->close();
+		else
+			gate->process();
 	}
 }
 
 void processPeers() {
-	pause();
 	while (running) {
-		int size = peerfd.size();
-		pollfd set[size];
-		for (int i = 0; i < size; i++) {
-			set[i] = {
-				peerfd[i],
-				POLLIN,
-				0
-			};
-		}
-		poll(set, peerfd.size(), -1);
-		for (int i = 0; i < size; i++) {
-			if (set[i].revents & POLLIN) {
-				char test[1];
-				if (recv(set[i].fd, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) {
-					fdToPeer[set[i].fd]->close();
-				} else {
-					fdToPeer[set[i].fd]->process();
-				}
-			}
-		}
-		this_thread::yield();
+		Event_Data data = gatePoll.wait();
+
+		SOCKET sock = data.fd;
+		Peer * peer = data.ptr;
+
+		char test[1];
+		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+			peer->close();
+		else
+			peer->process();
 	}
 }
 
@@ -121,6 +94,7 @@ void startup() {
 	WSADATA socketConfig; //Construct WSA configuration destination
 	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
 #endif
+
 	sockaddr_in gate = {
 			AF_INET,
 			htons(stoi(gatewayPort)),
@@ -150,6 +124,10 @@ void startup() {
 	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
 	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
 	//Servers constructed and started
+
+	//Add servers to poll
+	serverPoll.add(gateServer);
+	serverPoll.add(gedsServer);
 }
 
 //PUBLIC
@@ -166,41 +144,23 @@ void cleanup() {
 
 //PUBLIC
 void runServer(void * gateways, void * peers) { //Listen for new connections
-	pollfd servers[2] = {
-			{
-					gateServer,
-					POLLIN,
-					0
-			},
-			{
-					gedsServer,
-					POLLIN,
-					0
-			}
-	};
 	while (running) { //Dies on SIGINT
-		servers[0].revents = 0;
-		servers[1].revents = 0;
-		poll(servers, 2, -1);
-		if (servers[0].revents & POLLIN) {
+		Event_Data data = serverPoll.wait();
+		if (data.fd == gateServer) {
 			SOCKET * newSock = new SOCKET;
 			*newSock = accept(gateServer, NULL, NULL);
 			try {
 				Gateway * gate = new Gateway(newSock);
-				gatefd.push_back(*newSock);
-				pthread_kill(*(thread::native_handle_type*)gateways, SIGUSR1);
+				gatePoll.add(newSock, gate);
 			} catch(int e) {}
-		}
-		if (servers[1].revents & POLLIN) {//Tests GEDS P2P inbound socket
+		} else {
 			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
 			*newSocket = accept(gedsServer, NULL, NULL);
 			try {
 				Peer * peer = new Peer(newSocket);
-				peerfd.push_back(*newSocket);
-				pthread_kill(*(thread::native_handle_type*)peers, SIGUSR1);
+				peerPoll.add(newSock, peer);
 			} catch(int e) {}
 		}
-		this_thread::yield(); //Release CPU
 	}
 }
 
@@ -247,6 +207,7 @@ void buildWeb() {
 			destroy(newSock);
 			continue;
 		}
+
 #ifdef _WIN32
 		ioctlsocket(*newSock, FIONBIO, &nonZero);
 #else
@@ -255,12 +216,5 @@ void buildWeb() {
 		Peer* newConn = new Peer((void*)newSock, best, &known);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
-	}
-}
-
-extern "C" {
-	string putAddr(Address addr) {
-		const unsigned char* chars = addr.getAddr();
-		return string{chars[0], chars[1], chars[2]};
 	}
 }

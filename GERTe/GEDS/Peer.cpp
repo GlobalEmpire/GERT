@@ -1,27 +1,21 @@
-#include "Peer.h"
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
+#include <sys/socket.h>
+#endif
+
 #include "libLoad.h"
 #include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <map>
-#include <vector>
+#include "Poll.h"
 
 map<IP, Peer*> peers;
 
-extern map<int, Peer*> fdToPeer;
-extern vector<int> peerfd;
-
-vector<int>::iterator findPeerFd(int fd) {
-	vector<int>::iterator iter = peerfd.begin();
-	for (iter; iter < peerfd.end(); iter++) { //Loop through list of non-registered gateways
-			if (*iter == fd) { //If we found the Gateway
-				return iter;
-			}
-		}
-	return iter;
-}
+extern Poll peerPoll;
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -56,7 +50,6 @@ Peer::Peer(void * sock) : Connection(sock) {
 		}
 		peers[id->addr] = this;
 		log("Peer connected from " + id->addr.stringify());
-		fdToPeer[*newSocket] = this;
 		this->process();
 	}
 };
@@ -68,9 +61,9 @@ Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket
 void Peer::close() {
 	killAssociated(this);
 	peers.erase(this->id->addr);
-	fdToPeer.erase(*(SOCKET*)this->sock);
-	vector<int>::iterator iter = findPeerFd(*(SOCKET*)this->sock);
-	peerfd.erase(iter);
+
+	peerPoll.remove(*(SOCKET*)sock);
+
 	destroy((SOCKET*)this->sock);
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 	delete this;

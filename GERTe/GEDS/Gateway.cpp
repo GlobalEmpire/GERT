@@ -1,18 +1,23 @@
-#include "Gateway.h"
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
+#include <sys/socket.h>
+#endif
+
 #include "libLoad.h"
 #include "netty.h"
 #include "gatewayManager.h"
 #include "logging.h"
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <map>
+#include "Poll.h"
 
 typedef int SOCKET;
 
 extern map<Address, Key> resolutions;
 
-extern map<int, Gateway*> fdToGate;
-extern vector<int> gatefd;
+extern Poll gatePoll;
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
@@ -24,16 +29,6 @@ noAddrIter find(Gateway * gate) {
 			return iter;
 		}
 	}
-	return iter;
-}
-
-vector<int>::iterator findFd(int fd) {
-	vector<int>::iterator iter = gatefd.begin();
-	for (iter; iter < gatefd.end(); iter++) { //Loop through list of non-registered gateways
-			if (*iter == fd) { //If we found the Gateway
-				return iter;
-			}
-		}
 	return iter;
 }
 
@@ -58,7 +53,6 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	} else {
 		local = true;
 		noAddrList.push_back(this);
-		fdToGate[*newSocket] = this;
 		this->process(); //Process empty data (Protocol Library Gateway Initialization)
 	}
 }
@@ -99,9 +93,9 @@ void Gateway::close() {
 		gateways.erase(this->addr); //Remove connection from universal map
 		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	}
-	fdToGate.erase(*(SOCKET*)this->sock);
-	vector<int>::iterator iter = findFd(*(SOCKET*)this->sock);
-	gatefd.erase(iter);
+
+	gatePoll.remove(*(SOCKET*)sock);
+
 	if (this->sock != nullptr)
 		destroy((SOCKET*)this->sock); //Close the socket
 	delete this; //Release the memory used to store the Gateway

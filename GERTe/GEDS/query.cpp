@@ -7,7 +7,7 @@
 using namespace std;
 
 bool queryWeb(Address target) {
-	broadcast(string({8}) + putAddr(target));
+	broadcast(string({8}) + target.tostring());
 	this_thread::sleep_for((chrono::duration<int>) 5);
 	return isRemote(target);
 }

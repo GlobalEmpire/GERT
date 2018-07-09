@@ -1,7 +1,6 @@
 #include "Address.h"
 
 class GERTc {
-
 public:
 	Address external;
 	Address internal;
@@ -9,4 +8,12 @@ public:
 	GERTc(const unsigned char* ptr) : external(ptr), internal(ptr + 3) {};
 	GERTc() : external(), internal() {};
 	string stringify() const { return external.stringify() + ":" + internal.stringify(); }
+	string tostring() const { return external.tostring() + internal.tostring(); }
+	GERTc static extract(Connection * conn) {
+		GERTc addr;
+		addr.external = Address::extract(conn);
+		addr.internal = Address::extract(conn);
+
+		return addr;
+	};
 };

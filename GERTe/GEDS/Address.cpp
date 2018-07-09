@@ -35,3 +35,16 @@ string Address::stringify() const {
 	low = ((unsigned short)addr[1] & 0x0F) << 8 | (unsigned short)addr[2];
 	return to_string(high) + "." + to_string(low);
 }
+
+Address Address::extract(Connection* conn) {
+	char * addr = conn->read(3);
+	Address result = Address{addr + 1};
+	delete addr;
+
+	return result;
+}
+
+string Address::tostring() const {
+	return string{(char*)addr, 3};
+}
+

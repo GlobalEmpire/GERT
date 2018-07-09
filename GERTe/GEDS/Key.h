@@ -1,7 +1,7 @@
 #ifndef __KEY_GUARD__
 #define __KEY_GUARD__
 
-#include <string>
+#include "Connection.h"
 using namespace std;
 
 class Key {
@@ -14,6 +14,7 @@ class Key {
 			key.resize(20);
 		};
 		Key () {};
+		Key static extract(Connection*);
 };
 
 #endif

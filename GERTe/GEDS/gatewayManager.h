@@ -3,7 +3,6 @@
 #include "Gateway.h"
 #include <map>
 #include <vector>
-#include "Ports.h"
 
 typedef map<Address, Gateway*>::iterator gatewayPtr;
 typedef vector<Gateway*>::iterator noAddrPtr;

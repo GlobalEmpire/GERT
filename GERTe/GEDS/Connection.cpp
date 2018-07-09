@@ -1,6 +1,12 @@
+#ifdef _WIN32
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
+#include <sys/socket.h>
+#endif
+
 #include "Connection.h"
 #include "netty.h"
-#include <sys/socket.h>
 
 char * Connection::read(int num) {
 	char * buf = new char[num+1];
