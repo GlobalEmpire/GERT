@@ -383,11 +383,13 @@ local function writeData(self, data)
 end
 
 -- Reads data from an opened connection
-local function readData(self)
+local function readData(self, doPeek)
 	if self.incDex then
 		local data = connections[self.incDex]["data"]
-		connections[self.incDex]["data"] = {}
-		connections[self.incDex]["dataDex"] = 1
+		if tonumber(doPeek) ~= 2 then
+			connections[self.incDex]["data"] = {}
+			connections[self.incDex]["dataDex"] = 1
+		end
 		return data
 	else
 		for key, value in pairs(connections) do
