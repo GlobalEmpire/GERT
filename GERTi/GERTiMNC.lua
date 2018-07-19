@@ -9,35 +9,28 @@ local serialize = require("serialization")
 local modem = nil
 local tunnel = nil
 
-local childNodes = {}
-local childNum = 1
+local nodes = {}
 local connections = {}
-local connectDex = 1
 local paths = {}
-local pathDex = 1
 
-local tier = 0
-local handler = {}
 local addressP1 = 0
 local addressP2 = 1
 local gAddress = nil
 local gKey = nil
 local timerID = nil
 local savedAddresses = {}
+
 if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
 end
-
 if (component.isAvailable("modem")) then
 	modem = component.modem
 	modem.open(4378)
-
 	if (component.modem.isWireless()) then
 		modem.setStrength(500)
 	end
 end
-
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
 end
@@ -49,9 +42,6 @@ end
 local directory = os.getenv("_")
 directory = filesystem.path(directory)
 -- functions to store the children and then sort the table
-local function sortTable(elementOne, elementTwo)
-	return (tonumber(elementOne["tier"]) < tonumber(elementTwo["tier"]))
-end
 
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
 local function addTempHandler(timeout, code, cb, cbf)
@@ -81,32 +71,24 @@ local function waitWithCancel(timeout, cancelCheck)
 	return cancelCheck()
 end
 
-local function storeChild(rAddress, port, package)
+local function storeChild(rAddress, port, tier)
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
 	-- children means the direct connections a computer can make to another computer that is a lower tier than it
-	local childGAddress
+	local childGA
 	for key, value in pairs(savedAddresses) do
 		if value["rAddress"] == rAddress then
 			childGAddress = value["gAddress"]
 			break
 		end
 	end
-	childNodes[childNum] = {}
-	childNodes[childNum]["realAddress"] = rAddress
-	childNodes[childNum]["gAddress"] = (childGAddress or (tostring(addressP1).."."..tostring(addressP2)))
-	childNodes[childNum]["tier"] = tonumber(package)
-	childNodes[childNum]["port"] = tonumber(port)
-	childNodes[childNum]["parents"] = {}
-	childNodes[childNum]["children"]={}
-	childNum = childNum + 1
-	table.sort(childNodes, sortTable)
-	if not childGAddress then
+	if not childGA then
+		childGA = addressP1.."."..addressP2
 		savedAddresses[(#savedAddresses)+1] = {}
 		savedAddresses[#savedAddresses]["rAddress"] = rAddress
-		savedAddresses[#savedAddresses]["gAddress"] = tostring(addressP1).."."..tostring(addressP2)
+		savedAddresses[#savedAddresses]["gAddress"] = addressP1.."."..addressP2
 		local f = io.open(directory.."GERTaddresses.gert", "a")
-		f:write(tostring(addressP1).."."..tostring(addressP2).."\n")
-		f:write(childNodes[childNum-1]["realAddress"].."\n")
+		f:write(addressP1.."."..addressP2.."\n")
+		f:write(rAddress.."\n")
 		f:close()
 		if addressP2 == 4095 then
 			addressP2 = 0
@@ -118,39 +100,32 @@ local function storeChild(rAddress, port, package)
 			addressP2 = addressP2 + 1
 		end
 	end
-	return (childNum-1), childNodes[childNum-1]["gAddress"]
+	childNodes[childGA] = {}
+	childNodes[childGA]["add"] = rAddress
+	childNodes[childGA]["tier"] = tonumber(tier)
+	childNodes[childGA]["port"] = tonumber(port)
+	childNodes[childGA]["parents"] = {}
+	childNodes[childGA]["children"]={}
+	return childGA
 end
 
-local function removeChild(address)
-	for key, value in pairs(childNodes) do
-		if value["realAddress"] == address then
-			table.remove(childNodes, key)
-			childNum = (#childNodes+1)
-			break
-		end
+local function storeConnection(origin, ID, dest)
+	if connections[dest] == nil then
+		connections[dest] = {}
 	end
-end
-
-local function storeConnection(origination, destination, nextHop, outbound, connectionID)
-	connections[connectDex] = {}
-	connections[connectDex]["destination"] = destination
-	connections[connectDex]["origination"] = origination
-	connections[connectDex]["nextHop"] = nextHop
-	connections[connectDex]["data"] = {}
-	connections[connectDex]["dataDex"] = 1
-	connections[connectDex]["outbound"] = outbound
-	connections[connectDex]["connectionID"] = (connectionID or connectDex)
-	connectDex = connectDex + 1
-	return connectionID or (connectDex-1)
+	connections[dest][ID] = {}
+	connections[dest][ID]["origination"] = origin
+	connections[dest][ID]["destination"] = dest
+	connections[dest][ID]["data"] = {}
+	connections[dest][ID]["connectionID"] = ID
 end
 local function storePath(origination, destination, nextHop, port)
-	paths[pathDex] = {}
-	paths[pathDex]["origination"] = origination
-	paths[pathDex]["destination"] = destination
+if paths[origination] == nil then
+		paths[origination] = {}
+	end
+	paths[origination][destination] = {}
 	paths[pathDex]["nextHop"] = nextHop
 	paths[pathDex]["port"] = port
-	pathDex = pathDex + 1
-	return (pathDex-1)
 end
 
 local function transmitInformation(sendTo, port, ...)
@@ -159,85 +134,42 @@ local function transmitInformation(sendTo, port, ...)
 	elseif (tunnel) then
 		return tunnel.send(...)
 	end
-	io.stderr:write("Tried to transmit on tunnel, but no tunnel was found.")
-	return false
 end
 
-handler["AddNeighbor"] = function (sendingModem, port, code)
-	local doesExist = false
-	local childTier = 1
-	print("GERTiStartReceived")
-	for key,value in pairs(childNodes) do
-		if value["realAddress"] == sendingModem then
-			doesExist = true
-			childNodes[key]["tier"] = childTier
-			childNodes[key]["port"] = port
-			childNodes[key]["children"] = {}
-			childNodes[key]["parents"] = {}
-			break
-		end
+local handler = {}
+handler["CloseConnection"] = function(sendingModem, port, connectionID, destination, origin)
+	if destination ~= iAddress then
+		transmitInformation(paths[origin][destination]["nextHop"], paths[origin][destination]["port"], "CloseConnection", ID, destination, origin)
 	end
-	if doesExist == false then
-		storeChild(sendingModem, port, childTier)
-	end
-	transmitInformation(sendingModem, port, "RETURNSTART", tier)
+	paths[origin][destination] = nil
+	connections[destination][ID] = nil
 end
 
-handler["CloseConnection"] = function(sendingModem, port, code, connectionID, destination, origin)
-	for key, value in pairs(paths) do
-		if value["destination"] == destination and value["origination"] == origin then
-			if value["nextHop"] ~= (modem or tunnel).address then
-				transmitInformation(value["nextHop"], value["port"], "CloseConnection", connectionID, destination, origin)
-			end
-			table.remove(paths, key)
-			break
-		end
-	end
-	for key, value in pairs(connections) do
-		if value["connectionID"] == connectionID then
-			table.remove(connections, key)
-			break
-		end
-	end
-end
-
-handler["DATA"] = function (sendingModem, port, code, data, destination, origination, connectionID)
-	if destination == (modem or tunnel).address and GERTe then
-		for key, value in pairs (connections) do
-			if value["origination"] == origination then
-				for key2, value2 in pairs(childNodes) do
-					if value2["realAddress"] == value["origination"] then
-						return GERTe.transmitTo(value["outbound"], value2["gAddress"], data)
-					end
-				end
-			end
-		end
+handler["Data"] = function (sendingModem, port, data, destination, origination, connectionID)
+	if connections[origination] ~= nil and connections[origination][connectionID] ~= nil then
+		GERTe.transmitTo(destination, origination, data)
 	else
-		for key, value in pairs(paths) do
-			if value["destination"] == destination and value["origination"] == origination then
-				return transmitInformation(value["nextHop"], value["port"], "DATA", data, destination, origination, connectionID)
-			end
-		end
+		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID)
 	end
 end
 
+handler["NewNode"] = function (sendingModem, port)
+	transmitInformation(sendingModem, port, "RETURNSTART", 0.0, 0)
+end
 -- Used in handler["OPENROUTE"]
-local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, receivedPort, transmitPort, outbound, connectionID, originGAddress)
+local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID)
 	print("Opening Route")
     local function sendOKResponse(isDestination)
-		transmitInformation(beforeHop, receivedPort, "ROUTE OPEN", destination, origination)
+		transmitInformation(bHop, recPort, "ROUTE OPEN", dest, origin)
 		if isDestination then
-			storeConnection(origination, destination, hopOne, outbound, connectionID)
-			storePath(origination, destination, hopOne, transmitPort)
+			storeConnection(origin, ID, dest)
+			storePath(origin, dest, nextHop, transPort)
 		else
-			storePath(origination, destination, hopOne, transmitPort)
-			if origination == (modem or tunnel).address then
-				storeConnection(origination, destination, hopOne, outbound, connectionID)
-			end
+			storePath(origin, dest, nextHop, transPort)
 		end
 	end
-    if modem.address ~= destination then
-		transmitInformation(hopOne, transmitPort, "OPENROUTE", destination, hopTwo, origination, outbound, connectionID, originGAddress)
+    if not string.find(dest, ":") then
+		transmitInformation(nextHop, trans, "OpenRoute", destination, hopTwo, origin, ID)
         addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
         	if (destination == pktDest) and (origination == pktOrig) then
         		sendOKResponse(false)
@@ -245,102 +177,73 @@ local function routeOpener(destination, origination, beforeHop, hopOne, hopTwo, 
 			end
             end, function () end)
 		waitWithCancel(3, function () return response end)
-        return
-    end
-    sendOKResponse(true)
-end
-
-handler["OPENROUTE"] = function (sendingModem, port, code, destination, intermediary, origination, outbound, connectionID, originGAddress)
-	-- attempt to check if destination is this computer, if so, respond with ROUTE OPEN message so routing can be completed
-	if destination == modem.address then
-		return routeOpener(destination, origination, sendingModem, modem.address, modem.address, port, port, outbound, connectionID)
-	end
-
-	local childKey = nil
-	-- attempt to look up the node and establish a routing path
-	for key, value in pairs(childNodes) do
-		if value["realAddress"] == destination then
-			childKey = key
-			if childNodes[childKey]["parents"][1]["address"] == modem.address then
-				return routeOpener(destination, origination, sendingModem, destination, destination, port, childNodes[childKey]["port"], outbound, connectionID, originGAddress)
-			end
-			break
-		end
-	end
-	if (childKey) then
-		-- now begin a search for an indirect connection, with support for up to 2 computers between the gateway and destination
-		for key, value in pairs(childNodes[childKey]["parents"]) do
-			for key2, value2 in pairs(childNodes) do
-				if value2["realAddress"] == value["address"] and childNodes[key2]["parents"][1]["address"] == (modem or tunnel).address then
-					-- If an intermediate is found, then use that to open a connection
-					return routeOpener(destination, origination, sendingModem, value2["realAddress"], value2["realAddress"], port, value2["port"], outbound, connectionID, originGAddress)
-				end
-			end
-		end
-
-		-- If an intermediate is not found, attempt to do a 2-deep search for hops
-		local parent1Key, parent2Key = nil
-		local childParents = childNodes[childKey]["parents"]
-		for key,value in pairs(childNodes) do
-			for key2, value2 in pairs(value["children"]) do
-				for key3, value3 in pairs(childParents) do
-					-- so much nesting!
-					if value3["address"] == value2["address"] then
-						-- we now have the keys of the 2 computers, and the link will look like: gateway -- parent1Key -- parent2Key -- destination
-						return routeOpener(destination, origination, sendingModem, value["realAddress"], value2["address"], port, childNodes[key]["port"], outbound, connectionID, originGAddress)
-					end
-				end
-			end
-		end 
-	end
-end
-
-handler["RegisterNode"] = function (sendingModem, port, code, originatorAddress, childTier, neighborTable)
-	neighborTable = serialize.unserialize(neighborTable)
-	local nodeDex = 0
-	for key, value in pairs(childNodes) do
-		if value["realAddress"] == originatorAddress then
-			nodeDex = key
-			break
-		end
-	end
-	if nodeDex == 0 then
-		nodeDex = storeChild(originatorAddress, port, childTier)
-	end
-	local parentDex = 1
-	local subChildDex = 1
-	for key, value in pairs(neighborTable) do
-		if neighborTable[key]["tier"] < childTier then
-			childNodes[nodeDex]["parents"][parentDex]=value
-			parentDex = parentDex + 1
-		else
-			childNodes[nodeDex]["children"][subChildDex]=value
-			subChildDex = subChildDex + 1
-		end
-	end
-	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childNodes[nodeDex]["gAddress"])
-end
-
-handler["RemoveNeighbor"] = function (sendingModem, port, code, origination)
-	removeChild(origination)
-end
-
-handler["ResolveAddress"] = function (sendingModem, port, code, gAddress)
-	if string.find(tostring(gAddress), ":") then
-		return transmitInformation(sendingModem, port, "ResolveComplete", (modem or tunnel).address)
 	else
-		for key, value in pairs(childNodes) do
-			if tonumber(value["gAddress"]) == tonumber(gAddress) then
-				return value["realAddress"], transmitInformation(sendingModem, port, "ResolveComplete", value["realAddress"])
+    	sendOKResponse(true)
+	end
+end
+
+handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin, ID)
+	if string.find(dest, ":") then
+		return routeOpener(dest, origin, sendingModem, modem.address, modem.address, port, port, ID)
+	end
+	
+	if childNodes[dest]["parents"][0.0] then
+		return routeOpener(dest, origin, sendingModem, childNodes[dest]["add"], childNodes[dest]["add"], port, childNodes[dest]["port"], ID)
+	end
+	
+	for key, value in pairs(childNodes[dest]["parents"]) do
+		if childNodes[key]["parents"][0.0] then
+			return routeOpener(dest, origin, sendingModem, value["add"], dest, port, value["port"], ID)
+		end
+	end
+	
+	for key, value in pairs(childNodes[dest]["parents"]) do
+		for key2, value2 in pairs(childNodes[key]["parents"]) do
+			if childNodes[key2]["parents"][0.0] then
+				return routeOpener(dest, origin, sendingModem, value2["add"], value["add"], port, value2["port"], ID)
 			end
 		end
+	end
+end
+
+handler["RegisterNode"] = function (sendingModem, port, originatorAddress, childTier, childTable)
+	childTable = serialize.unserialize(childTable)
+	childGA = storeChild(originatorAddress, port, childTier)
+	for key, value in pairs(childTable) do
+		if childTable[key]["tier"] > childTier then
+			childNodes[childGA]["parents"][key] = childTable[key]
+			childNodes[key]["children"][childGA]={}
+			childNodes[key]["children"][childGA]["add"] = childNodes[childGA]["add"]
+			childNodes[key]["children"][childGA]["port"] = childNodes[childGA]["port"]
+			childNodes[key]["children"][childGA]["tier"] = childNodes[childGA]["tier"]
+		else
+			childNodes[childGA]["children"][key] = childTable[key]
+			if childNodes[key]["tier"] < childTier then
+				childNodes[key]["parents"][childGA]={}
+				childNodes[key]["parents"][childGA]["add"] = childNodes[childGA]["add"]
+				childNodes[key]["parents"][childGA]["port"] = childNodes[childGA]["port"]
+				childNodes[key]["parents"][childGA]["tier"] = childNodes[childGA]["tier"]
+			else
+				childNodes[key]["children"][childGA]={}
+				childNodes[key]["children"][childGA]["add"] = childNodes[childGA]["add"]
+				childNodes[key]["children"][childGA]["port"] = childNodes[childGA]["port"]
+				childNodes[key]["children"][childGA]["tier"] = childNodes[childGA]["tier"]
+			end
+		end
+	end
+	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
+end
+
+handler["RemoveNeighbor"] = function (sendingModem, port, origination)
+	if nodes[origination] ~= nil then
+		nodes[origination] = nil
 	end
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
 	print(code)
 	if handler[code] ~= nil then
-		handler[code](sendingModem, port, code, ...)
+		handler[code](sendingModem, port, ...)
 	end
 end
 
@@ -350,22 +253,15 @@ local function readGMessage()
 	local message = GERTe.parse()
 	while message ~= nil do
 		local found = false
-		local rDestination = handler["ResolveAddress"](modem.address, 4378, nil, message["target"])
-		for key, value in pairs(connections) do
-			if value["destination"] == rDestination and value["origination"] == modem.address then
-				handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, value["connectionID"])
-				found = true
-				break
-			end
+		local target = string.sub(message["target"], string.find(message["target"], ":")+1)
+		if connections[target] ~= nil then
+			found = true
+			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
 		if not found then
-			for key, value in pairs(connections) do
-				if value["destination"] == (modem or tunnel).address and value["origination"] == rDestination then
-					handler["OPENROUTE"](modem.address, 4378, nil, rDestination, nil, modem.address, (gAddress..":"..message["target"]), value["connectionID"])
-					handler["DATA"](modem.address, 4378, "DATA", message["data"], rDestination, modem.address, value["connectionID"])
-					break
-				end
-			end
+			handler["OpenRoute"](modem.address, 4378, target, _, message["source"], 0)
+			storeConnection(message["source"], 0, target)
+			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
 		message = GERTe.parse()
 	end
