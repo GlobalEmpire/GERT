@@ -1,4 +1,4 @@
--- GERT v1.0.2 - Release
+-- GERT v1.1 - Build 3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -75,17 +75,12 @@ local function storeChild(rAddress, port, tier)
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
 	-- children means the direct connections a computer can make to another computer that is a lower tier than it
 	local childGA
-	for key, value in pairs(savedAddresses) do
-		if value["rAddress"] == rAddress then
-			childGAddress = value["gAddress"]
-			break
-		end
+	if savedAddresses[rAddress] then
+		childGA = savedAddresses[rAddress]
 	end
 	if not childGA then
 		childGA = addressP1.."."..addressP2
-		savedAddresses[(#savedAddresses)+1] = {}
-		savedAddresses[#savedAddresses]["rAddress"] = rAddress
-		savedAddresses[#savedAddresses]["gAddress"] = addressP1.."."..addressP2
+		savedAddresses[rAddress] = childGA
 		local f = io.open(directory.."GERTaddresses.gert", "a")
 		f:write(addressP1.."."..addressP2.."\n")
 		f:write(rAddress.."\n")
@@ -100,32 +95,32 @@ local function storeChild(rAddress, port, tier)
 			addressP2 = addressP2 + 1
 		end
 	end
-	childNodes[childGA] = {}
-	childNodes[childGA]["add"] = rAddress
-	childNodes[childGA]["tier"] = tonumber(tier)
-	childNodes[childGA]["port"] = tonumber(port)
-	childNodes[childGA]["parents"] = {}
-	childNodes[childGA]["children"]={}
+	childGA = tonumber(childGA)
+	nodes[childGA] = {}
+	nodes[childGA]["add"] = rAddress
+	nodes[childGA]["tier"] = tonumber(tier)
+	nodes[childGA]["port"] = tonumber(port)
+	nodes[childGA]["parents"] = {}
+	nodes[childGA]["children"]={}
 	return childGA
 end
 
 local function storeConnection(origin, ID, dest)
-	if connections[dest] == nil then
+	if not connections[dest] then
 		connections[dest] = {}
 	end
-	connections[dest][ID] = {}
-	connections[dest][ID]["origination"] = origin
-	connections[dest][ID]["destination"] = dest
-	connections[dest][ID]["data"] = {}
-	connections[dest][ID]["connectionID"] = ID
-end
-local function storePath(origination, destination, nextHop, port)
-if paths[origination] == nil then
-		paths[origination] = {}
+	if not connections[dest][origin] then
+		connections[dest][origin] = {}
 	end
-	paths[origination][destination] = {}
-	paths[pathDex]["nextHop"] = nextHop
-	paths[pathDex]["port"] = port
+	connections[dest][origin][ID] = {}
+end
+local function storePath(origin, dest, nextHop, port)
+if paths[origin] == nil then
+		paths[origin] = {}
+	end
+	paths[origin][dest] = {}
+	paths[origin][dest]["nextHop"] = nextHop
+	paths[origin][dest]["port"] = port
 end
 
 local function transmitInformation(sendTo, port, ...)
@@ -148,7 +143,7 @@ end
 handler["Data"] = function (sendingModem, port, data, destination, origination, connectionID)
 	if connections[origination] ~= nil and connections[origination][connectionID] ~= nil then
 		GERTe.transmitTo(destination, origination, data)
-	else
+	elseif connectionID > 0 then
 		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID)
 	end
 end
@@ -169,9 +164,9 @@ local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort
 		end
 	end
     if not string.find(dest, ":") then
-		transmitInformation(nextHop, trans, "OpenRoute", destination, hopTwo, origin, ID)
+		transmitInformation(nextHop, trans, "OpenRoute", dest, hopTwo, origin, ID)
         addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
-        	if (destination == pktDest) and (origination == pktOrig) then
+        	if (dest == pktDest) and (origin == pktOrig) then
         		sendOKResponse(false)
             	return true -- This terminates the wait
 			end
@@ -187,19 +182,19 @@ handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin,
 		return routeOpener(dest, origin, sendingModem, modem.address, modem.address, port, port, ID)
 	end
 	
-	if childNodes[dest]["parents"][0.0] then
-		return routeOpener(dest, origin, sendingModem, childNodes[dest]["add"], childNodes[dest]["add"], port, childNodes[dest]["port"], ID)
+	if nodes[dest]["parents"][0.0] then
+		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID)
 	end
 	
-	for key, value in pairs(childNodes[dest]["parents"]) do
-		if childNodes[key]["parents"][0.0] then
+	for key, value in pairs(nodes[dest]["parents"]) do
+		if nodes[key]["parents"][0.0] then
 			return routeOpener(dest, origin, sendingModem, value["add"], dest, port, value["port"], ID)
 		end
 	end
 	
-	for key, value in pairs(childNodes[dest]["parents"]) do
-		for key2, value2 in pairs(childNodes[key]["parents"]) do
-			if childNodes[key2]["parents"][0.0] then
+	for key, value in pairs(nodes[dest]["parents"]) do
+		for key2, value2 in pairs(nodes[key]["parents"]) do
+			if nodes[key2]["parents"][0.0] then
 				return routeOpener(dest, origin, sendingModem, value2["add"], value["add"], port, value2["port"], ID)
 			end
 		end
@@ -209,29 +204,29 @@ end
 handler["RegisterNode"] = function (sendingModem, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, port, childTier)
+	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do
-		if childTable[key]["tier"] > childTier then
-			childNodes[childGA]["parents"][key] = childTable[key]
-			childNodes[key]["children"][childGA]={}
-			childNodes[key]["children"][childGA]["add"] = childNodes[childGA]["add"]
-			childNodes[key]["children"][childGA]["port"] = childNodes[childGA]["port"]
-			childNodes[key]["children"][childGA]["tier"] = childNodes[childGA]["tier"]
-		else
-			childNodes[childGA]["children"][key] = childTable[key]
-			if childNodes[key]["tier"] < childTier then
-				childNodes[key]["parents"][childGA]={}
-				childNodes[key]["parents"][childGA]["add"] = childNodes[childGA]["add"]
-				childNodes[key]["parents"][childGA]["port"] = childNodes[childGA]["port"]
-				childNodes[key]["parents"][childGA]["tier"] = childNodes[childGA]["tier"]
+		if value["tier"] >= childTier then
+			nodes[childGA]["children"][key] = value
+			if nodes[key]["tier"] > childTier then
+				nodes[key]["parents"][childGA]={}
+				nodes[key]["parents"][childGA]["add"] = nodes[childGA]["add"]
+				nodes[key]["parents"][childGA]["port"] = nodes[childGA]["port"]
+				nodes[key]["parents"][childGA]["tier"] = nodes[childGA]["tier"]
 			else
-				childNodes[key]["children"][childGA]={}
-				childNodes[key]["children"][childGA]["add"] = childNodes[childGA]["add"]
-				childNodes[key]["children"][childGA]["port"] = childNodes[childGA]["port"]
-				childNodes[key]["children"][childGA]["tier"] = childNodes[childGA]["tier"]
+				nodes[key]["children"][childGA]={}
+				nodes[key]["children"][childGA]["add"] = nodes[childGA]["add"]
+				nodes[key]["children"][childGA]["port"] = nodes[childGA]["port"]
+				nodes[key]["children"][childGA]["tier"] = nodes[childGA]["tier"]
 			end
+		elseif key ~= 0.0 then
+			nodes[childGA]["parents"][key] = value
+			nodes[key]["children"][childGA]={}
+			nodes[key]["children"][childGA]["add"] = nodes[childGA]["add"]
+			nodes[key]["children"][childGA]["port"] = nodes[childGA]["port"]
+			nodes[key]["children"][childGA]["tier"] = nodes[childGA]["tier"]
 		end
 	end
-	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
 end
 
 handler["RemoveNeighbor"] = function (sendingModem, port, origination)
@@ -292,19 +287,21 @@ end
 if filesystem.exists(directory.."GERTaddresses.gert") then
 	print("Address file located; loading now.")
 	local f = io.open(directory.."GERTaddresses.gert", "r")
-	local counter = 1
 	local newGAddress = f:read("*l")
 	local newRAddress = f:read("*l")
+	local highest = 0
 	while newGAddress ~= nil do
-		savedAddresses[counter] = {}
-		savedAddresses[counter]["gAddress"] = newGAddress
-		savedAddresses[counter]["rAddress"] = newRAddress
-		counter = counter + 1
+		newGAddress = tonumber(newGAddress)
+		savedAddresses[newRAddress]=newGAddress
+		if newGAddress > highest then
+			highest = newGAddress
+		end
 		newGAddress = f:read("*l")
 		newRAddress = f:read("*l")
 	end
 	f:close()
-	local dividerDex = string.find(savedAddresses[counter-1]["gAddress"], "%.")
-	addressP1 = string.sub(savedAddresses[counter-1]["gAddress"], 1, (dividerDex-1))
-	addressP2 = math.ceil(string.sub(savedAddresses[counter-1]["gAddress"], (dividerDex+1))+1)
+	highest = tostring(highest)
+	local dividerDex = string.find(highest, "%.")
+	addressP1 = string.sub(highest, 1, dividerDex-1)
+	addressP2 = string.sub(highest, dividerDex+1)+1
 end
