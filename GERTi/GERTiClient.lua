@@ -1,4 +1,4 @@
--- GERT v1.1 Build 3
+-- GERT v1.1 Build 4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -262,10 +262,10 @@ local function writeData(self, data)
 end
 
 local function readData(self, doPeek)
-	if connections[iAddress][self.origination][self.ID] then
-		local data = connections[iAddress][self.origination][self.ID]
+	if connections[iAddress] and connections[iAddress][self.destination] and connections[iAddress][self.destination][self.ID] then
+		local data = connections[iAddress][self.destination][self.ID]
 		if tonumber(doPeek) ~= 2 then
-			connections[iAddress][self.origination][self.ID] = {}
+			connections[iAddress][self.destination][self.ID] = {}
 		end
 		return data
 	else

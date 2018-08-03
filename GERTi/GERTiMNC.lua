@@ -1,4 +1,4 @@
--- GERT v1.1 - Build 3
+-- GERT v1.1 - Build 4
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
