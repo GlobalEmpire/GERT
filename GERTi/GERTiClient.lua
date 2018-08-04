@@ -145,9 +145,11 @@ local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 		end
 	end
 	if iAddress ~= dest then
+		local response
 		transInfo(nextHop, transPort, "OpenRoute", dest, "a", origin, ID)
 		addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (dest == pktDest) and (origin == pktOrig) then
+				response = code
 				sendOKResponse(false)
 				return true -- This terminates the wait
 			end
