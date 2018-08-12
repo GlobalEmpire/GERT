@@ -1,4 +1,5 @@
 #pragma once
+#include "netty.h"
 
 struct Event_Data {
 	int fd;
@@ -13,7 +14,7 @@ public:
 	Poll();
 	~Poll();
 
-	void add(int, void*);
-	void remove(int);
+	void add(SOCKET, void*);
+	void remove(SOCKET);
 	Event_Data wait();
 };
