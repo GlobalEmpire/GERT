@@ -65,7 +65,7 @@ void processGateways() {
 		Gateway * gate = (Gateway*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
 			gate->close();
 		else
 			gate->process();
@@ -80,7 +80,7 @@ void processPeers() {
 		Peer * peer = (Peer*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
 			peer->close();
 		else
 			peer->process();

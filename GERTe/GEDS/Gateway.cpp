@@ -22,6 +22,10 @@ extern Poll gatePoll;
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
 
+#ifdef _WIN32
+u_long nonZero = 1;
+#endif
+
 noAddrIter find(Gateway * gate) {
 	noAddrIter iter;
 	for (iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
@@ -35,6 +39,14 @@ noAddrIter find(Gateway * gate) {
 Gateway::Gateway(void* sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock; //Convert socket to correct type
 	char buf[3]; //Create a buffer for the version data
+
+#ifdef _WIN32
+	ioctlsocket(*newSocket, FIONBIO, &nonZero);
+#else
+	int flags = fcntl(*newSocket, F_GETFL);
+	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
+#endif
+
 	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
 	log((string)"Gateway using v" + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2])); //Notify user of connection and version
 	UCHAR major = buf[0]; //Major version number

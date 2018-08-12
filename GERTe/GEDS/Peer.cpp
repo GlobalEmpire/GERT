@@ -26,6 +26,14 @@ void sockError(SOCKET * sock, char * err, Peer* me) {
 Peer::Peer(void * sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock;
 	char buf[3];
+
+#ifdef _WIN32
+	ioctlsocket(*newSocket, FIONBIO, &nonZero);
+#else
+	int flags = fcntl(*newSocket, F_GETFL);
+	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
+#endif
+
 	recv(*newSocket, buf, 3, 0);
 	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
 	UCHAR major = buf[0]; //Major version number
