@@ -132,7 +132,6 @@ void startup() {
 
 //PUBLIC
 void cleanup() {
-	killConnections();
 #ifdef _WIN32
 	closesocket(gedsServer);
 	closesocket(gateServer);
@@ -140,10 +139,12 @@ void cleanup() {
 	close(gedsServer);
 	close(gateServer);
 #endif
+
+	killConnections();
 }
 
 //PUBLIC
-void runServer(void * gateways, void * peers) { //Listen for new connections
+void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
 		if (data.fd == gateServer) {

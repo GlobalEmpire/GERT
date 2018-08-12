@@ -6,7 +6,7 @@
 class Gateway : public Connection {
 	Gateway(void*);
 
-	friend void runServer(void*, void*);
+	friend void runServer();
 
 	public:
 		Address addr;
