@@ -2,8 +2,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <sys/socket.h> //Load C++ standard socket API
-#include <fcntl.h>
-#include <netdb.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -209,11 +207,6 @@ void buildWeb() {
 			continue;
 		}
 
-#ifdef _WIN32
-		ioctlsocket(*newSock, FIONBIO, &nonZero);
-#else
-		fcntl(*newSock, F_SETFL, O_NONBLOCK);
-#endif
 		Peer* newConn = new Peer((void*)newSock, best, &known);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
