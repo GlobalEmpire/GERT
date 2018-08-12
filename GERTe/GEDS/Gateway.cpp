@@ -13,8 +13,6 @@
 #include <map>
 #include "Poll.h"
 
-typedef int SOCKET;
-
 extern map<Address, Key> resolutions;
 
 extern Poll gatePoll;

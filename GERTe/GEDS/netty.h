@@ -8,7 +8,7 @@ typedef unsigned short USHORT;
 #ifndef _WIN32
 typedef int SOCKET;
 #else
-typedef UINT_PTR SOCKET;
+typedef unsigned long long SOCKET;
 #endif
 
 constexpr unsigned int iplen = 16;
