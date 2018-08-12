@@ -1,6 +1,6 @@
 #include "Address.h"
 
-Address::Address(const std::string &data) : addr{data[0], data[1], data[2]} {};
+Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsigned char)data[1], (unsigned char)data[2]} {};
 
 Address::Address(const unsigned char* arr) : addr{arr[0], arr[1], arr[2]} {};
 
