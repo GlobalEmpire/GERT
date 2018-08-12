@@ -16,7 +16,6 @@
 #include "query.h"
 #include "netty.h"
 #include "logging.h"
-#include <signal.h>
 #include "Poll.h"
 using namespace std;
 
@@ -63,7 +62,7 @@ void processGateways() {
 		Event_Data data = gatePoll.wait();
 
 		SOCKET sock = data.fd;
-		Gateway * gate = data.ptr;
+		Gateway * gate = (Gateway*)data.ptr;
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
@@ -78,7 +77,7 @@ void processPeers() {
 		Event_Data data = gatePoll.wait();
 
 		SOCKET sock = data.fd;
-		Peer * peer = data.ptr;
+		Peer * peer = (Peer*)data.ptr;
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed

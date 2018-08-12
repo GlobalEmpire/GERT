@@ -14,7 +14,7 @@ public:
 	Poll();
 	~Poll();
 
-	void add(SOCKET, void*);
+	void add(SOCKET, void* = nullptr);
 	void remove(SOCKET);
 	Event_Data wait();
 };

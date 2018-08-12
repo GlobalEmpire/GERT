@@ -37,7 +37,7 @@ Poll::~Poll() {
 	delete tracker;
 }
 
-void Poll::add(SOCKET fd, void * ptr = nullptr) { //Adds the file descriptor to the pollset and tracks useful information
+void Poll::add(SOCKET fd, void * ptr) { //Adds the file descriptor to the pollset and tracks useful information
 	epoll_event newEvent;
 
 	newEvent.events = EPOLLIN;
