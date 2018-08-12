@@ -3,6 +3,9 @@
 
 #ifndef _WIN32
 #include <sys/epoll.h>
+#else
+#include <WinBase.h>
+#include <WinSock2.h>
 #endif
 
 typedef std::vector<Event_Data*> LList;
@@ -21,8 +24,8 @@ void removeTracker(int fd, LList* tracker) {
 Poll::Poll() {
 #ifndef _WIN32
 	efd = epoll_create(0);
-
 	tracker = new LList;
+#else
 #endif
 }
 
@@ -41,6 +44,7 @@ Poll::~Poll() {
 	}
 
 	delete tracker;
+#else
 #endif
 }
 
@@ -61,6 +65,7 @@ void Poll::add(SOCKET fd, void * ptr) { //Adds the file descriptor to the pollse
 		throw errno;
 
 	LList.push_back(data);
+#else
 #endif
 }
 
@@ -70,6 +75,7 @@ void Poll::remove(SOCKET fd) {
 		throw errno;
 
 	removeTracker(fd, (LList*)tracker);
+#else
 #endif
 }
 
@@ -79,7 +85,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 
 	if (epoll_wait(efd, &eEvent, 1, -1) == -1)
 		throw errno;
-
 	return *(eEvent.data.ptr);
+#else
 #endif
 }
