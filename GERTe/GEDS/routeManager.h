@@ -1,11 +1,8 @@
-#ifndef __ROUTEMANAGER__
-#define __ROUTEMANAGER__
+#pragma once
 #include "Peer.h"
 #include "Address.h"
 #include <map>
-using namespace std;
-
-typedef map<Address, Peer*>::iterator routePtr;
+typedef std::map<Address, Peer*>::iterator routePtr;
 
 class routeIter {
 	routePtr ptr;
@@ -20,7 +17,6 @@ extern "C" {
 	void killAssociated(Peer*);
 	void setRoute(Address, Peer*);
 	void removeRoute(Address);
-	bool remoteSend(Address, string);
+	bool remoteSend(Address, std::string);
 	bool isRemote(Address);
 }
-#endif
