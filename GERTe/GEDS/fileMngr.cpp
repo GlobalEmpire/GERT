@@ -6,7 +6,7 @@
 #include "Address.h"
 #include "logging.h"
 
-typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
+typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
 enum errors { //Define a list of error codes
 	OK, //No error has occurred
@@ -15,7 +15,7 @@ enum errors { //Define a list of error codes
 
 extern char * LOCAL_IP; //Grab the local address
 
-extern map<Address, Key> resolutions; //Grab the key database
+extern std::map<Address, Key> resolutions; //Grab the key database
 
 Status loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode

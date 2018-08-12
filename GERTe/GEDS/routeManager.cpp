@@ -3,7 +3,7 @@
 #include "netty.h"
 #include "logging.h"
 
-map<Address, Peer*> routes;
+std::map<Address, Peer*> routes;
 
 bool routeIter::isEnd() { return (ptr == routes.end()) || (ptr == ++routes.end()); }
 routeIter routeIter::operator++ (int a) { return (ptr++, *this); }
@@ -34,7 +34,7 @@ bool isRemote(Address target) {
 	return routes.count(target) > 0;
 }
 
-bool remoteSend(Address target, string data) {
+bool remoteSend(Address target, std::string data) {
 	if (routes.count(target) == 0)
 		return false;
 	routes[target]->transmit(data);

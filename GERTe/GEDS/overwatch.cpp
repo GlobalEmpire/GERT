@@ -3,6 +3,7 @@
 #include "gatewayManager.h"
 #include "logging.h"
 #include <thread>
+using namespace std;
 
 typedef unsigned long long pointer;
 
