@@ -2,9 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <sys/socket.h> //Load C++ standard socket API
-#include <sys/time.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <thread>
 #include "libLoad.h"
 #include "peerManager.h"
