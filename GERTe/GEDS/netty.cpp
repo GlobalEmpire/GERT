@@ -1,7 +1,12 @@
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
+#ifdef _WIN32
+#include <winsock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
 #include <sys/socket.h> //Load C++ standard socket API
+#endif
 #include <sys/types.h>
 #include <thread>
 #include "libLoad.h"
@@ -143,21 +148,19 @@ void cleanup() {
 void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
-		if (data.fd == gateServer) {
-			SOCKET * newSock = new SOCKET;
-			*newSock = accept(gateServer, NULL, NULL);
-			try {
+		SOCKET * newSock = new SOCKET;
+		*newSock = accept(data.fd, NULL, NULL);
+		try {
+			if (data.fd == gateServer) {
 				Gateway * gate = new Gateway(newSock);
-				gatePoll.add(newSock, gate);
-			} catch(int e) {}
-		} else {
-			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
-			*newSocket = accept(gedsServer, NULL, NULL);
-			try {
-				Peer * peer = new Peer(newSocket);
-				peerPoll.add(newSock, peer);
-			} catch(int e) {}
+				gatePoll.add(*newSock, gate);
+			}
+			else {
+				Peer * peer = new Peer(newSock);
+				peerPoll.add(*newSock, peer);
+			}
 		}
+		catch (int e) {}
 	}
 }
 
