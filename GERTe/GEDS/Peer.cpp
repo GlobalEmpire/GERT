@@ -1,6 +1,8 @@
 #ifdef _WIN32
 #include <WinSock2.h>
 #pragma comment(lib, "Ws2_32.lib")
+
+typedef int socklen_t;
 #else
 #include <sys/socket.h>
 #endif
@@ -16,6 +18,10 @@
 map<IP, Peer*> peers;
 
 extern Poll peerPoll;
+
+#ifdef _WIN32
+u_long nonZero = 1;
+#endif
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -44,7 +50,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 	}
 	else { //Major version found
 		sockaddr remotename;
-		getpeername(*newSocket, &remotename, (unsigned int*)&iplen);
+		getpeername(*newSocket, &remotename, (socklen_t*)&iplen);
 		sockaddr_in remoteip = *(sockaddr_in*)&remotename;
 		id = getKnown(remoteip);
 		if (id == nullptr) {
