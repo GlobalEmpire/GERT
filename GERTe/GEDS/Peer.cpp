@@ -30,11 +30,6 @@ Peer::Peer(void * sock) : Connection(sock) {
 	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
 	UCHAR major = buf[0]; //Major version number
 	api = getVersion(major); //Find API version
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	fcntl(*newSocket, F_SETFL, O_NONBLOCK);
-#endif
 	if (api == nullptr) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		sockError(newSocket, error, this); //This is me :D

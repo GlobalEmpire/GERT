@@ -39,11 +39,6 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	log((string)"Gateway using v" + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2])); //Notify user of connection and version
 	UCHAR major = buf[0]; //Major version number
 	api = getVersion(major); //Get the protocol library for the major version
-#ifdef _WIN32 //If we're compiled in Windows
-	ioctlsocket(*newSocket, FIONBIO, &nonZero); //Make socket non-blocking
-#else //If we're compiled in *nix
-	fcntl(*newSocket, F_SETFL, O_NONBLOCK); //Make socket non-blocking
-#endif
 	if (api == nullptr) { //If the protocol library doesn't exist
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version

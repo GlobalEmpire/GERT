@@ -34,6 +34,5 @@ extern "C" {
 	void removePeer(IP);
 	void sendToPeer(IP, string);
 	void broadcast(string);
-	void initPeer(void*);
 }
 #endif
