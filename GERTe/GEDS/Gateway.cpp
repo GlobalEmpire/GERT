@@ -20,10 +20,6 @@ extern Poll gatePoll;
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
 
-#ifdef _WIN32
-u_long nonZero = 1;
-#endif
-
 noAddrIter find(Gateway * gate) {
 	noAddrIter iter;
 	for (iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways

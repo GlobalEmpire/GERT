@@ -19,10 +19,6 @@ map<IP, Peer*> peers;
 
 extern Poll peerPoll;
 
-#ifdef _WIN32
-u_long nonZero = 1;
-#endif
-
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
 	destroy(sock);

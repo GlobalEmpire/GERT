@@ -1,6 +1,10 @@
 #pragma once
 #include "Version.h"
 
+#ifdef _WIN32
+static unsigned long nonZero = 1;
+#endif
+
 class Connection {
 public:
 	void * sock;
