@@ -187,8 +187,8 @@ void buildWeb() {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		char verc[3] = {vers.major, vers.minor, vers.patch};
-		send(*newSock, verc, (ULONG)3, 0);
+		unsigned char verc[3] = {vers.major, vers.minor, vers.patch};
+		send(*newSock, (const char *)verc, (ULONG)3, 0);
 		char death[3];
 		pollfd pollReq = {*newSock, POLLIN};
 #ifdef _WIN32

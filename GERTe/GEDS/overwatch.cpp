@@ -7,7 +7,7 @@ using namespace std;
 
 typedef unsigned long long pointer;
 
-extern bool running;
+extern volatile bool running;
 
 enum scanResult {
 	CLEAN,
