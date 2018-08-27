@@ -1,4 +1,4 @@
--- GERT v1.1 - Build 4
+-- GERT v1.1 - Build 6
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -305,3 +305,4 @@ if filesystem.exists(directory.."GERTaddresses.gert") then
 	addressP1 = string.sub(highest, 1, dividerDex-1)
 	addressP2 = string.sub(highest, dividerDex+1)+1
 end
+print("Setup Complete!")
