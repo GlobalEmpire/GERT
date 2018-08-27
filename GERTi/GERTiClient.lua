@@ -1,4 +1,4 @@
--- GERT v1.1 Build 4
+-- GERT v1.1 Build 6
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -7,10 +7,6 @@ local serialize = require("serialization")
 local modem = nil
 local tunnel = nil
 
-if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
-	io.stderr:write("This program requires a network or linked card to run.")
-	os.exit(1)
-end
 if (component.isAvailable("modem")) then
 	modem = component.modem
 	modem.open(4378)
@@ -20,6 +16,10 @@ if (component.isAvailable("modem")) then
 end
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
+end
+if modem and tunnel then
+	io.stderr:write("This program requires a network or linked card to run.")
+	os.exit(1)
 end
 
 local iAddress = nil
@@ -65,10 +65,7 @@ local function waitWithCancel(timeout, cancelCheck)
 end
 
 local function storeNodes(gAddress, sendingModem, port, nTier)
-	nodes[gAddress] = {}
-	nodes[gAddress]["add"] = sendingModem
-	nodes[gAddress]["port"] = tonumber(port)
-	nodes[gAddress]["tier"] = nTier
+	nodes[gAddress] = {add = sendingModem, port = tonumber(port), tier = nTier}
 	if nTier < firstN["tier"] then
 		tier = nTier+1
 		firstN = nodes[gAddress]
@@ -89,9 +86,7 @@ local function storePath(origin, dest, nextHop, port)
 	if paths[origin] == nil then
 		paths[origin] = {}
 	end
-	paths[origin][dest] = {}
-	paths[origin][dest]["nextHop"] = nextHop
-	paths[origin][dest]["port"] = port
+	paths[origin][dest] = {nextHop = nextHop, port = port}
 end
 local function storeData(origin, ID, data)
 	if #connections[iAddress][origin][ID] >= 20 then
@@ -102,15 +97,15 @@ local function storeData(origin, ID, data)
 end
 
 local function transInfo(sendTo, port, ...)
-	if (port ~= 0) and (modem) then
+	if modem and port ~= 0 then
 		modem.send(sendTo, port, ...)
-	elseif (tunnel) then
+	elseif tunnel then
 		tunnel.send(...)
 	end
 end
 
 local handler = {}
-handler["CloseConnection"] = function(sendingModem, port, ID, dest, origin)
+handler.CloseConnection = function(sendingModem, port, ID, dest, origin)
 	if destination ~= iAddress then
 		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "CloseConnection", ID, dest, origin)
 	end
@@ -118,7 +113,7 @@ handler["CloseConnection"] = function(sendingModem, port, ID, dest, origin)
 	connections[dest][origin][ID] = nil
 end
 
-handler["Data"] = function (sendingModem, port, data, dest, origin, ID)
+handler.Data = function (sendingModem, port, data, dest, origin, ID)
 	if ID < 0 then
 		computer.pushSignal("GERTData", origin, ID, data)
 	end
@@ -129,7 +124,7 @@ handler["Data"] = function (sendingModem, port, data, dest, origin, ID)
 	end
 end
 
-handler["NewNode"] = function (sendingModem, port)
+handler.NewNode = function (sendingModem, port)
 	transInfo(sendingModem, port, "RETURNSTART", iAddress, tier)
 end
 
@@ -160,7 +155,7 @@ local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 	end
 end
 
-handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin, ID)
+handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	-- Is destination this computer?
 	if dest == iAddress then
 		return routeOpener(iAddress, origin, sendingModem, (modem or tunnel).address, port, port, ID)
@@ -177,14 +172,14 @@ handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin,
 	routeOpener(dest, origin, sendingModem, nodes[intermediary]["add"], port, nodes[intermediary]["port"], ID)
 end
 
-handler["RemoveNeighbor"] = function (sendingModem, port, origination)
+handler.RemoveNeighbor = function (sendingModem, port, origination)
 	if nodes[origination] ~= nil then
 		nodes[origination] = nil
 	end
 	transInfo(firstN["add"], firstN["port"], "RemoveNeighbor", origination)
 end
 
-handler["RegisterNode"] = function (sendingModem, sendingPort, origination, nTier, serialTable)
+handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)
 	transInfo(firstN["add"], firstN["port"], "RegisterNode", origination, nTier, serialTable)
 	addTempHandler(3, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
 		if targetMA == origination then
@@ -194,7 +189,7 @@ handler["RegisterNode"] = function (sendingModem, sendingPort, origination, nTie
 	end, function () end)
 end
 
-handler["RETURNSTART"] = function (sendingModem, port, gAddress, nTier)
+handler.RETURNSTART = function (sendingModem, port, gAddress, nTier)
 	storeNodes(tonumber(gAddress), sendingModem, port, nTier)
 end
 
@@ -223,12 +218,11 @@ if serialTable ~= "{}" then
 	addTempHandler(3, "RegisterComplete", function (_, _, _, _, _, code, targetMA, iResponse)
 		if targetMA == addr then
 			iAddress = tonumber(iResponse)
+			mncUnavailable = false
 			return true
 		end
 	end, function () end)
-	if waitWithCancel(5, function () return iAddress end) then
-		mncUnavailable = false
-	end
+	waitWithCancel(5, function () return iAddress end)
 	if mncUnavailable then
 		print("Unable to contact the MNC. Functionality will be impaired.")
 	end
@@ -240,7 +234,7 @@ end
 if modem then
 	modem.broadcast(4378, "RETURNSTART", iAddress, tier)
 end
--- Override computer.shutdown to allow for better network leaves
+--Listen to computer.shutdown to allow for better network leaves
 local function safedown()
 	if tunnel then
 		tunnel.send("RemoveNeighbor", iAddress)
@@ -251,7 +245,7 @@ local function safedown()
 	for key, value in pairs(connections) do
 		for key2, value2 in pairs(connections[key]) do
 			for key3, value3 in pairs(connections[key][key2]) do
-				handler["CloseConnection"]((modem or tunnel).address, 4378, key3, key, key2)
+				handler.CloseConnection((modem or tunnel).address, 4378, key3, key, key2)
 			end
 		end
 	end
@@ -277,7 +271,7 @@ end
 
 local function closeSock(self)
 	transInfo(self.nextHop, self.outPort, "CloseConnection", self.ID, self.destination, self.origination)
-	handler["CloseConnection"]((modem or tunnel).address, 4378, self.ID, self.destination, self.origination)
+	handler.CloseConnection((modem or tunnel).address, 4378, self.ID, self.destination, self.origination)
 end
 function GERTi.openSocket(gAddress, doEvent, outID)
 	if outID == nil then
@@ -295,15 +289,14 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		routeOpener(gAddress, iAddress, "A", firstN["add"], firstN["port"], firstN["port"], outID)
 	end
 	
-	local socket = {}
-	socket.origination = iAddress
-	socket.destination = gAddress
-	socket.outPort = nodes[gAddress]["port"] or firstN["port"]
-	socket.nextHop = nodes[gAddress]["add"] or firstN["add"]
-	socket.ID = outID
-	socket.write = writeData
-	socket.read = readData
-	socket.close = closeSock
+	local socket = {origination = iAddress,
+		destination = gAddress,
+		outPort = nodes[gAddress]["port"] or firstN["port"],
+		nextHop = nodes[gAddress]["add"] or firstN["add"],
+		ID = outID,
+		write = writeData,
+		read = readData,
+		close = closeSock}
 	return socket
 end
 function GERTi.send(dest, data)
