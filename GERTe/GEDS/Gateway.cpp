@@ -67,7 +67,6 @@ Gateway* Gateway::lookup(Address req) {
 }
 
 /*Gateway::~Gateway() {
-
 }*/
 
 void Gateway::transmit(string data) {

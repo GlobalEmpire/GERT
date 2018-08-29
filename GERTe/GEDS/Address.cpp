@@ -47,4 +47,3 @@ Address Address::extract(Connection* conn) {
 std::string Address::tostring() const {
 	return std::string{(char*)addr, 3};
 }
-
