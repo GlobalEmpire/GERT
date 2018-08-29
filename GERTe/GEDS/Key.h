@@ -1,8 +1,6 @@
-#ifndef __KEY_GUARD__
-#define __KEY_GUARD__
+#pragma once
 
 #include "Connection.h"
-using namespace std;
 
 class Key {
 	friend void saveResolutions();
@@ -16,5 +14,3 @@ class Key {
 		Key () {};
 		Key static extract(Connection*);
 };
-
-#endif

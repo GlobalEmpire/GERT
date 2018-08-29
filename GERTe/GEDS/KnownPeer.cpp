@@ -1,7 +1,7 @@
 #include "KnownPeer.h"
 #include <map>
 
-map<IP, KnownPeer> peerList;
+std::map<IP, KnownPeer> peerList;
 
 KnownPeer * getKnown(sockaddr_in addr) {
 	IP formatted = addr.sin_addr;

@@ -6,7 +6,7 @@
 #include "Address.h"
 #include "logging.h"
 
-typedef map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
+typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
 enum errors { //Define a list of error codes
 	OK, //No error has occurred
@@ -15,12 +15,12 @@ enum errors { //Define a list of error codes
 
 extern char * LOCAL_IP; //Grab the local address
 
-extern map<Address, Key> resolutions; //Grab the key database
+extern std::map<Address, Key> resolutions; //Grab the key database
 
 Status loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
 	if (peerFile == nullptr) //If the file failed to open
-		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Peers File: " + to_string(errno)); //Return with an error
+		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Peers File: " + std::to_string(errno)); //Return with an error
 	while (true) {
 		unsigned long ip; //Define a storage variable for an address
 		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2? Store an IP into previous variable
@@ -43,7 +43,7 @@ Status loadPeers() { //Load peers from a file
 Status loadResolutions() { //Load key resolutions from a file
 	FILE* resolutionFile = fopen("resolutions.geds", "rb"); //Open the file in binary mode
 	if (resolutionFile == nullptr) //If the file failed to open
-		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Key File: " + to_string(errno)); //Return with an error
+		return Status(StatusCodes::GENERAL_ERROR, "Failed to Open Key File: " + std::to_string(errno)); //Return with an error
 	while (true) {
 		unsigned char bufE[3]; //Create a storage variable for the external portion of the address
 		fread(bufE, 1, 3, resolutionFile); //Fill the external address

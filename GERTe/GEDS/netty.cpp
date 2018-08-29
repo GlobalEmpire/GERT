@@ -1,12 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
+#ifdef _WIN32
+#include <winsock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#else
 #include <sys/socket.h> //Load C++ standard socket API
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/time.h>
+#endif
 #include <sys/types.h>
-#include <unistd.h>
 #include <thread>
 #include "libLoad.h"
 #include "peerManager.h"
@@ -15,7 +16,6 @@
 #include "query.h"
 #include "netty.h"
 #include "logging.h"
-#include <signal.h>
 #include "Poll.h"
 using namespace std;
 
@@ -62,10 +62,10 @@ void processGateways() {
 		Event_Data data = gatePoll.wait();
 
 		SOCKET sock = data.fd;
-		Gateway * gate = data.ptr;
+		Gateway * gate = (Gateway*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
 			gate->close();
 		else
 			gate->process();
@@ -77,10 +77,10 @@ void processPeers() {
 		Event_Data data = gatePoll.wait();
 
 		SOCKET sock = data.fd;
-		Peer * peer = data.ptr;
+		Peer * peer = (Peer*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_DONTWAIT | MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
 			peer->close();
 		else
 			peer->process();
@@ -111,11 +111,11 @@ void startup() {
 	gedsServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct GEDS P2P inbound socket
 
 	//Bind servers to addresses
-	if (bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize gateway inbound socket
+	if (::bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize gateway inbound socket
 		error("Gateway port is in use");
 		exit(-1);
 	}
-	if (bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize GEDS P2P inbound socket
+	if (::bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize GEDS P2P inbound socket
 		error("Peer port is in use");
 		exit(-1);
 	}
@@ -132,7 +132,6 @@ void startup() {
 
 //PUBLIC
 void cleanup() {
-	killConnections();
 #ifdef _WIN32
 	closesocket(gedsServer);
 	closesocket(gateServer);
@@ -140,27 +139,27 @@ void cleanup() {
 	close(gedsServer);
 	close(gateServer);
 #endif
+
+	killConnections();
 }
 
 //PUBLIC
-void runServer(void * gateways, void * peers) { //Listen for new connections
+void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
-		if (data.fd == gateServer) {
-			SOCKET * newSock = new SOCKET;
-			*newSock = accept(gateServer, NULL, NULL);
-			try {
+		SOCKET * newSock = new SOCKET;
+		*newSock = accept(data.fd, NULL, NULL);
+		try {
+			if (data.fd == gateServer) {
 				Gateway * gate = new Gateway(newSock);
-				gatePoll.add(newSock, gate);
-			} catch(int e) {}
-		} else {
-			SOCKET * newSocket = new SOCKET; //Accept connection from GEDS P2P inbound socket
-			*newSocket = accept(gedsServer, NULL, NULL);
-			try {
-				Peer * peer = new Peer(newSocket);
-				peerPoll.add(newSock, peer);
-			} catch(int e) {}
+				gatePoll.add(*newSock, gate);
+			}
+			else {
+				Peer * peer = new Peer(newSock);
+				peerPoll.add(*newSock, peer);
+			}
 		}
+		catch (int e) {}
 	}
 }
 
@@ -188,8 +187,8 @@ void buildWeb() {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		char verc[3] = {vers.major, vers.minor, vers.patch};
-		send(*newSock, verc, (ULONG)3, 0);
+		unsigned char verc[3] = {vers.major, vers.minor, vers.patch};
+		send(*newSock, (const char *)verc, (ULONG)3, 0);
 		char death[3];
 		pollfd pollReq = {*newSock, POLLIN};
 #ifdef _WIN32
@@ -208,11 +207,6 @@ void buildWeb() {
 			continue;
 		}
 
-#ifdef _WIN32
-		ioctlsocket(*newSock, FIONBIO, &nonZero);
-#else
-		fcntl(*newSock, F_SETFL, O_NONBLOCK);
-#endif
 		Peer* newConn = new Peer((void*)newSock, best, &known);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());

@@ -11,5 +11,5 @@ public:
 	void process() { api->procPeer(this); }
 	void kill() { api->killPeer(this); }
 	void close();
-	void transmit(string);
+	void transmit(std::string);
 };

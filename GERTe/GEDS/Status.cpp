@@ -1,7 +1,7 @@
 #include "Status.h"
 #include "logging.h"
 
-Status::Status(StatusCodes stat, string msg) : code(stat) {
+Status::Status(StatusCodes stat, std::string msg) : code(stat) {
 		error(msg);
 }
 

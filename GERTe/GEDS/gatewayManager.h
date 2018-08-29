@@ -1,11 +1,10 @@
-#ifndef __GATEWAY_MANAGER__
-#define __GATEWAY_MANAGER__
+#pragma once
 #include "Gateway.h"
 #include <map>
 #include <vector>
 
-typedef map<Address, Gateway*>::iterator gatewayPtr;
-typedef vector<Gateway*>::iterator noAddrPtr;
+typedef std::map<Address, Gateway*>::iterator gatewayPtr;
+typedef std::vector<Gateway*>::iterator noAddrPtr;
 
 class gatewayIter {
 	gatewayPtr ptr;
@@ -28,9 +27,7 @@ class noAddrIter {
 };
 
 extern "C" {
-	bool sendToGateway(Address, string);
-	void initGate(void *);
+	bool sendToGateway(Address, std::string);
 	void gateWatcher();
 	bool isLocal(Address);
 }
-#endif

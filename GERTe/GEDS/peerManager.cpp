@@ -11,7 +11,7 @@
 extern map<IP, Peer*> peers;
 extern map<IP, KnownPeer> peerList;
 
-extern bool running;
+extern volatile bool running;
 
 bool peerIter::isEnd() { return (ptr == peers.end()) || (ptr == ++peers.end()); }
 peerIter peerIter::operator++ (int a) { return (ptr++, *this); }

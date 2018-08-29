@@ -6,7 +6,7 @@
 class Gateway : public Connection {
 	Gateway(void*);
 
-	friend void runServer(void*, void*);
+	friend void runServer();
 
 	public:
 		Address addr;
@@ -14,7 +14,7 @@ class Gateway : public Connection {
 		void process() { api->procGate(this); };
 		void kill() { api->killGate(this); };
 		static Gateway* lookup(Address);
-		void transmit(string);
+		void transmit(std::string);
 		bool assign(Address, Key);
 		void close();
 };

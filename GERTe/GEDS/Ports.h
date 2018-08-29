@@ -1,5 +1,4 @@
-#ifndef __NETDEFS__
-#define __NETDEFS__
+#pragma once
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -9,14 +8,13 @@
 #endif
 
 #include "Connection.h"
-using namespace std;
 
 class Ports {
 	public:
 		unsigned short gate, peer;
 		Ports(unsigned short gatePort, unsigned short peerPort) : gate(gatePort), peer(peerPort) {};
 		Ports() : gate(0), peer(0) {};
-		string stringify() { return to_string(ntohs(gate)) + ":" + to_string(ntohs(peer)); };
+		std::string stringify() { return std::to_string(ntohs(gate)) + ":" + std::to_string(ntohs(peer)); };
 		Ports static extract(Connection * conn) {
 			char * raw = conn->read(4);
 			unsigned short * ports = (unsigned short *)(raw + 1);
@@ -29,4 +27,3 @@ class Ports {
 			return result;
 		}
 };
-#endif

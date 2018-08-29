@@ -1,6 +1,6 @@
 #include "Address.h"
 
-Address::Address(const string &data) : addr{data[0], data[1], data[2]} {};
+Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsigned char)data[1], (unsigned char)data[2]} {};
 
 Address::Address(const unsigned char* arr) : addr{arr[0], arr[1], arr[2]} {};
 
@@ -29,11 +29,11 @@ const unsigned char* Address::getAddr() const {
 	return addr;
 }
 
-string Address::stringify() const {
+std::string Address::stringify() const {
 	unsigned short high, low;
 	high = (unsigned short)(addr[0]) << 4 | (unsigned short)(addr[1]) >> 4;
 	low = ((unsigned short)addr[1] & 0x0F) << 8 | (unsigned short)addr[2];
-	return to_string(high) + "." + to_string(low);
+	return std::to_string(high) + "." + std::to_string(low);
 }
 
 Address Address::extract(Connection* conn) {
@@ -44,7 +44,6 @@ Address Address::extract(Connection* conn) {
 	return result;
 }
 
-string Address::tostring() const {
-	return string{(char*)addr, 3};
+std::string Address::tostring() const {
+	return std::string{(char*)addr, 3};
 }
-

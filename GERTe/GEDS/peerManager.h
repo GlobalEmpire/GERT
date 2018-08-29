@@ -1,12 +1,11 @@
-#ifndef __PEER_MNGR__
-#define __PEER_MNGR__
+#pragma once
 #include "IP.h"
 #include "Peer.h"
 #include <map>
 #include "Ports.h"
 
-typedef map<IP, Peer*>::iterator peersPtr;
-typedef map<IP, KnownPeer>::iterator knownPtr;
+typedef std::map<IP, Peer*>::iterator peersPtr;
+typedef std::map<IP, KnownPeer>::iterator knownPtr;
 
 class peerIter {
 	peersPtr ptr;
@@ -32,8 +31,6 @@ extern "C" {
 	void _raw_peer(IP, Peer*);
 	void addPeer(IP, Ports);
 	void removePeer(IP);
-	void sendToPeer(IP, string);
-	void broadcast(string);
-	void initPeer(void*);
+	void sendToPeer(IP, std::string);
+	void broadcast(std::string);
 }
-#endif

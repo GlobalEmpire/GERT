@@ -1,13 +1,13 @@
 #define WIN32_LEAN_AND_MEAN //Windows Optimization flag preventing loading of certain libraries
 #ifdef _WIN32 //If we're compiled in Windows
 #include <Windows.h> //Load Windows? Wait? Windows wasn't loaded? How'd we run? *Mind Blown*
-#include <filesystem> //Load Windows filesystem API
 typedef HMODULE lib; //Define lib as Windows HMODULE for dynamic library
 #else //If we're compiled in *nix
 #include <dlfcn.h> //Load Unix Dynamic Library... library
 #include <experimental/filesystem> //Load experimental C++ Standard Filesystem API
 typedef void* lib; //Define lib as Unix void pointer for dynamic library
 #endif
+#include <filesystem> //Load filesystem API
 #include <map> //Load map type for databases
 #include "netty.h" //Load netty header for ... Reason? Notify me if you determine what is required
 #include "libLoad.h"
@@ -40,7 +40,7 @@ void* getValue(void* handle, string value) { //Retrieve library value
 
 lib loadLib(path libPath) { //Load protocol library file
 #ifdef _WIN32 //If compiled for Windows
-	return LoadLibrary(libPath.c_str()); //Load using Windows API
+	return LoadLibrary((char*)libPath.c_str()); //Load using Windows API
 #else //If not compiled for Windows
 	lib handle = dlopen(libPath.c_str(), RTLD_LAZY); //Load using Unix API
 	if (handle == NULL) { //If it didn't load

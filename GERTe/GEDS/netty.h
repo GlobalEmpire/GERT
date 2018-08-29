@@ -7,11 +7,13 @@ typedef unsigned short USHORT;
 
 #ifndef _WIN32
 typedef int SOCKET;
+#else
+typedef unsigned long long SOCKET;
 #endif
 
 constexpr unsigned int iplen = 16;
 
-void runServer(void*, void*);
+void runServer();
 
 extern "C" {
 	void destroy(void*);

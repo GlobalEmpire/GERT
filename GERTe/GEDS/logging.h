@@ -1,12 +1,9 @@
-#ifndef __LOGGING__
-#define __LOGGING__
+#pragma once
 #include <string>
-using namespace std;
 
-void log(string);
-void warn(string);
-void error(string);
-void debug(string);
+void log(std::string);
+void warn(std::string);
+void error(std::string);
+void debug(std::string);
 void startLog();
 void stopLog();
-#endif
