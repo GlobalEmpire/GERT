@@ -303,7 +303,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
-		transInfo(nodes[dest]["add"], nodes[dest]["port"], data, dest, iAddress, -1)
+		transInfo(nodes[dest]["add"], nodes[dest]["port"], "DATA", data, dest, iAddress, -1)
 	end
 end
 function GERTi.getConnections()
