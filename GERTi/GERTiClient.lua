@@ -1,4 +1,4 @@
--- GERT v1.1 Build 6
+-- GERT v1.1 RC2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -17,7 +17,7 @@ end
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
 end
-if modem and tunnel then
+if not (modem or tunnel) then
 	io.stderr:write("This program requires a network or linked card to run.")
 	os.exit(1)
 end
@@ -89,7 +89,7 @@ local function storePath(origin, dest, nextHop, port)
 	paths[origin][dest] = {nextHop = nextHop, port = port}
 end
 local function storeData(origin, ID, data)
-	if #connections[iAddress][origin][ID] >= 20 then
+	if #connections[iAddress][origin][ID] > 20 then
 		table.remove(connections[iAddress][origin][ID], 1)
 	end
 	table.insert(connections[iAddress][origin][ID], data)
@@ -254,7 +254,9 @@ event.listen("shutdown", safedown)
 
 -------------------
 local function writeData(self, data)
-	transInfo(self.nextHop, self.outPort, "Data", data, self.destination, self.origination, self.ID)
+	if type(data) ~= "table" or type(data) ~= "function" then
+		transInfo(self.nextHop, self.outPort, "Data", data, self.destination, self.origination, self.ID)
+	end
 end
 
 local function readData(self, doPeek)
@@ -300,7 +302,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	return socket
 end
 function GERTi.send(dest, data)
-	if nodes[dest] then
+	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
 		transInfo(nodes[dest]["add"], nodes[dest]["port"], data, dest, iAddress, -1)
 	end
 end

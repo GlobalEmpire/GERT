@@ -1,4 +1,4 @@
--- GERT v1.1 - Build 6
+-- GERT v1.1 RC2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -20,10 +20,6 @@ local gKey = nil
 local timerID = nil
 local savedAddresses = {}
 
-if (not component.isAvailable("tunnel")) and (not component.isAvailable("modem")) then
-	io.stderr:write("This program requires a network or linked card to run.")
-	os.exit(1)
-end
 if (component.isAvailable("modem")) then
 	modem = component.modem
 	modem.open(4378)
@@ -33,6 +29,10 @@ if (component.isAvailable("modem")) then
 end
 if (component.isAvailable("tunnel")) then
 	tunnel = component.tunnel
+end
+if not (modem or tunnel) then
+	io.stderr:write("This program requires a network or linked card to run.")
+	os.exit(1)
 end
 
 if filesystem.exists("/lib/GERTeAPI.lua") then
