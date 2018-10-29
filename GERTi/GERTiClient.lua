@@ -115,7 +115,7 @@ end
 
 handler.Data = function (sendingModem, port, data, dest, origin, ID)
 	if ID < 0 then
-		computer.pushSignal("GERTData", origin, ID, data)
+		return computer.pushSignal("GERTData", origin, ID, data)
 	end
 	if connections[dest][origin][ID] then
 		storeData(origin, ID, data)
@@ -303,7 +303,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
-		transInfo(nodes[dest]["add"], nodes[dest]["port"], "DATA", data, dest, iAddress, -1)
+		transInfo(nodes[dest]["add"], nodes[dest]["port"], "Data", data, dest, iAddress, -1)
 	end
 end
 function GERTi.getConnections()
