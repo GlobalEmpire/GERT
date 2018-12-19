@@ -6,8 +6,8 @@ class Peer;
 
 class Version {
 public:
-	bool(*procGate)(Gateway*);
-	bool(*procPeer)(Peer*);
+	void(*procGate)(Gateway*);
+	void(*procPeer)(Peer*);
 	void(*killGate)(Gateway*);
 	void(*killPeer)(Peer*);
 	Versioning vers;

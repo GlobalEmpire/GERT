@@ -11,7 +11,7 @@
 	https://github.com/GlobalEmpire/GERT/blob/master/License.md
  */
 
-#define VERSION "1.0.0" //Creates VERSION shortcut so we can update this instead for easy access.
+#define VERSION "1.0.1" //Creates VERSION shortcut so we can update this instead for easy access.
 
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
@@ -138,12 +138,6 @@ int main( int argc, char* argv[] ) {
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 
-	debug("Loading libraries"); //Use debug to notify user where we are in the loading process
-	Status libErr = loadLibs(); //Load protocol library files
-
-	if (libErr.code != StatusCodes::OK)
-		return (int)libErr.code + 10;
-
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
 	Status result = loadPeers(); //Load the peer database
 
@@ -180,7 +174,7 @@ int main( int argc, char* argv[] ) {
 	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
 	gateways.join(); //Cleanup processor (wait for it to die)
 	peers.join();
-	warn("Processor killed, program ending."); //Notify the user we've stopped processing messages
+	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process
 	savePeers(); //Save the peers database to file
