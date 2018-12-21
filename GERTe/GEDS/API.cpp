@@ -14,12 +14,12 @@ https://github.com/GlobalEmpire/GERT/blob/master/License.md
 #include "API.h"
 #include "logging.h"
 #include "NetString.h"
-#include "Key.h"
 #include "GERTc.h"
 #include "gatewayManager.h"
 #include "peerManager.h"
 #include "routeManager.h"
 #include "query.h"
+#include "netty.h"
 using namespace std;
 typedef unsigned char UCHAR;
 
@@ -116,11 +116,11 @@ void globalChange(const GEDS::Commands change, const char * parameter, const cha
 constexpr UCHAR major = 1;
 constexpr UCHAR minor = 0;
 constexpr UCHAR patch = 0;
-constexpr char vers[3] = { major, minor, patch };
+constexpr char cVers[3] = { vers.major, vers.minor, vers.patch };
 
 void processGateway(Gateway* gate) {
 	if (gate->state == (char)Gate::States::FAILURE) {
-		changeState(gate, Gate::States::CONNECTED, 3, vers);
+		changeState(gate, Gate::States::CONNECTED, 3, cVers);
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
