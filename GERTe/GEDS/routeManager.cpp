@@ -2,6 +2,7 @@
 #include "gatewayManager.h"
 #include "netty.h"
 #include "logging.h"
+#include "API.h"
 
 std::map<Address, Peer*> routes;
 
@@ -14,7 +15,7 @@ void killAssociated(Peer* target) {
 	for (routeIter iter; !iter.isEnd(); iter++) {
 		if (iter->second == target) {
 			Gateway* toDie = Gateway::lookup(iter->first);
-			toDie->kill();
+			killGateway(toDie);
 			routes.erase(iter->first);
 		}
 	}

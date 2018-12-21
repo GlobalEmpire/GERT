@@ -8,8 +8,6 @@ class Peer : public Connection {
 public:
 	Peer(void *);
 	Peer(void*, Version*, KnownPeer*);
-	void process();
-	void kill();
 	void close();
 	void transmit(std::string);
 };

@@ -11,9 +11,21 @@ This code falls under the license located at
 https://github.com/GlobalEmpire/GERT/blob/master/License.md
 */
 
-#include "APIHelper.h"
+#include "API.h"
+#include "Version.h"
+#include "logging.h"
+#include "NetString.h"
+#include "Key.h"
+#include "GERTc.h"
+#include "gatewayManager.h"
+#include "peerManager.h"
+#include "routeManager.h"
+#include "query.h"
 using namespace std;
 typedef unsigned char UCHAR;
+
+extern void addResolution(Address, Key);
+extern void removeResolution(Address);
 
 enum gedsCommands {
 	REGISTERED,

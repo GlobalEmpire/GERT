@@ -11,8 +11,6 @@ class Gateway : public Connection {
 	public:
 		Address addr;
 		bool local = false;
-		void process();
-		void kill();
 		static Gateway* lookup(Address);
 		void transmit(std::string);
 		bool assign(Address, Key);

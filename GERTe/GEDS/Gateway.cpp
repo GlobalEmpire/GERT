@@ -55,7 +55,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	} else {
 		local = true;
 		noAddrList.push_back(this);
-		this->process(); //Process empty data (Protocol Library Gateway Initialization)
+		processGateway(this); //Process empty data (Protocol Library Gateway Initialization)
 	}
 }
 
@@ -66,9 +66,6 @@ Gateway* Gateway::lookup(Address req) {
 
 	return gateways[req];
 }
-
-/*Gateway::~Gateway() {
-}*/
 
 void Gateway::transmit(string data) {
 	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
@@ -100,12 +97,4 @@ void Gateway::close() {
 	if (this->sock != nullptr)
 		destroy((SOCKET*)this->sock); //Close the socket
 	delete this; //Release the memory used to store the Gateway
-}
-
-void Gateway::process() {
-	processGateway(this);
-}
-
-void Gateway::kill() {
-	killGateway(this);
 }

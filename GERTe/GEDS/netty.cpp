@@ -17,6 +17,7 @@
 #include "netty.h"
 #include "logging.h"
 #include "Poll.h"
+#include "API.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
@@ -46,13 +47,13 @@ void destroy(void * target) {
 
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		killGateway(*iter);
 	}
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		killGEDS(*iter);
 	}
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		killGateway(*iter);
 	}
 }
 
@@ -66,9 +67,9 @@ void processGateways() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			gate->close();
+			killGateway(gate);
 		else
-			gate->process();
+			processGateway(gate);
 	}
 }
 
@@ -81,9 +82,9 @@ void processPeers() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			peer->close();
+			killGEDS(peer);
 		else
-			peer->process();
+			processGEDS(peer);
 	}
 }
 

@@ -56,7 +56,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 		}
 		peers[id->addr] = this;
 		log("Peer connected from " + id->addr.stringify());
-		this->process();
+		processGEDS(this);
 	}
 };
 
@@ -77,12 +77,4 @@ void Peer::close() {
 
 void Peer::transmit(string data) {
 	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
-}
-
-void Peer::process() {
-	processGEDS(this);
-}
-
-void Peer::kill() {
-	killGEDS(this);
 }
