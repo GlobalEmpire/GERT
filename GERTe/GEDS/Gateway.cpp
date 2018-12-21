@@ -88,6 +88,22 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	}
 }
 
+Gateway::~Gateway() {
+	if (local) {
+		noAddrIter pos = find(this);
+		pos.erase();
+	}
+	else {
+		gateways.erase(this->addr); //Remove connection from universal map
+		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
+	}
+
+	gatePoll.remove(*(SOCKET*)sock);
+
+	if (this->sock != nullptr)
+		destroy((SOCKET*)this->sock); //Close the socket
+}
+
 Gateway* Gateway::lookup(Address req) {
 	if (gateways.count(req) == 0) {
 		throw 0;
@@ -112,20 +128,8 @@ bool Gateway::assign(Address requested, Key key) {
 	return false; //Notify the protocol library assignment has failed
 }
 
-void Gateway::close(bool skip) {
-	if (!skip) {
-		this->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
-		this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
-	}
-	
-	if (local) {
-		noAddrIter pos = find(this);
-		pos.erase();
-	}
-
-	gatePoll.remove(*(SOCKET*)sock);
-
-	if (this->sock != nullptr)
-		destroy((SOCKET*)this->sock); //Close the socket
+void Gateway::close() {
+	this->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
+	this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	delete this; //Release the memory used to store the Gateway
 }

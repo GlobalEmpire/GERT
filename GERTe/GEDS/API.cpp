@@ -264,7 +264,7 @@ void processGateway(Gateway* gate) {
 			 * Address (4 bytes)
 			 */
 		}
-		gate->close();
+		delete gate;
 	}
 	}
 }
@@ -330,7 +330,7 @@ void processGEDS(Peer* geds) {
 	}
 	case CLOSEPEER: {
 		geds->transmit(string({ CLOSEPEER }));
-		geds->close();
+		delete geds;
 		return;
 	}
 	case QUERY: {

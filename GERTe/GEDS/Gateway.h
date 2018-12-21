@@ -9,10 +9,11 @@ class Gateway : public Connection {
 	friend void runServer();
 
 	public:
+		~Gateway();
 		Address addr;
 		bool local = false;
 		static Gateway* lookup(Address);
 		void transmit(std::string);
 		bool assign(Address, Key);
-		void close(bool=false);
+		void close();
 };

@@ -15,12 +15,10 @@ constexpr unsigned int iplen = 16;
 
 void runServer();
 
-extern "C" {
-	void destroy(void*);
-	void startup();
-	void cleanup();
-	void killConnections();
-	void processGateways();
-	void processPeers();
-	void buildWeb();
-}
+void destroy(void*);
+void startup();
+void cleanup();
+void killConnections();
+void processGateways();
+void processPeers();
+void buildWeb();

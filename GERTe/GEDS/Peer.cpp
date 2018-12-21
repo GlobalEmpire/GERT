@@ -75,14 +75,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 	}
 };
 
-Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
-	peers[id->addr] = this;
-}
-
-void Peer::close(bool skip) {
-	if (!skip) {
-		this->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
-	}
+Peer::~Peer() {
 	killAssociated(this);
 	peers.erase(this->id->addr);
 
@@ -90,6 +83,14 @@ void Peer::close(bool skip) {
 
 	destroy((SOCKET*)this->sock);
 	log("Peer " + this->id->addr.stringify() + " disconnected");
+}
+
+Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
+	peers[id->addr] = this;
+}
+
+void Peer::close() {
+	this->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
 	delete this;
 }
 

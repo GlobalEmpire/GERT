@@ -68,7 +68,7 @@ void processGateways() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			gate->close();
+			delete gate;
 		else
 			processGateway(gate);
 	}
@@ -83,7 +83,7 @@ void processPeers() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			peer->close();
+			delete peer;
 		else
 			processGEDS(peer);
 	}
