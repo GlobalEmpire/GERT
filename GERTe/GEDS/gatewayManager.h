@@ -27,5 +27,4 @@ class noAddrIter {
 };
 
 bool sendToGateway(Address, std::string);
-void gateWatcher();
 bool isLocal(Address);

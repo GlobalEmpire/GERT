@@ -1,3 +1,4 @@
+#define WIN32_LEAN_AND_MEAN
 #ifdef _WIN32
 #include <WinSock2.h>
 #pragma comment(lib, "Ws2_32.lib")
@@ -20,6 +21,32 @@ extern map<Address, Key> resolutions;
 extern Poll gatePoll;
 
 extern Version ThisVers;
+
+namespace Gate {
+	enum class Commands : char {
+		STATE,
+		REGISTER,
+		DATA,
+		CLOSE
+	};
+
+	enum class States : char {
+		FAILURE,
+		CONNECTED,
+		REGISTERED,
+		CLOSED,
+		SENT
+	};
+
+	enum class Errors : char {
+		VERSION,
+		BAD_KEY,
+		REGISTERED,
+		NOT_REGISTERED,
+		NO_ROUTE,
+		ADDRESS_TAKEN
+	};
+}
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
@@ -85,13 +112,15 @@ bool Gateway::assign(Address requested, Key key) {
 	return false; //Notify the protocol library assignment has failed
 }
 
-void Gateway::close() {
-	noAddrIter pos = find(this);
-	if (!pos.isEnd()) {
+void Gateway::close(bool skip) {
+	if (!skip) {
+		this->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
+		this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
+	}
+	
+	if (local) {
+		noAddrIter pos = find(this);
 		pos.erase();
-	} else {
-		gateways.erase(this->addr); //Remove connection from universal map
-		log("Disassociation from " + this->addr.stringify()); //Notify the user of the closure
 	}
 
 	gatePoll.remove(*(SOCKET*)sock);

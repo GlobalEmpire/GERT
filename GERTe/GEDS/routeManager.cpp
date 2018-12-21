@@ -15,7 +15,7 @@ void killAssociated(Peer* target) {
 	for (routeIter iter; !iter.isEnd(); iter++) {
 		if (iter->second == target) {
 			Gateway* toDie = Gateway::lookup(iter->first);
-			killGateway(toDie);
+			toDie->close();
 			routes.erase(iter->first);
 		}
 	}

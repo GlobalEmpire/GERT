@@ -1,3 +1,4 @@
+#define WIN32_LEAN_AND_MEAN
 #ifdef _WIN32
 #include <WinSock2.h>
 #pragma comment(lib, "Ws2_32.lib")
@@ -22,6 +23,18 @@ map<IP, Peer*> peers;
 extern Poll peerPoll;
 
 extern Version ThisVers;
+
+enum Commands {
+	REGISTERED,
+	UNREGISTERED,
+	ROUTE,
+	RESOLVE,
+	UNRESOLVE,
+	LINK,
+	UNLINK,
+	CLOSEPEER,
+	QUERY
+};
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -66,7 +79,10 @@ Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket
 	peers[id->addr] = this;
 }
 
-void Peer::close() {
+void Peer::close(bool skip) {
+	if (!skip) {
+		this->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
+	}
 	killAssociated(this);
 	peers.erase(this->id->addr);
 

@@ -3,5 +3,3 @@
 
 void processGateway(Gateway*);
 void processGEDS(Peer*);
-void killGateway(Gateway*);
-void killGEDS(Peer*);

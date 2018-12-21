@@ -37,29 +37,3 @@ bool sendToGateway(Address addr, string data) { //Send to Gateway with address
 	}
 	return remoteSend(addr, data); //Attempt to send to Gateway with address via routing. Notify protocol library of result.
 }
-
-void gateWatcher() { //Monitors gateways and their connections
-	for (gatewayIter iter; !iter.isEnd(); iter++) { //For every gatway in the database
-		Gateway* target = *iter; //Get the Gateway
-		if (target == nullptr || target->sock == nullptr) { //If the Gateway or it's socket is broken
-			error("Null pointer in Gateway map"); //Notify the user of the error
-			iter.erase(); //Remove it from the database
-		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) { //If a socket read of 0 length fails
-			target->close(); //Close the Gateway smoothly
-		}
-	}
-}
-
-void noAddrWatcher() {
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway* target = *iter;
-		if (target == nullptr || target->sock == nullptr) {
-			iter.erase();
-			error("Null pointer in Gateway list");
-		} else if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
-			destroy((SOCKET*)target->sock);
-			delete target;
-			warn("Unassociated gateway was lost");
-		}
-	}
-}

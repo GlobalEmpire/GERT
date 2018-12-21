@@ -48,13 +48,13 @@ void destroy(void * target) {
 
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		killGateway(*iter);
+		(*iter)->close();
 	}
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		killGEDS(*iter);
+		(*iter)->close();
 	}
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		killGateway(*iter);
+		(*iter)->close();
 	}
 }
 
@@ -68,7 +68,7 @@ void processGateways() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			killGateway(gate);
+			gate->close();
 		else
 			processGateway(gate);
 	}
@@ -83,7 +83,7 @@ void processPeers() {
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			killGEDS(peer);
+			peer->close();
 		else
 			processGEDS(peer);
 	}

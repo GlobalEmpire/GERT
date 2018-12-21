@@ -15,32 +15,6 @@ enum scanResult {
 	MAJOR_ERR
 };
 
-int scanAPI(Version * checkapi, string addr, string type) {
-	int errs = 0;
-	if (checkapi == nullptr) {
-		debug("[ESCAN] " + type + " " + addr + " missing api");
-		return 1;
-	}
-	string apiopeer = "[ESCAN] " + type + " " + addr + " API missing ";
-	if (checkapi->killGate == nullptr) {
-		debug(apiopeer + "killGate function");
-		errs++;
-	}
-	if (checkapi->killPeer == nullptr) {
-		debug(apiopeer + "killPeer function");
-		errs++;
-	}
-	if (checkapi->procGate == nullptr) {
-		debug(apiopeer + "procGate function");
-		errs++;
-	}
-	if (checkapi->procPeer == nullptr) {
-		debug(apiopeer + "procPeer function");
-		errs++;
-	}
-	return errs;
-}
-
 int scanGateway(Gateway * checkgate, string addr) {
 	int errs = 0;
 	if (checkgate == nullptr) {
@@ -52,8 +26,6 @@ int scanGateway(Gateway * checkgate, string addr) {
 		debug("[ESCAN] Gateway " + addr + " missing socket");
 		errs++;
 	}
-	Version * checkapi = checkgate->api;
-	errs += scanAPI(checkapi, addr, "Gateway");
 	return errs;
 }
 
@@ -76,7 +48,6 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 			errs++;
 		}
 		Version * checkapi = checkpeer->api;
-		errs += scanAPI(checkapi, addr, "Peer");
 	}
 	debug("[ESCAN] Peer error count: " + to_string(errs));
 	if (errs > 0)
@@ -103,13 +74,4 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	else if (peerErr == false)
 		return MINOR_ERR;
 	return MAJOR_ERR;
-}
-
-void overwatch() {
-	while (running) {
-		gateWatcher();
-		this_thread::yield();
-		peerWatcher();
-		this_thread::yield();
-	}
 }

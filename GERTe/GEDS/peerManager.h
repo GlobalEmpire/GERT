@@ -25,7 +25,6 @@ class knownIter {
 		KnownPeer operator*();
 };
 
-void peerWatcher();
 Peer* lookup(IP);
 void _raw_peer(IP, Peer*);
 void addPeer(IP, Ports);

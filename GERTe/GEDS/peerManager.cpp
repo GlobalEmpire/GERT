@@ -24,20 +24,6 @@ knownIter knownIter::operator++ (int a) { return (ptr++, *this); }
 knownIter::knownIter() : ptr(peerList.begin()) {};
 KnownPeer knownIter::operator*() { return ptr->second; }
 
-void peerWatcher() {
-	for (peersPtr iter = peers.begin(); iter != peers.end(); iter++) {
-		Peer* target = iter->second;
-		if (target == nullptr || target->sock == nullptr) {
-			iter = peers.erase(iter);
-			error("Null pointer in peer map");
-			continue;
-		}
-		if (recv(*(SOCKET*)(target->sock), nullptr, 0, MSG_PEEK) == 0 || errno == ECONNRESET) {
-			target->close();
-		}
-	}
-}
-
 Peer* lookup(IP target) {
 	return peers.at(target);
 }

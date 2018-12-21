@@ -122,8 +122,8 @@ constexpr char vers[3] = { major, minor, patch };
 Version ThisVers = {
 	processGateway,
 	processGEDS,
-	killGateway,
-	killGEDS,
+	nullptr,
+	nullptr,
 	{
 		major,
 		minor,
@@ -349,21 +349,3 @@ void processGEDS(Peer* geds) {
 	}
 	}
 }
-
-void killGateway(Gateway* gate) {
-	gate->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
-	gate->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
-	gate->close();
-}
-
-void killGEDS(Peer* geds) {
-	geds->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
-	geds->close();
-}
-
-#ifdef _WIN32
-bool WINAPI DllMain(HINSTANCE w, DWORD a, LPVOID s) {
-	return true;
-}
-#endif
-
