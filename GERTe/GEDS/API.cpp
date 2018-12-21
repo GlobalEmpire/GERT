@@ -78,16 +78,6 @@ namespace Gate {
 	};
 }
 
-bool isLocal(Address addr) {
-	try {
-		Gateway* test = Gateway::lookup(addr);
-		return true;
-	}
-	catch (int e) {
-		return false;
-	}
-}
-
 void changeState(Gateway * gate, const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
 	gate->state = (char)newState;
 
@@ -146,7 +136,7 @@ void processGateway(Gateway* gate) {
 			 */
 			return;
 		}
-		if (isLocal(request) || isRemote(request)) {
+		if (Gateway::lookup(request) || isRemote(request)) {
 			warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
 			failed(gate, Gate::Errors::ADDRESS_TAKEN);
 			/*
@@ -196,9 +186,8 @@ void processGateway(Gateway* gate) {
 			 */
 			break;
 		}
-		string newCmd = string{ (char)Gate::Commands::DATA } +target.tostring() + gate->addr.tostring() +
-			source.tostring() + data.string();
-		if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
+		string newCmd = string{ (char)Gate::Commands::DATA } +target.tostring() + gate->addr.tostring() + source.tostring() + data.string();
+		if (isRemote(target.external) || Gateway::lookup(target.external)) { //Target is remote
 			sendToGateway(target.external, newCmd); //Send to target
 		}
 		else {
@@ -321,7 +310,7 @@ void processGEDS(Peer* geds) {
 	}
 	case QUERY: {
 		Address target = Address::extract(geds);
-		if (isLocal(target)) {
+		if (Gateway::lookup(target)) {
 			string cmd = { REGISTERED };
 			cmd += target.tostring();
 			sendToGateway(target, cmd);

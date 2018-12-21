@@ -104,7 +104,7 @@ Gateway::~Gateway() {
 
 Gateway* Gateway::lookup(Address req) {
 	if (gateways.count(req) == 0) {
-		throw 0;
+		return nullptr;
 	}
 
 	return gateways[req];
