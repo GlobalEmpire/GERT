@@ -7,7 +7,6 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #endif
 
-#include "libLoad.h"
 #include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
@@ -16,9 +15,13 @@ typedef int socklen_t;
 #include "Poll.h"
 #include "API.h"
 
+using namespace std;
+
 map<IP, Peer*> peers;
 
 extern Poll peerPoll;
+
+extern Version ThisVers;
 
 void sockError(SOCKET * sock, char * err, Peer* me) {
 	send(*sock, err, 3, 0);
@@ -40,8 +43,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 	recv(*newSocket, buf, 3, 0);
 	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
 	UCHAR major = buf[0]; //Major version number
-	api = getVersion(major); //Find API version
-	if (api == nullptr) { //Determine if major number is not supported
+	if (major != ThisVers.vers.major) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		sockError(newSocket, error, this); //This is me :D
 	}

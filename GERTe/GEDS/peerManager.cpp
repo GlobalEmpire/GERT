@@ -5,8 +5,9 @@
 #include <fcntl.h>
 #include "peerManager.h"
 #include "netty.h"
-#include "libLoad.h"
 #include "logging.h"
+
+using namespace std;
 
 extern map<IP, Peer*> peers;
 extern map<IP, KnownPeer> peerList;

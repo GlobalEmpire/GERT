@@ -19,7 +19,6 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include <thread> //Include thread type for server threading
 #include <signal.h> //Include signal processing API for error catching
 #include "netty.h" //Include netcode header for entering server process
-#include "libLoad.h" //Include library loading header for loading all protocol libraries
 #include "overwatch.h" //Include overwatch header for error checking and "recovery"
 #include "fileMngr.h" //Include file manager library for loading and saving databases
 #include "Trace.h"

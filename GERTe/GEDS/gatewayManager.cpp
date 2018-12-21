@@ -6,11 +6,12 @@
 #endif
 
 #include <fcntl.h>
-#include "libLoad.h"
 #include "gatewayManager.h"
 #include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
+
+using namespace std;
 
 extern map<Address, Gateway*> gateways; //Create Gateway database
 extern vector<Gateway*> noAddrList; //Create list for unregistered gateways

@@ -9,7 +9,6 @@
 #endif
 #include <sys/types.h>
 #include <thread>
-#include "libLoad.h"
 #include "peerManager.h"
 #include "routeManager.h"
 #include "gatewayManager.h"
@@ -25,6 +24,8 @@ SOCKET gateServer, gedsServer; //Define both server sockets
 Poll gatePoll;
 Poll peerPoll;
 Poll serverPoll;
+
+extern Version ThisVers;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -165,7 +166,7 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	Version* best = getVersion(highestVersion());
+	Version* best = &ThisVers;
 	Versioning vers = best->vers;
 	for (knownIter iter; !iter.isEnd(); iter++) {
 		KnownPeer known = *iter;

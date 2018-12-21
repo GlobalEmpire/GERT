@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #endif
 
-#include "libLoad.h"
 #include "netty.h"
 #include "gatewayManager.h"
 #include "logging.h"
@@ -14,9 +13,13 @@
 #include "Poll.h"
 #include "API.h"
 
+using namespace std;
+
 extern map<Address, Key> resolutions;
 
 extern Poll gatePoll;
+
+extern Version ThisVers;
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
@@ -45,8 +48,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
 	log((string)"Gateway using v" + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2])); //Notify user of connection and version
 	UCHAR major = buf[0]; //Major version number
-	api = getVersion(major); //Get the protocol library for the major version
-	if (api == nullptr) { //If the protocol library doesn't exist
+	if (major != ThisVers.vers.major) { //If the protocol library doesn't exist
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket
