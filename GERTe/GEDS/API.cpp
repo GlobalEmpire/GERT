@@ -11,7 +11,7 @@ This code falls under the license located at
 https://github.com/GlobalEmpire/GERT/blob/master/License.md
 */
 
-#include "API.h"
+#include "APIHelper.h"
 using namespace std;
 typedef unsigned char UCHAR;
 
@@ -82,7 +82,7 @@ void changeState(Gateway * gate, const Gate::States newState, const char numextr
 
 	string update = string{ (char)newState };
 	update += (char)newState;
-	update += string{ extra, numextra };
+	update += string{ extra, (size_t)numextra };
 
 	gate->transmit(update);
 }
@@ -97,7 +97,7 @@ void failed(Gateway * gate, const Gate::Errors error) {
 
 void globalChange(const GEDS::Commands change, const char * parameter, const char len) {
 	string data = string{ (char)change };
-	data += string{ parameter, len };
+	data += string{ parameter, (size_t)len };
 
 	broadcast(data);
 }
@@ -199,7 +199,7 @@ void processGateway(Gateway* gate) {
 			break;
 		}
 		string newCmd = string{ (char)Gate::Commands::DATA } +target.tostring() + gate->addr.tostring() +
-			source.tostring() + data.tostring();
+			source.tostring() + data.string();
 		if (isRemote(target.external) || isLocal(target.external)) { //Target is remote
 			sendToGateway(target.external, newCmd); //Send to target
 		}
@@ -276,7 +276,7 @@ void processGEDS(Peer* geds) {
 		GERTc source = GERTc::extract(geds);
 		NetString data = NetString::extract(geds);
 		string cmd = { (char)GEDS::Commands::ROUTE };
-		cmd += target.tostring() + source.tostring() + data.tostring();
+		cmd += target.tostring() + source.tostring() + data.string();
 		if (!sendToGateway(target.external, cmd)) {
 			string errCmd = { UNREGISTERED };
 			errCmd += target.tostring();

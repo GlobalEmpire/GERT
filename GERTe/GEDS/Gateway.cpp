@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <map>
 #include "Poll.h"
+#include "API.h"
 
 extern map<Address, Key> resolutions;
 
@@ -99,4 +100,12 @@ void Gateway::close() {
 	if (this->sock != nullptr)
 		destroy((SOCKET*)this->sock); //Close the socket
 	delete this; //Release the memory used to store the Gateway
+}
+
+void Gateway::process() {
+	processGateway(this);
+}
+
+void Gateway::kill() {
+	killGateway(this);
 }

@@ -13,10 +13,8 @@ class routeIter {
 		routePtr operator->();
 };
 
-extern "C" {
-	void killAssociated(Peer*);
-	void setRoute(Address, Peer*);
-	void removeRoute(Address);
-	bool remoteSend(Address, std::string);
-	bool isRemote(Address);
-}
+void killAssociated(Peer*);
+void setRoute(Address, Peer*);
+void removeRoute(Address);
+bool remoteSend(Address, std::string);
+bool isRemote(Address);

@@ -26,8 +26,6 @@ class noAddrIter {
 		void erase();
 };
 
-extern "C" {
-	bool sendToGateway(Address, std::string);
-	void gateWatcher();
-	bool isLocal(Address);
-}
+bool sendToGateway(Address, std::string);
+void gateWatcher();
+bool isLocal(Address);

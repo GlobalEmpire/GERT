@@ -11,8 +11,8 @@ class Gateway : public Connection {
 	public:
 		Address addr;
 		bool local = false;
-		void process() { api->procGate(this); };
-		void kill() { api->killGate(this); };
+		void process();
+		void kill();
 		static Gateway* lookup(Address);
 		void transmit(std::string);
 		bool assign(Address, Key);

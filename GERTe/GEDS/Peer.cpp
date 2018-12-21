@@ -14,6 +14,7 @@ typedef int socklen_t;
 #include <fcntl.h>
 #include <map>
 #include "Poll.h"
+#include "API.h"
 
 map<IP, Peer*> peers;
 
@@ -76,4 +77,12 @@ void Peer::close() {
 
 void Peer::transmit(string data) {
 	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+}
+
+void Peer::process() {
+	processGEDS(this);
+}
+
+void Peer::kill() {
+	killGEDS(this);
 }

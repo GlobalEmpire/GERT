@@ -12,12 +12,10 @@ Key Key::extract(Connection * conn) {
 	return key;
 }
 
-extern "C" {
-	void addResolution(Address addr, Key key) {
-		resolutions[addr] = key;
-	}
+void addResolution(Address addr, Key key) {
+	resolutions[addr] = key;
+}
 
-	void removeResolution(Address addr) {
-		resolutions.erase(addr);
-	}
+void removeResolution(Address addr) {
+	resolutions.erase(addr);
 }
