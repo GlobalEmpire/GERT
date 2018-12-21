@@ -119,7 +119,7 @@ constexpr UCHAR minor = 0;
 constexpr UCHAR patch = 0;
 constexpr char vers[3] = { major, minor, patch };
 
-constexpr Version ThisVers = {
+Version ThisVers = {
 	processGateway,
 	processGEDS,
 	killGateway,
