@@ -8,7 +8,7 @@ class Peer : public Connection {
 public:
 	Peer(void *);
 	~Peer();
-	Peer(void*, Version*, KnownPeer*);
+	Peer(void*, KnownPeer*);
 	void close();
 	void transmit(std::string);
 };

@@ -20,8 +20,6 @@ extern map<Address, Key> resolutions;
 
 extern Poll gatePoll;
 
-extern Version ThisVers;
-
 namespace Gate {
 	enum class Commands : char {
 		STATE,
@@ -75,7 +73,7 @@ Gateway::Gateway(void* sock) : Connection(sock) {
 	recv(*newSocket, buf, 3, 0); //Read first 3 bytes, the version data requested by gateway
 	log((string)"Gateway using v" + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2])); //Notify user of connection and version
 	UCHAR major = buf[0]; //Major version number
-	if (major != ThisVers.vers.major) { //If the protocol library doesn't exist
+	if (major != vers.major) { //If the protocol library doesn't exist
 		char error[3] = { 0, 0, 0 }; //Construct the error code
 		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
 		destroy(newSocket); //Close the socket

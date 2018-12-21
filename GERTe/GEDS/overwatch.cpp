@@ -47,7 +47,6 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 			debug("[ESCAN] Peer " + addr + "missing socket");
 			errs++;
 		}
-		Version * checkapi = checkpeer->api;
 	}
 	debug("[ESCAN] Peer error count: " + to_string(errs));
 	if (errs > 0)

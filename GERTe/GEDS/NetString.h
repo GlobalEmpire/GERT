@@ -1,4 +1,5 @@
 #include "Connection.h"
+#include <string>
 
 class NetString {
 public:

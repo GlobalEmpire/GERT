@@ -25,8 +25,6 @@ Poll gatePoll;
 Poll peerPoll;
 Poll serverPoll;
 
-extern Version ThisVers;
-
 extern volatile bool running;
 extern char * gatewayPort;
 extern char * peerPort;
@@ -166,8 +164,6 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	Version* best = &ThisVers;
-	Versioning vers = best->vers;
 	for (knownIter iter; !iter.isEnd(); iter++) {
 		KnownPeer known = *iter;
 		IP ip = known.addr;
@@ -209,7 +205,7 @@ void buildWeb() {
 			continue;
 		}
 
-		Peer* newConn = new Peer((void*)newSock, best, &known);
+		Peer* newConn = new Peer((void*)newSock, &known);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 	}

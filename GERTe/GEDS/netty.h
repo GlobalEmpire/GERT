@@ -1,5 +1,6 @@
 #pragma once
 #include "Address.h"
+#include "Versioning.h"
 
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
@@ -12,6 +13,8 @@ typedef unsigned long long SOCKET;
 #endif
 
 constexpr unsigned int iplen = 16;
+
+constexpr Versioning vers{ 1, 0, 1 };
 
 void runServer();
 

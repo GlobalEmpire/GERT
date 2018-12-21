@@ -22,8 +22,6 @@ map<IP, Peer*> peers;
 
 extern Poll peerPoll;
 
-extern Version ThisVers;
-
 enum Commands {
 	REGISTERED,
 	UNREGISTERED,
@@ -56,7 +54,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 	recv(*newSocket, buf, 3, 0);
 	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
 	UCHAR major = buf[0]; //Major version number
-	if (major != ThisVers.vers.major) { //Determine if major number is not supported
+	if (major != vers.major) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		sockError(newSocket, error, this); //This is me :D
 	}
@@ -85,7 +83,7 @@ Peer::~Peer() {
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 }
 
-Peer::Peer(void * socket, Version * vers, KnownPeer * known) : Connection(socket, vers), id(known) {
+Peer::Peer(void * socket, KnownPeer * known) : Connection(socket), id(known) {
 	peers[id->addr] = this;
 }
 

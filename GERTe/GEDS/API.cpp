@@ -12,7 +12,6 @@ https://github.com/GlobalEmpire/GERT/blob/master/License.md
 */
 
 #include "API.h"
-#include "Version.h"
 #include "logging.h"
 #include "NetString.h"
 #include "Key.h"
@@ -118,19 +117,6 @@ constexpr UCHAR major = 1;
 constexpr UCHAR minor = 0;
 constexpr UCHAR patch = 0;
 constexpr char vers[3] = { major, minor, patch };
-
-Version ThisVers = {
-	processGateway,
-	processGEDS,
-	nullptr,
-	nullptr,
-	{
-		major,
-		minor,
-		patch
-	},
-	nullptr
-};
 
 void processGateway(Gateway* gate) {
 	if (gate->state == (char)Gate::States::FAILURE) {

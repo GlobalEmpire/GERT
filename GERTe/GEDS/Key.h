@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Connection.h"
+#include <string>
 
 class Key {
 	friend void saveResolutions();
