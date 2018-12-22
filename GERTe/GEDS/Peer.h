@@ -11,4 +11,5 @@ public:
 	Peer(void*, KnownPeer*);
 	void close();
 	void transmit(std::string);
+	void process();
 };

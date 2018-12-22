@@ -2,7 +2,6 @@
 #include "gatewayManager.h"
 #include "netty.h"
 #include "logging.h"
-#include "API.h"
 
 std::map<Address, Peer*> routes;
 

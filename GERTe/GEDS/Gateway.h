@@ -16,4 +16,5 @@ class Gateway : public Connection {
 		void transmit(std::string);
 		bool assign(Address, Key);
 		void close();
+		void process();
 };

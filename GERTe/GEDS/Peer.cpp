@@ -14,15 +14,20 @@ typedef int socklen_t;
 #include <fcntl.h>
 #include <map>
 #include "Poll.h"
-#include "API.h"
+#include "GERTc.h"
+#include "NetString.h"
+#include "gatewayManager.h"
+#include "peerManager.h"
 
 using namespace std;
 
 map<IP, Peer*> peers;
 
 extern Poll peerPoll;
+extern void addResolution(Address, Key);
+extern void removeResolution(Address);
 
-enum Commands {
+enum Commands : char {
 	REGISTERED,
 	UNREGISTERED,
 	ROUTE,
@@ -69,7 +74,7 @@ Peer::Peer(void * sock) : Connection(sock) {
 		}
 		peers[id->addr] = this;
 		log("Peer connected from " + id->addr.stringify());
-		processGEDS(this);
+		process();
 	}
 };
 
@@ -88,10 +93,90 @@ Peer::Peer(void * socket, KnownPeer * known) : Connection(socket), id(known) {
 }
 
 void Peer::close() {
-	this->transmit(string({ CLOSEPEER })); //SEND CLOSE REQUEST
+	this->transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
 	delete this;
 }
 
 void Peer::transmit(string data) {
 	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+}
+
+void Peer::process() {
+	if (state == 0) {
+		state = 1;
+		transmit(string({ (char)vers.major, (char)vers.minor }));
+		/*
+			* Initial packet
+			* MAJOR VERSION
+			* MINOR VERSION
+			*/
+		return;
+	}
+	UCHAR command = (this->read(1))[1];
+	switch (command) {
+	case ROUTE: {
+		GERTc target = GERTc::extract(this);
+		GERTc source = GERTc::extract(this);
+		NetString data = NetString::extract(this);
+		string cmd = { (char)Commands::ROUTE };
+		cmd += target.tostring() + source.tostring() + data.string();
+		if (!sendToGateway(target.external, cmd)) {
+			string errCmd = { UNREGISTERED };
+			errCmd += target.tostring();
+			this->transmit(errCmd);
+		}
+		return;
+	}
+	case REGISTERED: {
+		Address target = Address::extract(this);
+		setRoute(target, this);
+		return;
+	}
+	case UNREGISTERED: {
+		Address target = Address::extract(this);
+		removeRoute(target);
+		return;
+	}
+	case RESOLVE: {
+		Address target = Address::extract(this);
+		Key key = Key::extract(this);
+		addResolution(target, key);
+		return;
+	}
+	case UNRESOLVE: {
+		Address target = Address::extract(this);
+		removeResolution(target);
+		return;
+	}
+	case LINK: {
+		IP target = IP::extract(this);
+		Ports ports = Ports::extract(this);
+		addPeer(target, ports);
+		return;
+	}
+	case UNLINK: {
+		IP target = IP::extract(this);
+		removePeer(target);
+		return;
+	}
+	case CLOSEPEER: {
+		this->transmit(string({ CLOSEPEER }));
+		delete this;
+		return;
+	}
+	case QUERY: {
+		Address target = Address::extract(this);
+		if (Gateway::lookup(target)) {
+			string cmd = { REGISTERED };
+			cmd += target.tostring();
+			sendToGateway(target, cmd);
+		}
+		else {
+			string cmd = { UNREGISTERED };
+			cmd += target.tostring();
+			this->transmit(cmd);
+		}
+		return;
+	}
+	}
 }
