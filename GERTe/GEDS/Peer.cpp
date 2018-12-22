@@ -47,7 +47,7 @@ void sockError(SOCKET * sock, char * err, Peer* me) {
 
 Peer::Peer(void * sock) : Connection(sock) {
 	SOCKET * newSocket = (SOCKET*)sock;
-	char buf[3];
+	char buf[2];
 
 #ifdef _WIN32
 	ioctlsocket(*newSocket, FIONBIO, &nonZero);
@@ -56,10 +56,9 @@ Peer::Peer(void * sock) : Connection(sock) {
 	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-	recv(*newSocket, buf, 3, 0);
-	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]) + "." + to_string(buf[2]));
-	UCHAR major = buf[0]; //Major version number
-	if (major != vers.major) { //Determine if major number is not supported
+	recv(*newSocket, buf, 2, 0);
+	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]));
+	if (buf[0] != vers.major || buf[1] != vers.minor) { //Determine if major number is not supported
 		char error[3] = { 0, 0, 0 };
 		sockError(newSocket, error, this); //This is me :D
 	}
