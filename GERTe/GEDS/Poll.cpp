@@ -30,11 +30,11 @@ Poll::Poll() {
 
 Poll::~Poll() {
 #ifndef _WIN32
-	close(fd);
+	close(efd);
 
 	for (Event_Data * data : tracker)
 	{
-		if (data.ptr == nullptr)
+		if (data->ptr == nullptr)
 			close(data->fd);
 		else
 			delete data->ptr;
@@ -88,7 +88,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 
 	if (epoll_wait(efd, &eEvent, 1, -1) == -1)
 		throw errno;
-	return *(eEvent.data.ptr);
+	return *(Event_Data*)(eEvent.data.ptr);
 #else
 	while (true) {
 		viewing.lock();

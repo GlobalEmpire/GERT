@@ -5,6 +5,8 @@
 #pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h> //Load C++ standard socket API
+#include <unistd.h>
+#include <poll.h>
 #endif
 #include <sys/types.h>
 #include <thread>
