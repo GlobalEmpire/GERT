@@ -35,11 +35,17 @@ Connection::Connection(void * socket, std::string type) : sock(socket) {
 	recv(*newSocket, vers, 2, 0);
 	log(type + " using " + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
 
-	if (vers[0] != ThisVersion.major || vers[1] != ThisVersion.minor) { //Determine if major number is not supported
+	if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
 		char err[3] = { 0, 0, 0 };
 		error(err);
 		warn(type + "'s version wasn't supported!");
 		throw 1;
+	}
+
+	//If version is pre-1.1.0 then read an extra byte for compatibility
+	if (vers[1] == 0) {
+		char spare;
+		recv(*newSocket, &spare, 1, 0);
 	}
 }
 
