@@ -41,10 +41,9 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 			errs++;
 			continue;
 		}
-		string addr = checkpeer->id->addr.stringify();
 		void * checksock = checkpeer->sock;
 		if (checksock == nullptr) {
-			debug("[ESCAN] Peer " + addr + "missing socket");
+			debug("[ESCAN] Peer missing socket");
 			errs++;
 		}
 	}

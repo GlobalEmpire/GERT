@@ -17,6 +17,7 @@ enum errors { //Define a list of error codes
 extern char * LOCAL_IP; //Grab the local address
 
 extern std::map<Address, Key> resolutions; //Grab the key database
+extern std::map<IP, KnownPeer> peerList;
 
 Status loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
@@ -63,8 +64,8 @@ Status loadResolutions() { //Load key resolutions from a file
 
 void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
-	for (knownIter iter; !iter.isEnd(); iter++) { //For each peer in the database
-		KnownPeer tosave = *iter; //Gets the next peer
+	for (std::map<IP, KnownPeer>::iterator iter; iter != peerList.end(); iter++) { //For each peer in the database
+		KnownPeer tosave = iter->second; //Gets the next peer
 		unsigned long addr = (unsigned long)tosave.addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
 		fwrite(&addr, 4, 1, peerFile); //Writes it to file
 		unsigned short gateport = tosave.ports.gate; //Converts gateway port to cross-platform mode

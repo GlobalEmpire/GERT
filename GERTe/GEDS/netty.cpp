@@ -30,6 +30,7 @@ extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
 extern vector<Gateway*> noAddrList;
+extern map<IP, KnownPeer> peerList;
 
 void destroy(SOCKET * target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
@@ -164,8 +165,8 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	for (knownIter iter; !iter.isEnd(); iter++) {
-		KnownPeer known = *iter;
+	for (map<IP, KnownPeer>::iterator iter; iter != peerList.end(); iter++) {
+		KnownPeer known = iter->second;
 		IP ip = known.addr;
 		Ports ports = known.ports;
 		if (ports.peer == 0) {
