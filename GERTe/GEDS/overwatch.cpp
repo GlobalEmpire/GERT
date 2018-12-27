@@ -1,5 +1,5 @@
 #include "Key.h"
-#include "peerManager.h"
+#include "Peer.h"
 #include "gatewayManager.h"
 #include "logging.h"
 #include <thread>
@@ -8,6 +8,7 @@ using namespace std;
 typedef unsigned long long pointer;
 
 extern volatile bool running;
+extern map<IP, Peer*> peers;
 
 enum scanResult {
 	CLEAN,
@@ -34,8 +35,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		Peer * checkpeer = *iter;
+	for (map<IP, Peer*>::iterator iter; iter != peers.end(); iter++) {
+		Peer * checkpeer = iter->second;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
