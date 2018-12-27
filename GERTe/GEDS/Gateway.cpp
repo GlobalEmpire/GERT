@@ -80,7 +80,7 @@ void globalChange(const GEDS::Commands change, const char * parameter, const cha
 	string data = string{ (char)change };
 	data += string{ parameter, (size_t)len };
 
-	broadcast(data);
+	Peer::broadcast(data);
 }
 
 void failed(Gateway * gate, const Gate::Errors error) {

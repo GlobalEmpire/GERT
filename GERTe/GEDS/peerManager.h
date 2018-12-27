@@ -24,10 +24,3 @@ class knownIter {
 		knownIter();
 		KnownPeer operator*();
 };
-
-Peer* lookup(IP);
-void _raw_peer(IP, Peer*);
-void allow(IP, Ports);
-void deny(IP);
-void sendToPeer(IP, std::string);
-void broadcast(std::string);

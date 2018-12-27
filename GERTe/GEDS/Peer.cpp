@@ -23,7 +23,9 @@ using namespace std;
 
 map<IP, Peer*> peers;
 
+extern map<IP, KnownPeer> peerList;
 extern Poll peerPoll;
+extern bool running;
 
 enum Commands : char {
 	REGISTERED,
@@ -153,5 +155,22 @@ void Peer::process() {
 		}
 		return;
 	}
+	}
+}
+
+void Peer::allow(IP target, Ports bindings) {
+	peerList[target] = KnownPeer(target, bindings);
+	if (running)
+		log("New peer " + target.stringify());
+}
+
+void Peer::deny(IP target) {
+	peerList.erase(target);
+	log("Removed peer " + target.stringify());
+}
+
+void Peer::broadcast(std::string msg) {
+	for (map<IP, Peer*>::iterator iter; iter != peers.end(); iter++) {
+		iter->second->transmit(msg);
 	}
 }

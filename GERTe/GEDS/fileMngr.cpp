@@ -1,10 +1,11 @@
 #define _CRT_SECURE_NO_WARNINGS //Windows grumble grumble
 
-#include "peerManager.h" //Include peer manager so that we can write to the peer database
+#include "Peer.h" //Include peer manager so that we can write to the peer database
 #include "fileMngr.h"
 #include "Key.h"
 #include "Address.h"
 #include "logging.h"
+#include "peerManager.h"
 
 typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 
@@ -34,7 +35,7 @@ Status loadPeers() { //Load peers from a file
 		IP ipClass = ip; //Reformat the address into a structure
 		if (ipClass.stringify() != LOCAL_IP) //If the string version of the address isn't what the local address is set to
 			log("Importing peer " + ipClass.stringify() + ":" + ports.stringify()); //Print out what we've imported
-		allow(ipClass, ports); //Add peer to the database
+		Peer::allow(ipClass, ports); //Add peer to the database
 	}
 	fclose(peerFile); //Close the file
 	return Status(StatusCodes::OK); //Return without errors

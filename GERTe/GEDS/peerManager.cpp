@@ -23,33 +23,3 @@ bool knownIter::isEnd() { return ptr == peerList.end(); }
 knownIter knownIter::operator++ (int a) { return (ptr++, *this); }
 knownIter::knownIter() : ptr(peerList.begin()) {};
 KnownPeer knownIter::operator*() { return ptr->second; }
-
-Peer* lookup(IP target) {
-	return peers.at(target);
-}
-
-void _raw_peer(IP key, Peer* value) {
-	peers[key] = value;
-}
-
-void allow(IP addr, Ports ports) {
-	peerList[addr] = KnownPeer(addr, ports);
-	if (running)
-		log("New peer " + addr.stringify());
-}
-
-void deny(IP addr) {
-	map<IP, KnownPeer>::iterator iter = peerList.find(addr);
-	peerList.erase(iter);
-	log("Removed peer " + addr.stringify());
-}
-
-void sendToPeer(IP addr, string data) {
-	peers[addr]->transmit(data);
-}
-
-void broadcast(string data) {
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		(*iter)->transmit(data);
-	}
-}

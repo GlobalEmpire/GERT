@@ -185,8 +185,7 @@ void buildWeb() {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		unsigned char verc[2] = { vers.major, vers.minor };
-		send(*newSock, (const char *)verc, (ULONG)2, 0);
+		send(*newSock, (char*)&ThisVersion, (ULONG)2, 0);
 		char death[3];
 		pollfd pollReq = {*newSock, POLLIN};
 #ifdef _WIN32
@@ -198,9 +197,9 @@ void buildWeb() {
 			destroy(newSock);
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
 		}
-		recv(*newSock, death, 3, 0);
+		recv(*newSock, death, 2, 0);
 		if (death[0] == 0) {
-			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
+			warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
 			destroy(newSock);
 			continue;
 		}
