@@ -44,29 +44,31 @@ Peer::Peer(void * sock) : Connection(sock, "Peer") {
 	sockaddr remotename;
 	getpeername(*newSocket, &remotename, (socklen_t*)&iplen);
 	sockaddr_in remoteip = *(sockaddr_in*)&remotename;
-	id = getKnown(remoteip);
-	if (id == nullptr) {
+	IP ip{ remoteip.sin_addr };
+
+	if (peerList.count(ip) == 0) {
 		char err[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
 		error(err);
 		throw 1;
 	}
-	peers[id->addr] = this;
-	log("Peer connected from " + id->addr.stringify());
+
+	peers[ip] = this;
+	log("Peer connected from " + ip.stringify());
 	process();
 };
 
 Peer::~Peer() {
 	killAssociated(this);
-	peers.erase(this->id->addr);
+	peers.erase(ip);
 
 	peerPoll.remove(*(SOCKET*)sock);
 
 	destroy((SOCKET*)this->sock);
-	log("Peer " + this->id->addr.stringify() + " disconnected");
+	log("Peer " + ip.stringify() + " disconnected");
 }
 
-Peer::Peer(void * socket, KnownPeer * known) : Connection(socket), id(known) {
-	peers[id->addr] = this;
+Peer::Peer(void * socket, IP source) : Connection(socket), ip(source) {
+	peers[ip] = this;
 }
 
 void Peer::close() {

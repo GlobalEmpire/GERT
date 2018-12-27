@@ -4,11 +4,12 @@
 
 class Peer : public Connection {
 	friend int emergencyScan();
-	KnownPeer * id;
+	IP ip;
+
 public:
 	Peer(void *);
 	~Peer();
-	Peer(void*, KnownPeer*);
+	Peer(void*, IP);
 	void close();
 	void transmit(std::string);
 	void process();
