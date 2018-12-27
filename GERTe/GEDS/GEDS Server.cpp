@@ -11,7 +11,7 @@
 	https://github.com/GlobalEmpire/GERT/blob/master/License.md
  */
 
-#define VERSION "1.0.1" //Creates VERSION shortcut so we can update this instead for easy access.
+#define VERSION "1.1.0" //Creates VERSION shortcut so we can update this instead for easy access.
 
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
@@ -93,9 +93,6 @@ void printHelp() { //Prints help on parameters
 }
 
 void processArgs(int argc, char* argv[]) { //Process and interpret command line arguments
-	if (argc < 2) { //We require a certain amount of arguments
-		printHelp(); //Print help if they arn't given
-	}
 	for (int i = 1; i < argc; i++) { //Loop through the arguments
 		string curArg = argv[i]; //Convert it to a string for easier access
 		if (curArg == "-d") { //Process the -d Debug messages flag
