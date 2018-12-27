@@ -32,13 +32,13 @@ void _raw_peer(IP key, Peer* value) {
 	peers[key] = value;
 }
 
-void addPeer(IP addr, Ports ports) {
+void allow(IP addr, Ports ports) {
 	peerList[addr] = KnownPeer(addr, ports);
 	if (running)
 		log("New peer " + addr.stringify());
 }
 
-void removePeer(IP addr) {
+void deny(IP addr) {
 	map<IP, KnownPeer>::iterator iter = peerList.find(addr);
 	peerList.erase(iter);
 	log("Removed peer " + addr.stringify());

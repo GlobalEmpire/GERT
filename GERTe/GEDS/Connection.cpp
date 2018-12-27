@@ -42,3 +42,5 @@ Connection::Connection(void * socket, std::string type) : sock(socket) {
 		throw 1;
 	}
 }
+
+Connection::Connection(void * socket) : sock(socket) {}	

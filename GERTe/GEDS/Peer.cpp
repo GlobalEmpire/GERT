@@ -63,7 +63,7 @@ Peer::~Peer() {
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 }
 
-Peer::Peer(void * socket, KnownPeer * known) : Connection(socket, "Peer"), id(known) {
+Peer::Peer(void * socket, KnownPeer * known) : Connection(socket), id(known) {
 	peers[id->addr] = this;
 }
 
@@ -126,12 +126,12 @@ void Peer::process() {
 	case LINK: {
 		IP target = IP::extract(this);
 		Ports ports = Ports::extract(this);
-		addPeer(target, ports);
+		allow(target, ports);
 		return;
 	}
 	case UNLINK: {
 		IP target = IP::extract(this);
-		removePeer(target);
+		deny(target);
 		return;
 	}
 	case CLOSEPEER: {

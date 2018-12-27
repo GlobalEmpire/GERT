@@ -126,9 +126,6 @@ int main( int argc, char* argv[] ) {
 
 	startLog(); //Create log handles
 
-	//Note to self: Apparently SIGNAL() is bad. Replace with SIGACTION()
-
-	//set_terminate(errHandler); //Causes terminate() to trigger our code instead
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 

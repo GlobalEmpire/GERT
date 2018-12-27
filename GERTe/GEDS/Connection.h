@@ -13,6 +13,7 @@ public:
 	char vers[2];
 
 	Connection(void*, std::string);
+	Connection(void*);
 
 	char * read(int=1);
 	void error(char*);

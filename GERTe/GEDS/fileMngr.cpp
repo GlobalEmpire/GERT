@@ -34,7 +34,7 @@ Status loadPeers() { //Load peers from a file
 		IP ipClass = ip; //Reformat the address into a structure
 		if (ipClass.stringify() != LOCAL_IP) //If the string version of the address isn't what the local address is set to
 			log("Importing peer " + ipClass.stringify() + ":" + ports.stringify()); //Print out what we've imported
-		addPeer(ipClass, ports); //Add peer to the database
+		allow(ipClass, ports); //Add peer to the database
 	}
 	fclose(peerFile); //Close the file
 	return Status(StatusCodes::OK); //Return without errors

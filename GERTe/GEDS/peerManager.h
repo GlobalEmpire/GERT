@@ -27,7 +27,7 @@ class knownIter {
 
 Peer* lookup(IP);
 void _raw_peer(IP, Peer*);
-void addPeer(IP, Ports);
-void removePeer(IP);
+void allow(IP, Ports);
+void deny(IP);
 void sendToPeer(IP, std::string);
 void broadcast(std::string);
