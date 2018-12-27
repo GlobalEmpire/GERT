@@ -17,7 +17,7 @@ enum errors { //Define a list of error codes
 extern char * LOCAL_IP; //Grab the local address
 
 extern std::map<Address, Key> resolutions; //Grab the key database
-extern std::map<IP, KnownPeer> peerList;
+extern std::map<IP, Ports> peerList;
 
 Status loadPeers() { //Load peers from a file
 	FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
@@ -64,13 +64,14 @@ Status loadResolutions() { //Load key resolutions from a file
 
 void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
-	for (std::map<IP, KnownPeer>::iterator iter; iter != peerList.end(); iter++) { //For each peer in the database
-		KnownPeer tosave = iter->second; //Gets the next peer
-		unsigned long addr = (unsigned long)tosave.addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
+	for (std::map<IP, Ports>::iterator iter; iter != peerList.end(); iter++) { //For each peer in the database
+		IP addr = iter->first; //Gets the next peer
+		Ports ports = iter->second;
+		unsigned long addr = (unsigned long)addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
 		fwrite(&addr, 4, 1, peerFile); //Writes it to file
-		unsigned short gateport = tosave.ports.gate; //Converts gateway port to cross-platform mode
+		unsigned short gateport = ports.gate; //Converts gateway port to cross-platform mode
 		fwrite(&gateport, 2, 1, peerFile); //Writes it to file
-		unsigned short peerport = tosave.ports.peer; //Converts peer port to cross-platform mode
+		unsigned short peerport = ports.peer; //Converts peer port to cross-platform mode
 		fwrite(&peerport, 2, 1, peerFile); //Write it to file
 	}
 	fclose(peerFile); //Close the file

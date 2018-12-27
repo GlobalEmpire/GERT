@@ -61,8 +61,6 @@ namespace GEDS {
 	};
 }
 
-extern Versioning ThisVersion;
-
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
 
@@ -155,7 +153,7 @@ void Gateway::close() {
 
 void Gateway::process() {
 	if (this->state == (char)Gate::States::FAILURE) {
-		changeState(this, Gate::States::CONNECTED, 3, &ThisVersion);
+		changeState(this, Gate::States::CONNECTED, 3, (char*)&ThisVersion);
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)

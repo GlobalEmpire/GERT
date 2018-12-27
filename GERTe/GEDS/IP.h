@@ -16,7 +16,7 @@ class IP {
 		in_addr addr;
 		bool operator< (IP comp) const { return (addr.s_addr < comp.addr.s_addr); };
 		bool operator== (IP comp) const { return (addr.s_addr == comp.addr.s_addr); };
-		IP(unsigned long target) : addr(*(in_addr*)&target) {};
+		IP(unsigned long target = 0) : addr(*(in_addr*)&target) {};
 		IP(in_addr target) : addr(target) {};
 		IP(std::string target) : addr(*(in_addr*)target.c_str()) {};
 		std::string stringify() {

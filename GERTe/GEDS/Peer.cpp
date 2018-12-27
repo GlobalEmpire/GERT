@@ -22,8 +22,8 @@ typedef int socklen_t;
 using namespace std;
 
 map<IP, Peer*> peers;
+map<IP, Ports> peerList;
 
-extern map<IP, KnownPeer> peerList;
 extern Poll peerPoll;
 extern bool running;
 
@@ -161,7 +161,7 @@ void Peer::process() {
 }
 
 void Peer::allow(IP target, Ports bindings) {
-	peerList[target] = KnownPeer(target, bindings);
+	peerList[target] = bindings;
 	if (running)
 		log("New peer " + target.stringify());
 }

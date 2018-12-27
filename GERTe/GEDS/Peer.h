@@ -1,6 +1,7 @@
 #pragma once
-#include "KnownPeer.h"
 #include "Connection.h"
+#include "IP.h"
+#include "Ports.h"
 
 class Peer : public Connection {
 	friend int emergencyScan();

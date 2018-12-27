@@ -30,7 +30,7 @@ extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
 extern vector<Gateway*> noAddrList;
-extern map<IP, KnownPeer> peerList;
+extern map<IP, Ports> peerList;
 
 void destroy(SOCKET * target) { //Close a socket
 #ifdef _WIN32 //If compiled for Windows
@@ -165,10 +165,9 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	for (map<IP, KnownPeer>::iterator iter; iter != peerList.end(); iter++) {
-		KnownPeer known = iter->second;
-		IP ip = known.addr;
-		Ports ports = known.ports;
+	for (map<IP, Ports>::iterator iter; iter != peerList.end(); iter++) {
+		IP ip = iter->first;
+		Ports ports = iter->second;
 		if (ports.peer == 0) {
 			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
 			continue;
@@ -205,7 +204,7 @@ void buildWeb() {
 			continue;
 		}
 
-		Peer* newConn = new Peer((void*)newSock, &known);
+		Peer* newConn = new Peer((void*)newSock, ip);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 	}
