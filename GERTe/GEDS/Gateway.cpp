@@ -64,7 +64,7 @@ namespace GEDS {
 	};
 }
 
-constexpr char cVers[3] = { vers.major, vers.minor, vers.patch };
+extern Versioning ThisVersion;
 
 map<Address, Gateway*> gateways;
 vector<Gateway*> noAddrList;
@@ -104,30 +104,10 @@ noAddrIter find(Gateway * gate) {
 	return iter;
 }
 
-Gateway::Gateway(void* sock) : Connection(sock) {
-	SOCKET * newSocket = (SOCKET*)sock; //Convert socket to correct type
-	char buf[2]; //Create a buffer for the version data
-
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	int flags = fcntl(*newSocket, F_GETFL);
-	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
-#endif
-
-	recv(*newSocket, buf, 2, 0); //Read first 2 bytes, the version data requested by gateway
-	log((string)"Gateway using v" + to_string(buf[0]) + "." + to_string(buf[1])); //Notify user of connection and version
-	if (buf[0] != vers.major || buf[1] != vers.minor) { //If the protocol library doesn't exist
-		char error[3] = { 0, 0, 0 }; //Construct the error code
-		send(*newSocket, error, 3, 0); //Notify client we cannot serve this version
-		destroy(newSocket); //Close the socket
-		warn("Gateway failed to connect");
-		throw 1;
-	} else {
-		local = true;
-		noAddrList.push_back(this);
-		process(); //Process empty data (Protocol Library Gateway Initialization)
-	}
+Gateway::Gateway(void* sock) : Connection(sock, "Gateway") {
+	local = true;
+	noAddrList.push_back(this);
+	process(); //Process empty data (Protocol Library Gateway Initialization)
 }
 
 Gateway::~Gateway() {
@@ -178,7 +158,7 @@ void Gateway::close() {
 
 void Gateway::process() {
 	if (this->state == (char)Gate::States::FAILURE) {
-		changeState(this, Gate::States::CONNECTED, 3, cVers);
+		changeState(this, Gate::States::CONNECTED, 3, &ThisVersion);
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)

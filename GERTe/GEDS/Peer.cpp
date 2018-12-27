@@ -39,42 +39,20 @@ enum Commands : char {
 	QUERY
 };
 
-void sockError(SOCKET * sock, char * err, Peer* me) {
-	send(*sock, err, 3, 0);
-	destroy(sock);
-	throw 1;
-}
-
-Peer::Peer(void * sock) : Connection(sock) {
-	SOCKET * newSocket = (SOCKET*)sock;
-	char buf[2];
-
-#ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
-#else
-	int flags = fcntl(*newSocket, F_GETFL);
-	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
-#endif
-
-	recv(*newSocket, buf, 2, 0);
-	log((string)"GEDS using " + to_string(buf[0]) + "." + to_string(buf[1]));
-	if (buf[0] != vers.major || buf[1] != vers.minor) { //Determine if major number is not supported
-		char error[3] = { 0, 0, 0 };
-		sockError(newSocket, error, this); //This is me :D
+Peer::Peer(void * sock) : Connection(sock, "Peer") {
+	SOCKET* newSocket = (SOCKET*)sock;
+	sockaddr remotename;
+	getpeername(*newSocket, &remotename, (socklen_t*)&iplen);
+	sockaddr_in remoteip = *(sockaddr_in*)&remotename;
+	id = getKnown(remoteip);
+	if (id == nullptr) {
+		char err[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
+		error(err);
+		throw 1;
 	}
-	else { //Major version found
-		sockaddr remotename;
-		getpeername(*newSocket, &remotename, (socklen_t*)&iplen);
-		sockaddr_in remoteip = *(sockaddr_in*)&remotename;
-		id = getKnown(remoteip);
-		if (id == nullptr) {
-			char error[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
-			sockError(newSocket, error, this);
-		}
-		peers[id->addr] = this;
-		log("Peer connected from " + id->addr.stringify());
-		process();
-	}
+	peers[id->addr] = this;
+	log("Peer connected from " + id->addr.stringify());
+	process();
 };
 
 Peer::~Peer() {
@@ -87,7 +65,7 @@ Peer::~Peer() {
 	log("Peer " + this->id->addr.stringify() + " disconnected");
 }
 
-Peer::Peer(void * socket, KnownPeer * known) : Connection(socket), id(known) {
+Peer::Peer(void * socket, KnownPeer * known) : Connection(socket, "Peer"), id(known) {
 	peers[id->addr] = this;
 }
 
@@ -103,7 +81,7 @@ void Peer::transmit(string data) {
 void Peer::process() {
 	if (state == 0) {
 		state = 1;
-		transmit(string({ (char)vers.major, (char)vers.minor }));
+		transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
 		/*
 			* Initial packet
 			* MAJOR VERSION

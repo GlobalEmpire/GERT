@@ -14,8 +14,6 @@ typedef unsigned long long SOCKET;
 
 constexpr unsigned int iplen = 16;
 
-constexpr Versioning vers{ 1, 1, 0 };
-
 void runServer();
 
 void destroy(void*);

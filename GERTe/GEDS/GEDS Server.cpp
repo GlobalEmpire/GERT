@@ -29,8 +29,6 @@ using namespace std; //Default namespace to std so I don't have to type out std:
 
 enum status { //Create a list of error codes
 	NORMAL, //YAY WE RAN AS WE SHOULD HAVE (0)
-	NO_LIBS, //Uhm, this server isn't all inclusive (1)
-	LIB_LOAD_ERR, //Unknown error when loading protocol libraries (2)
 	PEER_LOAD_ERR, //Unknown error when loading peer database (3)
 	KEY_LOAD_ERR, //Unknown error when loading key database (4)
 	UNKNOWN_CRITICAL, //Unknown error which resulted in a crash, either terminate() or SIGSEGV (5)
@@ -141,13 +139,13 @@ int main( int argc, char* argv[] ) {
 	Status result = loadPeers(); //Load the peer database
 
 	if (result.code != StatusCodes::OK)
-		return (int)StatusCodes::GENERAL_ERROR + 20;
+		return PEER_LOAD_ERR;
 
 	debug("Loading resolutions"); //Use debug to notify user where we are in the loading process
 	result = loadResolutions(); //Load the key resolution database
 
 	if (result.code != StatusCodes::OK)
-		return (int)StatusCodes::GENERAL_ERROR + 25;
+		return KEY_LOAD_ERR;
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process
 	startup(); //Startup server sockets
