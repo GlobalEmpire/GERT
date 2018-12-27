@@ -17,10 +17,7 @@
 #include "GERTc.h"
 #include "NetString.h"
 #include "query.h"
-
 using namespace std;
-
-extern map<Address, Key> resolutions;
 
 extern Poll gatePoll;
 
@@ -139,7 +136,7 @@ void Gateway::transmit(string data) {
 }
 
 bool Gateway::assign(Address requested, Key key) {
-	if (resolutions[requested] == key) { //Determine if the key is for the address
+	if (key.check(requested)) { //Determine if the key is for the address
 		this->addr = requested; //Set the address
 		gateways[requested] = this; //Add Gateway to the database
 		noAddrIter pos = find(this);

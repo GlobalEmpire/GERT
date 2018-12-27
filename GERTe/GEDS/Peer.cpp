@@ -24,8 +24,6 @@ using namespace std;
 map<IP, Peer*> peers;
 
 extern Poll peerPoll;
-extern void addResolution(Address, Key);
-extern void removeResolution(Address);
 
 enum Commands : char {
 	REGISTERED,
@@ -117,12 +115,12 @@ void Peer::process() {
 	case RESOLVE: {
 		Address target = Address::extract(this);
 		Key key = Key::extract(this);
-		addResolution(target, key);
+		Key::add(target, key);
 		return;
 	}
 	case UNRESOLVE: {
 		Address target = Address::extract(this);
-		removeResolution(target);
+		Key::remove(target);
 		return;
 	}
 	case LINK: {

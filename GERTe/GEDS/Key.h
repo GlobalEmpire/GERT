@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Connection.h"
+#include "Address.h"
 #include <string>
 
 class Key {
@@ -13,5 +14,9 @@ class Key {
 			key.resize(20);
 		};
 		Key () {};
-		Key static extract(Connection*);
+		bool check(Address);
+
+		static Key extract(Connection*);
+		static void add(Address, Key);
+		static void remove(Address);
 };
