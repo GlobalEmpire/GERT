@@ -1,4 +1,4 @@
--- GERT v1.1 RC2
+-- GERT v1.1 RC3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -130,7 +130,7 @@ end
 
 local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 	local function sendOKResponse(isDestination)
-		transInfo(bHop, recPort, "ROUTE OPEN", dest, origin)
+		transInfo(bHop, recPort, "RouteOpen", dest, origin)
 		if isDestination then
 			storePath(origin, dest, nextHop, transPort)
 			storeConnection(origin, ID, dest)
@@ -142,7 +142,7 @@ local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 	if iAddress ~= dest then
 		local response
 		transInfo(nextHop, transPort, "OpenRoute", dest, "a", origin, ID)
-		addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (dest == pktDest) and (origin == pktOrig) then
 				response = code
 				sendOKResponse(false)
@@ -255,7 +255,8 @@ event.listen("shutdown", safedown)
 -------------------
 local function writeData(self, data)
 	if type(data) ~= "table" or type(data) ~= "function" then
-		transInfo(self.nextHop, self.outPort, "Data", data, self.destination, self.origination, self.ID)
+		transInfo(self.nextHop, self.outPort, "Data", data, self.destination, self.origination, self.ID, self.order)
+		self.order=self.order+1
 	end
 end
 
@@ -296,6 +297,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		outPort = nodes[gAddress]["port"] or firstN["port"],
 		nextHop = nodes[gAddress]["add"] or firstN["add"],
 		ID = outID,
+		order = 1,
 		write = writeData,
 		read = readData,
 		close = closeSock}

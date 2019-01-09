@@ -1,4 +1,4 @@
--- GERT v1.1 RC2
+-- GERT v1.1 RC3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -140,11 +140,11 @@ handler["CloseConnection"] = function(sendingModem, port, connectionID, destinat
 	connections[destination][ID] = nil
 end
 
-handler["Data"] = function (sendingModem, port, data, destination, origination, connectionID)
+handler["Data"] = function (sendingModem, port, data, destination, origination, connectionID, order)
 	if connections[origination] ~= nil and connections[origination][connectionID] ~= nil then
 		GERTe.transmitTo(destination, origination, data)
 	elseif connectionID > 0 then
-		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID)
+		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
 	end
 end
 
@@ -155,7 +155,7 @@ end
 local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID)
 	print("Opening Route")
     local function sendOKResponse(isDestination)
-		transmitInformation(bHop, recPort, "ROUTE OPEN", dest, origin)
+		transmitInformation(bHop, recPort, "RouteOpen", dest, origin)
 		if isDestination then
 			storeConnection(origin, ID, dest)
 			storePath(origin, dest, nextHop, transPort)
@@ -165,13 +165,9 @@ local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort
 	end
     if not string.find(dest, ":") then
 		transmitInformation(nextHop, trans, "OpenRoute", dest, hopTwo, origin, ID)
-        addTempHandler(3, "ROUTE OPEN", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
-        	if (dest == pktDest) and (origin == pktOrig) then
-        		sendOKResponse(false)
-            	return true -- This terminates the wait
-			end
-            end, function () end)
-		waitWithCancel(3, function () return response end)
+		if event.pull(3, "modem_message", nil, nil, nil, nil, "RouteOpen", nil, dest, origin) then
+			sendOKResponse(false)
+		end
 	else
     	sendOKResponse(true)
 	end
