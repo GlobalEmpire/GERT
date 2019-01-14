@@ -34,20 +34,7 @@ local function formatIp(nums)
 end
 
 local function parseError(err)
-	err = string.byte(err)
-	if err == 0 then
-		return "VERSION"
-	elseif err == 1 then
-		return "BAD_KEY"
-	elseif err == 2 then
-		return "ALREADY_REGISTERED"
-	elseif err == 3 then
-		return "NOT_REGISTERED"
-	elseif err == 4 then
-		return "NO_ROUTE"
-	elseif err == 5 then
-		return "ADDRESS_TAKEN"
-	end
+	return ({"VERSION", "BAD_KEY", "ALREADY_REGISTERED", "NOT_REGISTERED", "NO_ROUTE", "ADDRESS_TAKEN"})[err:byte()+1]
 end
 
 local function parseAddr(addr)
