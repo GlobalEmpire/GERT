@@ -34,7 +34,7 @@ local function formatIp(nums)
 end
 
 local function parseError(err)
-	return ({"VERSION", "BAD_KEY", "ALREADY_REGISTERED", "NOT_REGISTERED", "NO_ROUTE", "ADDRESS_TAKE"})[err:byte()+1]
+	return ({"VERSION", "BAD_KEY", "ALREADY_REGISTERED", "NOT_REGISTERED", "NO_ROUTE", "ADDRESS_TAKEN"})[err:byte()+1]
 end
 
 local function parseAddr(addr)
