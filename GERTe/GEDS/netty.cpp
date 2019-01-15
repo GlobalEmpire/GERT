@@ -186,18 +186,18 @@ void buildWeb() {
 			continue;
 		}
 		send(*newSock, (char*)&ThisVersion, (ULONG)2, 0);
-		char death[3];
-		pollfd pollReq = {*newSock, POLLIN};
-#ifdef _WIN32
-		int result2 = WSAPoll(&pollReq, 1, 5);
-#else
-		int result2 = poll(&pollReq, 1, 5);
-#endif
-		if (result2 < 1) {
+
+		char death[2];
+		timeval timeout = { 3, 0 };
+
+		setsockopt(*newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
+		int result2 = recv(*newSock, death, 2, 0);
+
+		if (result2 == -1) {
 			destroy(newSock);
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
 		}
-		recv(*newSock, death, 2, 0);
+
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
 			destroy(newSock);
