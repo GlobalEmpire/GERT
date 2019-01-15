@@ -67,8 +67,7 @@ void savePeers() { //Save the database to a file
 	for (std::map<IP, Ports>::iterator iter; iter != peerList.end(); iter++) { //For each peer in the database
 		IP addr = iter->first; //Gets the next peer
 		Ports ports = iter->second;
-		unsigned long addr = (unsigned long)addr.addr.s_addr; //Grabs the IP address and converts it to cross-platform mode
-		fwrite(&addr, 4, 1, peerFile); //Writes it to file
+		fwrite(&addr.addr.s_addr, 4, 1, peerFile); //Writes it to file
 		unsigned short gateport = ports.gate; //Converts gateway port to cross-platform mode
 		fwrite(&gateport, 2, 1, peerFile); //Writes it to file
 		unsigned short peerport = ports.peer; //Converts peer port to cross-platform mode
