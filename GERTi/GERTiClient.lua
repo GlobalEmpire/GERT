@@ -88,7 +88,7 @@ local function storePath(origin, dest, nextHop, port)
 	end
 	paths[origin][dest] = {nextHop = nextHop, port = port}
 end
-local function storeData(origin, ID, data)
+local function storeData(origin, ID, data, order)
 	if #connections[iAddress][origin][ID] > 20 then
 		table.remove(connections[iAddress][origin][ID], 1)
 	end
@@ -113,14 +113,14 @@ handler.CloseConnection = function(sendingModem, port, ID, dest, origin)
 	connections[dest][origin][ID] = nil
 end
 
-handler.Data = function (sendingModem, port, data, dest, origin, ID)
+handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
 	if ID < 0 then
 		return computer.pushSignal("GERTData", origin, ID, data)
 	end
 	if connections[dest][origin][ID] then
-		storeData(origin, ID, data)
+		storeData(origin, ID, data, order)
 	else
-		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID)
+		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
 	end
 end
 
