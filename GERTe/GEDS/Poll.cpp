@@ -2,6 +2,7 @@
 
 #ifndef _WIN32
 #include <sys/epoll.h>
+#include <unistd.h>
 #else
 #include <WinSock2.h>
 typedef std::map<SOCKET, Event_Data*> SList;

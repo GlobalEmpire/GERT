@@ -4,6 +4,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h>
+#include <fcntl.h>
 #endif
 
 #include "Connection.h"
