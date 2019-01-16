@@ -1,6 +1,5 @@
 #pragma once
 #include "Address.h"
-#include "Versioning.h"
 
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
