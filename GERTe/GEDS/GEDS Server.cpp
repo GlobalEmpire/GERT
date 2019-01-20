@@ -30,7 +30,7 @@ enum status { //Create a list of error codes
 	PEER_LOAD_ERR, //Unknown error when loading peer database (3)
 	KEY_LOAD_ERR, //Unknown error when loading key database (4)
 	UNKNOWN_CRITICAL, //Unknown error which resulted in a crash, either terminate() or SIGSEGV (5)
-	UNKNOWN_MINOR //Unknown error caused closing, not necessarily a crash (6)
+	UNKNOWN_MINOR //Unknown error occured preceeding closing, not necessarily a crash (6)
 };
 
 volatile bool running = false; //SIGINT tracker
@@ -80,7 +80,7 @@ void errHandler() { //Error catcher, provides minor error recovery facilities
 	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
 }
 
-void printHelp() { //Prints help on parameters
+inline void printHelp() { //Prints help on parameters
 	cout << "Requires atleast the -a parameter\n";
 	cout << "-a publicIP   Specifies the public IP to prevent loops.\n";
 	cout << "-p port       Specifies the port for GEDS servers to connect to (default 59474)\n";
