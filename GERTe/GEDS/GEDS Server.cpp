@@ -130,15 +130,15 @@ int main( int argc, char* argv[] ) {
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
-	Status result = loadPeers(); //Load the peer database
+	int result = loadPeers(); //Load the peer database
 
-	if (result.code != StatusCodes::OK)
+	if (result == -1)
 		return PEER_LOAD_ERR;
 
 	debug("Loading resolutions"); //Use debug to notify user where we are in the loading process
 	result = loadResolutions(); //Load the key resolution database
 
-	if (result.code != StatusCodes::OK)
+	if (result == -1)
 		return KEY_LOAD_ERR;
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process

@@ -25,7 +25,7 @@ map<IP, Peer*> peers;
 map<IP, Ports> peerList;
 
 extern Poll peerPoll;
-extern bool running;
+extern volatile bool running;
 
 enum Commands : char {
 	REGISTERED,
