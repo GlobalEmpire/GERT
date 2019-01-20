@@ -3,9 +3,6 @@
 static unsigned long nonZero = 1;
 #endif
 #include <string>
-#include "Versioning.h"
-
-constexpr Versioning ThisVersion{ 1, 1, 0 };
 
 class Connection {
 public:

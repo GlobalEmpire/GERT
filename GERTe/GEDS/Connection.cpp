@@ -10,6 +10,7 @@
 #include "Connection.h"
 #include "netty.h"
 #include "logging.h"
+#include "Versioning.h"
 
 void Connection::error(char * err) {
 	send(*(SOCKET*)sock, err, 3, 0);

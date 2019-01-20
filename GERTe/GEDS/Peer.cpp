@@ -18,6 +18,7 @@ typedef int socklen_t;
 #include "NetString.h"
 #include "gatewayManager.h"
 #include "peerManager.h"
+#include "Versioning.h"
 
 using namespace std;
 

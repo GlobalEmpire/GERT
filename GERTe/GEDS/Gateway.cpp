@@ -17,6 +17,7 @@
 #include "GERTc.h"
 #include "NetString.h"
 #include "query.h"
+#include "Versioning.h"
 using namespace std;
 
 extern Poll gatePoll;

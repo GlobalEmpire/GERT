@@ -17,6 +17,7 @@
 #include "netty.h"
 #include "logging.h"
 #include "Poll.h"
+#include "Versioning.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets

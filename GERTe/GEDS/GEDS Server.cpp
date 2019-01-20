@@ -10,9 +10,6 @@
 	This code falls under the license located at
 	https://github.com/GlobalEmpire/GERT/blob/master/License.md
  */
-
-#define VERSION "1.1.0" //Creates VERSION shortcut so we can update this instead for easy access.
-
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 
@@ -25,6 +22,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include "logging.h"
 #include <exception> //Load exception library for terminate() hook
 #include <iostream>
+#include "Versioning.h"
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes
@@ -118,7 +116,7 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 
 int main( int argc, char* argv[] ) {
 
-	cout << "GEDS Server v" << VERSION << endl; //Print version information
+	cout << "GEDS Server v" << ThisVersion.stringify() << endl; //Print version information
 	cout << "Copyright 2017" << endl; //Print simple copyright information
 
 	processArgs(argc, argv); //Process command line argument
