@@ -166,14 +166,16 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	for (map<IP, Ports>::iterator iter; iter != peerList.end(); iter++) {
+	for (map<IP, Ports>::iterator iter = peerList.begin(); iter != peerList.end(); iter++) {
 		IP ip = iter->first;
 		Ports ports = iter->second;
-		if (ports.peer == 0) {
-			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
+
+		if (ip.stringify() == LOCAL_IP)
 			continue;
-		} else if (ip.stringify() == LOCAL_IP)
+		else if (ports.peer == 0) {
+			debug("Skipping peer " + ip.stringify() + " because its outbound only.");
 			continue;
+		} 
 		SOCKET * newSock = new SOCKET;
 		*newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = ip.addr;
