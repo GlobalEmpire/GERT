@@ -27,14 +27,14 @@ int loadPeers() { //Load peers from a file
 	}
 
 	while (true) {
-		unsigned long ip; //Define a storage variable for an address
+		uint32_t ip; //Define a storage variable for an address
 		fread(&ip, 4, 1, peerFile); //Why must I choose between 1, 4 and 4, 1? Or 2, 2? Store an IP into previous variable
 		if (feof(peerFile) != 0) //If the file has nothing left
 			break; //We're done
 		unsigned short rawPorts[2]; //Make two storage variables for ports
 		fread(rawPorts, 2, 2, peerFile); //Fill those variables
-		rawPorts[0] = ntohs(rawPorts[0]); //Fix those variables for platform compatibility
-		rawPorts[1] = ntohs(rawPorts[1]);
+		rawPorts[0] = rawPorts[0]; //Fix those variables for platform compatibility
+		rawPorts[1] = rawPorts[1];
 		Ports ports = {rawPorts[0], rawPorts[1]}; //Reformat those variables into a structure
 		IP ipClass = ip; //Reformat the address into a structure
 		if (ipClass.stringify() != LOCAL_IP) //If the string version of the address isn't what the local address is set to
