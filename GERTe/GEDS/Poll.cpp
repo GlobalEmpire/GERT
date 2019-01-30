@@ -1,4 +1,5 @@
 #include "Poll.h"
+#include "logging.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -31,15 +32,12 @@ Poll::Poll() {
 
 Poll::~Poll() {
 #ifndef _WIN32
+	warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
+
 	close(efd);
 
 	for (Event_Data * data : tracker)
 	{
-		if (data->ptr == nullptr)
-			close(data->fd);
-		else
-			delete data->ptr;
-
 		delete data;
 	}
 #endif
