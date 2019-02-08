@@ -10,4 +10,8 @@ const struct {
 	std::string stringify() const { 
 		return std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch); 
 	};
+
+	std::string tostring() const {
+		return std::to_string(major) + std::to_string(minor);
+	}
 } ThisVersion;

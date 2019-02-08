@@ -175,7 +175,8 @@ void buildWeb() {
 		else if (ports.peer == 0) {
 			debug("Skipping peer " + ip.stringify() + " because its outbound only.");
 			continue;
-		} 
+		}
+
 		SOCKET * newSock = new SOCKET;
 		*newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = ip.addr;
@@ -188,7 +189,10 @@ void buildWeb() {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		send(*newSock, (char*)&ThisVersion, (ULONG)2, 0);
+
+		Peer * newConn = new Peer((void*)newSock, ip);
+
+		newConn->transmit(ThisVersion.tostring());
 
 		char death[2];
 		timeval timeout = { 3, 0 };
@@ -197,17 +201,16 @@ void buildWeb() {
 		int result2 = recv(*newSock, death, 2, 0);
 
 		if (result2 == -1) {
-			destroy(newSock);
+			delete newConn;
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
 		}
 
 		if (death[0] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
-			destroy(newSock);
+			delete newConn;
 			continue;
 		}
 
-		Peer* newConn = new Peer((void*)newSock, ip);
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 	}
