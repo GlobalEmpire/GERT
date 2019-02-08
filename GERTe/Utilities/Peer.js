@@ -27,9 +27,9 @@ function readLine(line) {
 	let outPort = parseInt(inputs[2], 10);
 	
 	let output = Buffer.alloc(8);
-	output.writeUInt32LE(ip, 0);
-	output.writeUInt16LE(inPort, 4);
-	output.writeUInt16LE(outPort, 6);
+	output.writeUInt32BE(ip, 0);
+	output.writeUInt16BE(inPort, 4);
+	output.writeUInt16BE(outPort, 6);
 	
 	fs.writeSync(fd, output);
 	
