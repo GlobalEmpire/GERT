@@ -5,6 +5,10 @@ static unsigned long nonZero = 1;
 #include <string>
 
 class Connection {
+protected:
+	~Connection();
+	void error(char * err);
+
 public:
 	void * sock;
 	unsigned char state = 0;
@@ -14,5 +18,4 @@ public:
 	Connection(void*);
 
 	char * read(int=1);
-	void error(char*);
 };

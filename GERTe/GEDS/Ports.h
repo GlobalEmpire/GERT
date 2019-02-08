@@ -20,6 +20,7 @@ class Ports {
 		Ports static extract(Connection * conn) {
 			char * raw = conn->read(4);
 			unsigned short * ports = (unsigned short *)(raw + 1);
+
 			Ports result = {
 					ports[0],
 					ports[1]

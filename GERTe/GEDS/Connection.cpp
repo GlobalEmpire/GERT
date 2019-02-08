@@ -5,6 +5,7 @@
 #else
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <unistd.h>
 #endif
 
 #include "Connection.h"
@@ -14,7 +15,7 @@
 
 void Connection::error(char * err) {
 	send(*(SOCKET*)sock, err, 3, 0);
-	destroy(sock);
+	delete this;
 }
 
 char * Connection::read(int num) {
@@ -52,3 +53,11 @@ Connection::Connection(void * socket, std::string type) : sock(socket) {
 }
 
 Connection::Connection(void * socket) : sock(socket) {}	
+
+Connection::~Connection() {
+#ifdef WIN32
+	closesocket((SOCKET)sock);
+#else
+	close((SOCKET)sock);
+#endif
+}

@@ -15,7 +15,6 @@ constexpr unsigned int iplen = 16;
 
 void runServer();
 
-void destroy(void*);
 void startup();
 void cleanup();
 void killConnections();

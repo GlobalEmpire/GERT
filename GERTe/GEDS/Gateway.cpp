@@ -117,9 +117,6 @@ Gateway::~Gateway() {
 	}
 
 	gatePoll.remove(*(SOCKET*)sock);
-
-	if (this->sock != nullptr)
-		destroy((SOCKET*)this->sock); //Close the socket
 }
 
 Gateway* Gateway::lookup(Address req) {

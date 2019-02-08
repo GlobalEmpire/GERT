@@ -33,19 +33,6 @@ extern char * LOCAL_IP;
 extern vector<Gateway*> noAddrList;
 extern map<IP, Ports> peerList;
 
-void destroy(SOCKET * target) { //Close a socket
-#ifdef _WIN32 //If compiled for Windows
-	closesocket(*target); //Close socket using WinSock API
-#else //If not compiled for Windows
-	close(*target); //Close socket using C++ standard API
-#endif
-	delete target;
-}
-
-void destroy(void * target) {
-	destroy((SOCKET*) target);
-}
-
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();

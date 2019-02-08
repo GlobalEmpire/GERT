@@ -64,7 +64,6 @@ Peer::~Peer() { //Peer destructor
 
 	peerPoll.remove(*(SOCKET*)sock);
 
-	destroy((SOCKET*)this->sock);
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
