@@ -56,8 +56,8 @@ Connection::Connection(void * socket) : sock(socket) {}
 
 Connection::~Connection() {
 #ifdef WIN32
-	closesocket((SOCKET)sock);
+	closesocket(*(SOCKET*)sock);
 #else
-	close((SOCKET)sock);
+	close(*(SOCKET*)sock);
 #endif
 }
