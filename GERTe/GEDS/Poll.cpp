@@ -26,7 +26,7 @@ void removeTracker(int fd, LList* tracker) {
 
 Poll::Poll() {
 #ifndef _WIN32
-	efd = epoll_create(0);
+	efd = epoll_create(1);
 #endif
 }
 
