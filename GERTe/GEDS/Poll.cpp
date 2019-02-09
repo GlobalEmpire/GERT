@@ -10,6 +10,10 @@ typedef std::map<SOCKET, Event_Data*> SList;
 #endif
 
 #ifndef _WIN32
+extern volatile bool running;
+#endif
+
+#ifndef _WIN32
 typedef std::vector<Event_Data*> LList;
 
 void removeTracker(int fd, LList* tracker) {
@@ -32,7 +36,8 @@ Poll::Poll() {
 
 Poll::~Poll() {
 #ifndef _WIN32
-	warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
+	if (running)
+		warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
 
 	close(efd);
 
