@@ -72,7 +72,7 @@ int loadResolutions() { //Load key resolutions from a file
 
 void savePeers() { //Save the database to a file
 	FILE * peerFile = fopen("peers.geds", "wb"); //Open the file in binary mode
-	for (std::map<IP, Ports>::iterator iter; iter != peerList.end(); iter++) { //For each peer in the database
+	for (std::map<IP, Ports>::iterator iter = peerList.begin(); iter != peerList.end(); iter++) { //For each peer in the database
 		IP addr = iter->first; //Gets the next peer
 		Ports ports = iter->second;
 		fwrite(&addr.addr.s_addr, 4, 1, peerFile); //Writes it to file

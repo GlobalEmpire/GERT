@@ -35,7 +35,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
-	for (map<IP, Peer*>::iterator iter; iter != peers.end(); iter++) {
+	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
 		Peer * checkpeer = iter->second;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
