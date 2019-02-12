@@ -1,12 +1,6 @@
 #pragma once
 #include "netty.h"
-
-#ifdef _WIN32
-#include <map>
-#include <mutex>
-#else
 #include <vector>
-#endif
 
 struct Event_Data {
 	SOCKET fd;
@@ -14,12 +8,14 @@ struct Event_Data {
 };
 
 class Poll {
+
 #ifndef _WIN32
 	int efd;
 	std::vector<Event_Data*> tracker;
 #else
-	std::map<SOCKET, Event_Data*> socks;
-	std::mutex viewing;
+	std::vector<void*> tracker;
+	std::vector<void*> events;
+	void * handler;
 #endif
 
 public:

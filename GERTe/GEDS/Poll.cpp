@@ -6,39 +6,59 @@
 #include <unistd.h>
 #else
 #include <WinSock2.h>
-typedef std::map<SOCKET, Event_Data*> SList;
+#include <thread>
 #endif
 
-#ifndef _WIN32
 extern volatile bool running;
+
+#ifdef _WIN32
+#define GETFD store->data->fd
+struct INNER {
+	WSAEVENT * event;
+	Event_Data * data;
+};
+
+typedef std::vector<void*> TrackerT;
+
+void apc(ULONG_PTR s) {}
+#else
+#define GETFD (*iter)->fd
+typedef std::vector<Event_Data*> TrackerT;
 #endif
 
-#ifndef _WIN32
-typedef std::vector<Event_Data*> LList;
-
-void removeTracker(int fd, LList* tracker) {
-	for (LList::iterator iter = tracker->begin(); iter != tracker->end(); iter++)
+void removeTracker(SOCKET fd, TrackerT* tracker) {
+	for (TrackerT::iterator iter = tracker->begin(); iter != tracker->end(); iter++)
 	{
-		if ((*iter)->fd == fd) {
+#ifdef _WIN32
+		INNER * store = (INNER*)(*iter);
+#endif
+
+		if (GETFD == fd) {
+#ifdef _WIN32
+			delete store->data;
+			WSACloseEvent(store->event);
+#endif
 			delete *iter;
 
 			tracker->erase(iter);
+			tracker->shrink_to_fit();
 		}
 	}
 }
-#endif
 
 Poll::Poll() {
 #ifndef _WIN32
 	efd = epoll_create(1);
+#else
+	handler = GetCurrentThread();
 #endif
 }
 
 Poll::~Poll() {
-#ifndef _WIN32
 	if (running)
 		warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
 
+#ifndef _WIN32
 	close(efd);
 
 	for (Event_Data * data : tracker)
@@ -66,9 +86,19 @@ void Poll::add(SOCKET fd, void * ptr) { //Adds the file descriptor to the pollse
 
 	tracker.push_back(data);
 #else
-	viewing.lock();
-	socks[fd] = data;
-	viewing.unlock();
+	WSAEVENT e = WSACreateEvent();
+	WSAEventSelect(fd, e, FD_READ || FD_ACCEPT || FD_CLOSE);
+
+	events.push_back(e);
+
+	INNER * store = new INNER{
+		&(events.back()),
+		data
+	};
+
+	tracker.push_back((void*)store);
+
+	QueueUserAPC(apc, handler, 0); //Cause blocked thread to return allowing it to update it's select call
 #endif
 }
 
@@ -76,14 +106,12 @@ void Poll::remove(SOCKET fd) {
 #ifndef _WIN32
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw errno;
+#else
+	events.erase(events.end()--);
+	events.shrink_to_fit();
+#endif
 
 	removeTracker(fd, &tracker);
-#else
-	viewing.lock();
-	delete socks[fd];
-	socks.erase(fd);
-	viewing.unlock();
-#endif
 }
 
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
@@ -95,19 +123,13 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
 	while (true) {
-		viewing.lock();
-		SList::iterator iter = socks.begin();
-		const SList::iterator end = socks.end();
-		char test;
-		while (iter != end) {
-			if (recv(iter->first, &test, 1, MSG_PEEK) != SOCKET_ERROR) {
-				Event_Data data = *iter->second;
-				viewing.unlock();
-				return data;
-			}
+		int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
+
+		if (result != WSA_WAIT_IO_COMPLETION) {
+			INNER * store = (INNER*)tracker[result - WSA_WAIT_EVENT_0];
+
+			return *(store->data);
 		}
-		viewing.unlock();
-		std::this_thread::yield();
 	}
 #endif
 }
