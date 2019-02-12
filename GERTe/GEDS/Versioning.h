@@ -12,6 +12,6 @@ const struct {
 	};
 
 	std::string tostring() const {
-		return std::to_string(major) + std::to_string(minor);
+		return std::string((char*)&major, 2);
 	}
 } ThisVersion;
