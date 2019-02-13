@@ -59,8 +59,6 @@ void removeTracker(SOCKET fd, Poll* context) {
 Poll::Poll() {
 #ifndef _WIN32
 	efd = epoll_create(1);
-#else
-	handler = GetCurrentThread();
 #endif
 }
 
@@ -75,6 +73,8 @@ Poll::~Poll() {
 	{
 		delete data;
 	}
+#else
+	CloseHandle(handler);
 #endif
 }
 
@@ -159,5 +159,17 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 			};
 		}
 	}
+#endif
+}
+
+void Poll::claim() {
+#ifdef _WIN32
+	if (handler != nullptr) {
+		error("Attempt to double claim poll!");
+		exit(3);
+	}
+
+	DWORD id = GetCurrentThreadId();
+	handler = OpenThread(THREAD_ALL_ACCESS, false, id);
 #endif
 }

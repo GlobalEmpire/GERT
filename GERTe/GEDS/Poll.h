@@ -17,7 +17,7 @@ class Poll {
 #else
 	std::vector<void*> tracker;
 	std::vector<void*> events;
-	void * handler;
+	void * handler = nullptr;
 #endif
 
 public:
@@ -27,4 +27,5 @@ public:
 	void add(SOCKET, void* = nullptr);
 	void remove(SOCKET);
 	Event_Data wait();
+	void claim();
 };

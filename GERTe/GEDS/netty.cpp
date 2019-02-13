@@ -47,6 +47,8 @@ void killConnections() {
 
 //PUBLIC
 void processGateways() {
+	gatePoll.claim();
+
 	while (running) {
 		Event_Data data = gatePoll.wait();
 
@@ -66,6 +68,8 @@ void processGateways() {
 }
 
 void processPeers() {
+	peerPoll.claim();
+
 	while (running) {
 		Event_Data data = gatePoll.wait();
 
@@ -142,11 +146,15 @@ void cleanup() {
 
 //PUBLIC
 void runServer() { //Listen for new connections
+	serverPoll.claim();
+
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
+
 		if (data.fd == 0) {
 			return;
 		}
+
 		SOCKET * newSock = new SOCKET;
 		*newSock = accept(data.fd, NULL, NULL);
 		try {
