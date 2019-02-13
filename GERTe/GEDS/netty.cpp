@@ -33,6 +33,8 @@ extern char * LOCAL_IP;
 extern vector<Gateway*> noAddrList;
 extern map<IP, Ports> peerList;
 
+constexpr unsigned int iplen = sizeof(sockaddr);
+
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();

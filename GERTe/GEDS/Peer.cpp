@@ -42,9 +42,9 @@ enum Commands : char {
 
 Peer::Peer(void * sock) : Connection(sock, "Peer") { //Incoming Peer Constructor
 	SOCKET* newSocket = (SOCKET*)sock;
-	sockaddr remotename;
-	getpeername(*newSocket, &remotename, (socklen_t*)&iplen);
-	sockaddr_in remoteip = *(sockaddr_in*)&remotename;
+	sockaddr_in remoteip;
+	socklen_t iplen = sizeof(sockaddr);
+	getpeername(*newSocket, (sockaddr*)&remoteip, &iplen);
 	IP ip{ remoteip.sin_addr };
 
 	if (peerList.count(ip) == 0) {

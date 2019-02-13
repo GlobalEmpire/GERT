@@ -11,8 +11,6 @@ typedef int SOCKET;
 typedef unsigned long long SOCKET;
 #endif
 
-constexpr unsigned int iplen = 16;
-
 void runServer();
 
 void startup();
