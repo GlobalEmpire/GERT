@@ -116,9 +116,6 @@ void Poll::remove(SOCKET fd) {
 #ifndef _WIN32
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw errno;
-#else
-	events.erase(events.end()--);
-	events.shrink_to_fit();
 #endif
 
 	removeTracker(fd, this);
