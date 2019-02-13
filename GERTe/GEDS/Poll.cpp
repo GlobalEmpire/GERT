@@ -97,7 +97,7 @@ void Poll::add(SOCKET fd, void * ptr) { //Adds the file descriptor to the pollse
 	tracker.push_back(data);
 #else
 	WSAEVENT e = WSACreateEvent();
-	WSAEventSelect(fd, e, FD_READ || FD_ACCEPT || FD_CLOSE);
+	WSAEventSelect(fd, e, FD_READ | FD_ACCEPT | FD_CLOSE);
 
 	events.push_back(e);
 
