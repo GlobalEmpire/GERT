@@ -10,6 +10,7 @@ struct Event_Data {
 class Poll {
 
 	friend void removeTracker(SOCKET, Poll*);
+	friend void cleanup();
 
 #ifndef _WIN32
 	int efd;
@@ -29,3 +30,7 @@ public:
 	Event_Data wait();
 	void claim();
 };
+
+#ifdef _WIN32
+void apc(unsigned long long);
+#endif

@@ -142,6 +142,11 @@ void cleanup() {
 #endif
 
 	killConnections();
+
+#ifdef _WIN32
+	QueueUserAPC(apc, gatePoll.handler, 0); //Trigger worker threads to awaken to their death
+	QueueUserAPC(apc, peerPoll.handler, 0);
+#endif
 }
 
 //PUBLIC
