@@ -219,8 +219,13 @@ void buildWeb() {
 			continue;
 		}
 
-		if (death[0] == 0) {
+		if (death[3] == 0) {
 			warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
+			delete newConn;
+			continue;
+		}
+		else if (death[3] == 1) {
+			error("Peer " + ip.stringify() + " rejected this IP!");
 			delete newConn;
 			continue;
 		}
