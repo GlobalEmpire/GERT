@@ -190,6 +190,7 @@ void buildWeb() {
 		if (result2 == -1) {
 			delete newConn;
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
+			continue;
 		}
 
 		if (death[0] == 0) {
