@@ -63,6 +63,8 @@ void shutdownProceedure(int param) { //SIGINT handler function
 };
 
 void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
+	running = false;
+
 	int errCode = emergencyScan(); //Scan structure database for faults, there will be faults
 	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
 	if (errCode < 2) { //If no peer error is detected (Wait what faulted?)
@@ -81,6 +83,8 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 }
 
 void errHandler() { //Error catcher, provides minor error recovery facilities
+	running = false;
+
 	int errCode = emergencyScan(); //Scan structure databases for faults
 	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
 	if (errCode < 2) { //If no peer error is detected
