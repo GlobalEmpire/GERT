@@ -50,6 +50,10 @@ void processGateways() {
 	while (running) {
 		Event_Data data = gatePoll.wait();
 
+		if (data.fd == 0) {
+			return;
+		}
+
 		SOCKET sock = data.fd;
 		Gateway * gate = (Gateway*)data.ptr;
 
@@ -64,6 +68,10 @@ void processGateways() {
 void processPeers() {
 	while (running) {
 		Event_Data data = gatePoll.wait();
+
+		if (data.fd == 0) {
+			return;
+		}
 
 		SOCKET sock = data.fd;
 		Peer * peer = (Peer*)data.ptr;
@@ -136,6 +144,9 @@ void cleanup() {
 void runServer() { //Listen for new connections
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
+		if (data.fd == 0) {
+			return;
+		}
 		SOCKET * newSock = new SOCKET;
 		*newSock = accept(data.fd, NULL, NULL);
 		try {
