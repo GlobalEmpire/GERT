@@ -34,10 +34,12 @@ void removeTracker(SOCKET fd, Poll* context) {
 	{
 		i++;
 
+#ifdef _WIN32
+		INNER * store = (INNER*)(*iter);
+#endif
+
 		if (GETFD == fd) {
 #ifdef _WIN32
-			INNER * store = (INNER*)(*iter);
-			
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
