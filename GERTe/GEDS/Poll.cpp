@@ -26,22 +26,30 @@ void apc(ULONG_PTR s) {}
 typedef std::vector<Event_Data*> TrackerT;
 #endif
 
-void removeTracker(SOCKET fd, TrackerT* tracker) {
-	for (TrackerT::iterator iter = tracker->begin(); iter != tracker->end(); iter++)
+void removeTracker(SOCKET fd, Poll* context) {
+	TrackerT tracker = context->tracker;
+
+	int i = 0;
+	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
-#ifdef _WIN32
-		INNER * store = (INNER*)(*iter);
-#endif
+		i++;
 
 		if (GETFD == fd) {
 #ifdef _WIN32
+			INNER * store = (INNER*)(*iter);
+			
+			std::vector<void*>::iterator eiter = context->events.begin() + i;
+			WSACloseEvent(*eiter);
+			context->events.erase(eiter);
+
 			delete store->data;
-			WSACloseEvent(store->event);
 #endif
 			delete *iter;
 
-			tracker->erase(iter);
-			tracker->shrink_to_fit();
+			tracker.erase(iter);
+			tracker.shrink_to_fit();
+
+			break;
 		}
 	}
 }
@@ -111,7 +119,7 @@ void Poll::remove(SOCKET fd) {
 	events.shrink_to_fit();
 #endif
 
-	removeTracker(fd, &tracker);
+	removeTracker(fd, this);
 }
 
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event

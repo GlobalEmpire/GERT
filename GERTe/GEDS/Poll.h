@@ -9,6 +9,8 @@ struct Event_Data {
 
 class Poll {
 
+	friend void removeTracker(SOCKET, Poll*);
+
 #ifndef _WIN32
 	int efd;
 	std::vector<Event_Data*> tracker;
