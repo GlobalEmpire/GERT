@@ -164,6 +164,12 @@ void runServer() { //Listen for new connections
 
 		SOCKET * newSock = new SOCKET;
 		*newSock = accept(data.fd, NULL, NULL);
+
+#ifdef _WIN32
+		serverPoll.remove(data.fd); //Work around winsock inheritance
+		serverPoll.add(data.fd);
+#endif
+
 		try {
 			if (data.fd == gateServer) {
 				Gateway * gate = new Gateway(newSock);
@@ -200,6 +206,7 @@ void buildWeb() {
 		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
 		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
+
 		if (result != 0) {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;

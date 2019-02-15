@@ -32,8 +32,6 @@ void removeTracker(SOCKET fd, Poll* context) {
 	int i = 0;
 	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
-		i++;
-
 #ifdef _WIN32
 		INNER * store = (INNER*)(*iter);
 #endif
@@ -53,6 +51,8 @@ void removeTracker(SOCKET fd, Poll* context) {
 
 			break;
 		}
+
+		i++;
 	}
 }
 
