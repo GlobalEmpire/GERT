@@ -41,10 +41,8 @@ char * peerPort = "59474"; //Set default peer port
 char * gatewayPort = "43780"; //Set default gateway port
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 #include "Poll.h"
-HANDLE mainthread = nullptr;
+extern Poll serverPoll;
 #endif
 
 void shutdownProceedure(int param) { //SIGINT handler function
@@ -53,7 +51,7 @@ void shutdownProceedure(int param) { //SIGINT handler function
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
 
 #ifdef _WIN32
-		QueueUserAPC(apc, mainthread, 0); //Work around Windows oddities
+		serverPoll.update(); //Work around Windows oddities
 #endif
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
@@ -141,12 +139,6 @@ int main( int argc, char* argv[] ) {
 
 	set_terminate(errHandler);
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
-
-#ifdef _WIN32
-	DWORD id = GetCurrentThreadId();
-	mainthread = OpenThread(THREAD_ALL_ACCESS, false, id);
-#endif
-
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
@@ -186,10 +178,6 @@ int main( int argc, char* argv[] ) {
 	gateways.join(); //Cleanup processor (wait for it to die)
 	peers.join();
 	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
-
-#ifdef _WIN32
-	CloseHandle(mainthread);
-#endif
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process
 	savePeers(); //Save the peers database to file

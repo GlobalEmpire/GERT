@@ -146,8 +146,8 @@ void cleanup() {
 	killConnections();
 
 #ifdef _WIN32
-	QueueUserAPC(apc, gatePoll.handler, 0); //Trigger worker threads to awaken to their death
-	QueueUserAPC(apc, peerPoll.handler, 0);
+	gatePoll.update(); //Trigger worker threads to awaken to their death
+	peerPoll.update();
 #endif
 }
 
@@ -168,10 +168,12 @@ void runServer() { //Listen for new connections
 			if (data.fd == gateServer) {
 				Gateway * gate = new Gateway(newSock);
 				gatePoll.add(*newSock, gate);
+				gatePoll.update();
 			}
 			else {
 				Peer * peer = new Peer(newSock);
 				peerPoll.add(*newSock, peer);
+				peerPoll.update();
 			}
 		}
 		catch (int e) {}

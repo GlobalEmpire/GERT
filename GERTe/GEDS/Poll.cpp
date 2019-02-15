@@ -173,3 +173,9 @@ void Poll::claim() {
 	handler = OpenThread(THREAD_ALL_ACCESS, false, id);
 #endif
 }
+
+void Poll::update() {
+#ifdef _WIN32
+	QueueUserAPC(apc, handler, 0);
+#endif
+}

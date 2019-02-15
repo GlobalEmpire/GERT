@@ -29,8 +29,5 @@ public:
 	void remove(SOCKET);
 	Event_Data wait();
 	void claim();
+	void update();
 };
-
-#ifdef _WIN32
-void apc(unsigned long long);
-#endif
