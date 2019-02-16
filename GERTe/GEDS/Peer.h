@@ -7,9 +7,9 @@ class Peer : public Connection {
 	IP ip;
 
 public:
-	Peer(void *);
+	Peer(SOCKET*);
 	~Peer();
-	Peer(void*, IP);
+	Peer(SOCKET*, IP);
 	void close();
 	void transmit(std::string);
 	void process();

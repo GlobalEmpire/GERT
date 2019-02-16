@@ -25,7 +25,7 @@ char * Connection::read(int num) {
 	return buf;
 }
 
-Connection::Connection(void * socket, std::string type) : sock(socket) {
+Connection::Connection(SOCKET* socket, std::string type) : sock(socket) {
 	SOCKET * newSocket = (SOCKET*)sock;
 
 	timeval opt = { 1, 0 };
@@ -63,7 +63,7 @@ Connection::Connection(void * socket, std::string type) : sock(socket) {
 	}
 }
 
-Connection::Connection(void * socket) : sock(socket) {}	
+Connection::Connection(SOCKET * socket) : sock(socket) {}	
 
 Connection::~Connection() {
 #ifdef WIN32

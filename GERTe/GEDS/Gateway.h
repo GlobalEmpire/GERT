@@ -3,7 +3,7 @@
 #include "Ports.h"
 
 class Gateway : public Connection {
-	Gateway(void*);
+	Gateway(SOCKET*);
 
 	friend void runServer();
 

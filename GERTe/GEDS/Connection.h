@@ -10,12 +10,12 @@ protected:
 	void error(char * err);
 
 public:
-	void * sock;
+	SOCKET * sock;
 	unsigned char state = 0;
 	char vers[2];
 
-	Connection(void*, std::string);
-	Connection(void*);
+	Connection(SOCKET*, std::string);
+	Connection(SOCKET*);
 
 	char * read(int=1);
 };

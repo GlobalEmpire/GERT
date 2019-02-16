@@ -219,7 +219,7 @@ void buildWeb() {
 			continue;
 		}
 
-		Peer * newConn = new Peer((void*)newSock, ip);
+		Peer * newConn = new Peer(newSock, ip);
 
 		newConn->transmit(ThisVersion.tostring());
 

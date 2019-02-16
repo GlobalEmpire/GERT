@@ -100,7 +100,7 @@ noAddrIter find(Gateway * gate) {
 	return iter;
 }
 
-Gateway::Gateway(void* sock) : Connection(sock, "Gateway") {
+Gateway::Gateway(SOCKET* sock) : Connection(sock, "Gateway") {
 	local = true;
 	noAddrList.push_back(this);
 	process(); //Process empty data (Protocol Library Gateway Initialization)

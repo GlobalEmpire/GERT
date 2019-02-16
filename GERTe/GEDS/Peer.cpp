@@ -40,8 +40,7 @@ enum Commands : char {
 	QUERY
 };
 
-Peer::Peer(void * sock) : Connection(sock, "Peer") { //Incoming Peer Constructor
-	SOCKET* newSocket = (SOCKET*)sock;
+Peer::Peer(SOCKET* newSocket) : Connection(sock, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
 	getpeername(*newSocket, (sockaddr*)&remoteip, &iplen);
@@ -67,7 +66,7 @@ Peer::~Peer() { //Peer destructor
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
-Peer::Peer(void * socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
+Peer::Peer(SOCKET* socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
 	peers[ip] = this;
 }
 
