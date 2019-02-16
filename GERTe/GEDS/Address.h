@@ -1,6 +1,5 @@
 #pragma once
 #include "Connection.h"
-#include <string>
 
 class Address {
 	unsigned char addr[3];

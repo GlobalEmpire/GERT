@@ -6,7 +6,6 @@
 #pragma comment(lib, "Ws2_32.lib")
 #else
 #include <netinet/ip.h>
-#include <string>
 #endif
 
 #include "Connection.h"

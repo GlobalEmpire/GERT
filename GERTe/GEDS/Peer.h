@@ -1,5 +1,4 @@
 #pragma once
-#include "Connection.h"
 #include "IP.h"
 #include "Ports.h"
 

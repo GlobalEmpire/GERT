@@ -2,7 +2,6 @@
 
 #include "Connection.h"
 #include "Address.h"
-#include <string>
 
 class Key {
 	friend void saveResolutions();
