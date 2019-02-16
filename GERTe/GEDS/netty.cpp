@@ -74,7 +74,7 @@ void processPeers() {
 	peerPoll.claim();
 
 	while (running) {
-		Event_Data data = gatePoll.wait();
+		Event_Data data = peerPoll.wait();
 
 		if (data.fd == 0) {
 			return;
