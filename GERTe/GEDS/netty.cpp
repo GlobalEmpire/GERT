@@ -8,6 +8,7 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 #include <poll.h>
+#include <signal.h>
 #endif
 #include <sys/types.h>
 #include <thread>
@@ -50,6 +51,10 @@ void killConnections() {
 
 //PUBLIC
 void processGateways() {
+#ifndef _WIN32
+	signal(SIGINT, SIG_DFL);
+#endif
+
 	gatePoll.claim();
 
 	while (running) {
@@ -70,6 +75,10 @@ void processGateways() {
 }
 
 void processPeers() {
+#ifndef _WIN32
+	signal(SIGINT, SIG_DFL);
+#endif
+
 	peerPoll.claim();
 
 	while (running) {
