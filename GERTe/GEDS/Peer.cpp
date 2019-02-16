@@ -40,7 +40,7 @@ enum Commands : char {
 	QUERY
 };
 
-Peer::Peer(SOCKET* newSocket) : Connection(sock, "Peer") { //Incoming Peer Constructor
+Peer::Peer(SOCKET* newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
 	getpeername(*newSocket, (sockaddr*)&remoteip, &iplen);
