@@ -1,9 +1,13 @@
 CC=g++
-CFLAGS=-c 
+CFLAGS=-c
 LFLAGS=-lpthread
 VERS=1.1
 
 default: build clean
+
+debug: CFLAGS += -g
+debug: VERS := $(VERS)d
+debug: default
 
 compile:
 	$(CC) $(CFLAGS) GEDS/*.cpp
