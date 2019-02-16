@@ -125,7 +125,14 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 #ifndef _WIN32
 	epoll_event eEvent;
 
-	if (epoll_wait(efd, &eEvent, 1, -1) == -1)
+	if (epoll_wait(efd, &eEvent, 1, -1) == -1) {
+		if (errno == 4) {
+			return Event_Data{
+				0,
+				nullptr
+			};
+		}
+	}
 		throw errno;
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
