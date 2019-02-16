@@ -8,7 +8,6 @@
 #include <unistd.h>
 #endif
 
-#include "Connection.h"
 #include "netty.h"
 #include "logging.h"
 #include "Versioning.h"

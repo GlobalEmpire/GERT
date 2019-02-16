@@ -1,18 +1,12 @@
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#pragma comment(lib, "Ws2_32.lib")
-
 typedef int socklen_t;
 #else
 #include <sys/socket.h>
 #endif
 
-#include "netty.h"
 #include "routeManager.h"
 #include "logging.h"
 #include <fcntl.h>
-#include <map>
 #include "Poll.h"
 #include "GERTc.h"
 #include "NetString.h"

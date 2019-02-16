@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Connection.h"
 #include "Address.h"
 
 class Key {

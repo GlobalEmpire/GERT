@@ -1,4 +1,3 @@
-#include "Key.h"
 #include "Peer.h"
 #include "gatewayManager.h"
 #include "logging.h"

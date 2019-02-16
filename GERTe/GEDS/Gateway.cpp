@@ -1,16 +1,6 @@
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#pragma comment(lib, "Ws2_32.lib")
-#else
-#include <sys/socket.h>
-#endif
-
-#include "netty.h"
 #include "gatewayManager.h"
 #include "logging.h"
 #include <fcntl.h>
-#include <map>
 #include "Poll.h"
 #include "routeManager.h"
 #include "peerManager.h"

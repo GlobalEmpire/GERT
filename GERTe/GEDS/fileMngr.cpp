@@ -1,9 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS //Windows grumble grumble
 
-#include "Peer.h" //Include peer manager so that we can write to the peer database
 #include "fileMngr.h"
 #include "Key.h"
-#include "Address.h"
 #include "logging.h"
 #include "peerManager.h"
 

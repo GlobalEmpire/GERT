@@ -1,8 +1,5 @@
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
-#include <winsock2.h>
-#pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h> //Load C++ standard socket API
 #include <netinet/tcp.h>
@@ -16,7 +13,6 @@
 #include "routeManager.h"
 #include "gatewayManager.h"
 #include "query.h"
-#include "netty.h"
 #include "logging.h"
 #include "Poll.h"
 #include "Versioning.h"
