@@ -248,5 +248,7 @@ void buildWeb() {
 
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
+
+		peerPoll.add(*newSock, newConn);
 	}
 }
