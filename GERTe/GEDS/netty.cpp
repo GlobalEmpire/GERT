@@ -51,10 +51,6 @@ void killConnections() {
 
 //PUBLIC
 void processGateways() {
-#ifndef _WIN32
-	signal(SIGINT, SIG_DFL);
-#endif
-
 	gatePoll.claim();
 
 	while (running) {
@@ -75,10 +71,6 @@ void processGateways() {
 }
 
 void processPeers() {
-#ifndef _WIN32
-	signal(SIGINT, SIG_DFL);
-#endif
-
 	peerPoll.claim();
 
 	while (running) {
