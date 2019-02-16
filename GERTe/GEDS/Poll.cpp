@@ -146,9 +146,16 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				error("Unknown WSA failure. Code: " + std::to_string(WSAGetLastError()));
 			}
 			else if (result != WSA_WAIT_IO_COMPLETION) {
-				INNER * store = (INNER*)tracker[result - WSA_WAIT_EVENT_0];
+				int offset = result - WSA_WAIT_EVENT_0;
 
-				return *(store->data);
+				if (offset < events.size()) {
+					INNER * store = (INNER*)tracker[offset];
+
+					return *(store->data);
+				}
+				else {
+					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
+				}
 			}
 		}
 
