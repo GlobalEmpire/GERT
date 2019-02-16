@@ -1,4 +1,4 @@
--- GERT v1.1 RC3
+-- GERT v1.1 RC4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -155,6 +155,7 @@ local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 			end
 		end, function () end)
 		waitWithCancel(3, function () return response end)
+		return response
 	else
 		sendOKResponse(true)
 	end
@@ -281,6 +282,7 @@ local function closeSock(self)
 	handler.CloseConnection((modem or tunnel).address, 4378, self.ID, self.destination, self.origination)
 end
 function GERTi.openSocket(gAddress, doEvent, outID)
+	local port, add
 	if outID == nil then
 		if connections[gAddress] and connections[gAddress][iAdd] then
 			outID = #connections[gAddress][iAdd] + 1
@@ -289,17 +291,23 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		end
 	end
 	if nodes[gAddress] ~= nil then
+		port = nodes[gAddress]["port"]
+		add = nodes[gAddress]["add"]
 		storeConnection(iAdd, outID, gAddress)
 		routeOpener(gAddress, iAdd, "A", nodes[gAddress]["add"], nodes[gAddress]["port"], nodes[gAddress]["port"], outID)
 	else
 		storeConnection(iAdd, outID, gAddress)
-		routeOpener(gAddress, iAdd, "A", firstN["add"], firstN["port"], firstN["port"], outID)
+		if routeOpener(gAddress, iAdd, "A", firstN["add"], firstN["port"], firstN["port"], outID) then
+			storeConnection(iAdd, outID, gAddress)
+		else
+			return nil
+		end
 	end
 	
 	local socket = {origination = iAdd,
 		destination = gAddress,
-		outPort = nodes[gAddress]["port"] or firstN["port"],
-		nextHop = nodes[gAddress]["add"] or firstN["add"],
+		outPort = port or firstN["port"],
+		nextHop = add or firstN["add"],
 		ID = outID,
 		order = 1,
 		write = writeData,
