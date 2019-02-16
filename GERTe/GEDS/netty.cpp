@@ -55,9 +55,8 @@ void processGateways() {
 	while (running) {
 		Event_Data data = gatePoll.wait();
 
-		if (data.fd == 0) {
+		if (data.fd == 0)
 			return;
-		}
 
 		SOCKET sock = data.fd;
 		Gateway * gate = (Gateway*)data.ptr;

@@ -133,7 +133,7 @@ int main( int argc, char* argv[] ) {
 	cout << "Copyright 2017" << endl; //Print simple copyright information
 
 	processArgs(argc, argv); //Process command line argument
-	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " Debug mode: " + to_string(debugMode) + " (should be 1)"); //Print to debug processed arguments
+	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
 
 	startLog(); //Create log handles
 
@@ -176,6 +176,7 @@ int main( int argc, char* argv[] ) {
 	cleanup(); //Cleanup servers
 	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
 	gateways.join(); //Cleanup processor (wait for it to die)
+	debug("Gateway processor exited");
 	peers.join();
 	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
 	

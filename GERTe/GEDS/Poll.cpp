@@ -132,8 +132,10 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				nullptr
 			};
 		}
+		else {
+			throw errno;
+		}
 	}
-		throw errno;
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
 	while (true) {
@@ -141,13 +143,6 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
 		else {
 			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
-
-			if (!running) {
-				return Event_Data{
-					0,
-					nullptr
-				};
-			}
 
 			if (result == WSA_WAIT_FAILED) {
 				error("Unknown WSA failure. Code: " + std::to_string(WSAGetLastError()));
@@ -166,12 +161,11 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 			}
 		}
 
-		if (!running) {
+		if (!running)
 			return Event_Data{
 				0,
 				nullptr
 			};
-		}
 	}
 #endif
 }
