@@ -40,6 +40,9 @@ char * LOCAL_IP = nullptr; //Set local address to predictable null value for tes
 char * peerPort = "59474"; //Set default peer port
 char * gatewayPort = "43780"; //Set default gateway port
 
+thread * gatewayThread;
+thread * peerThread;
+
 #ifdef _WIN32
 #include "Poll.h"
 extern Poll serverPoll;
@@ -52,6 +55,9 @@ void shutdownProceedure(int param) { //SIGINT handler function
 
 #ifdef _WIN32
 		serverPoll.update(); //Work around Windows oddities
+#else
+		pthread_kill(gatewayThread->native_handle(), SIGINT);
+		pthread_kill(peerThread->native_handle(), SIGINT);
 #endif
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
@@ -162,10 +168,10 @@ int main( int argc, char* argv[] ) {
 	running = true; //We've officially started running! SIGINT is now not evil!
 
 	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
-	thread gateways(processGateways); //Create message processor thread
+	gatewayThread = new thread{ processGateways }; //Create message processor thread
 
 	debug("Starting peer message processor");
-	thread peers(processPeers);
+	peerThread = new thread{ processPeers };
 
 	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
 	runServer(); //Process incoming connections (not messages)
@@ -175,9 +181,9 @@ int main( int argc, char* argv[] ) {
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
 	cleanup(); //Cleanup servers
 	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
-	gateways.join(); //Cleanup processor (wait for it to die)
+	gatewayThread->join(); //Cleanup processor (wait for it to die)
 	debug("Gateway processor exited");
-	peers.join();
+	peerThread->join();
 	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process
