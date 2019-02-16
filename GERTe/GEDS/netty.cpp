@@ -5,6 +5,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h> //Load C++ standard socket API
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <poll.h>
 #endif
@@ -205,6 +206,12 @@ void buildWeb() {
 		addrFormat.sin_addr = remoteIP;
 		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
+
+#ifndef _WIN32
+		int opt = 3;
+		setsockopt(*newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
+#endif
+
 		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
 
 		if (result != 0) {
