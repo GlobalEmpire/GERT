@@ -1,8 +1,12 @@
 #pragma once
-#ifdef _WIN32
-static unsigned long nonZero = 1;
-#endif
 #include <string>
+
+#ifdef _WIN32
+typedef unsigned long long SOCKET;
+static unsigned long nonZero = 1;
+#else
+typedef int SOCKET;
+#endif
 
 class Connection {
 protected:
