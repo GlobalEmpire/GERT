@@ -35,7 +35,13 @@ Connection::Connection(void * socket, std::string type) : sock(socket) {
 	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-	recv(*newSocket, vers, 2, 0);
+	int result = recv(*newSocket, vers, 2, 0);
+
+	if (result != 2) {
+		::error("New connection failed to send sufficient version information: " + std::to_string(result) + " " + std::to_string(errno));
+		throw 1;
+	}
+
 	log(type + " using " + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
 
 	if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
