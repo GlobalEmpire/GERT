@@ -28,12 +28,17 @@ char * Connection::read(int num) {
 Connection::Connection(void * socket, std::string type) : sock(socket) {
 	SOCKET * newSocket = (SOCKET*)sock;
 
+	timeval opt = { 1, 0 };
+
 #ifdef _WIN32
-	ioctlsocket(*newSocket, FIONBIO, &nonZero);
+#define PTR char*
 #else
-	int flags = fcntl(*newSocket, F_GETFL);
-	fcntl(*newSocket, F_SETFL, flags | O_NONBLOCK);
+#define PTR void*
 #endif
+
+	setsockopt(*newSocket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
+
+#undef PTR
 
 	int result = recv(*newSocket, vers, 2, 0);
 
