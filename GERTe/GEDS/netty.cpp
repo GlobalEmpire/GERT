@@ -142,10 +142,8 @@ void cleanup() {
 
 	killConnections();
 
-#ifdef _WIN32
 	gatePoll.update(); //Trigger worker threads to awaken to their death
 	peerPoll.update();
-#endif
 }
 
 //PUBLIC
@@ -171,12 +169,18 @@ void runServer() { //Listen for new connections
 			if (data.fd == gateServer) {
 				Gateway * gate = new Gateway(newSock);
 				gatePoll.add(*newSock, gate);
+
+#ifdef _WIN32
 				gatePoll.update();
+#endif
 			}
 			else {
 				Peer * peer = new Peer(newSock);
 				peerPoll.add(*newSock, peer);
+
+#ifdef _WIN32
 				peerPoll.update();
+#endif
 			}
 		}
 		catch (int e) {}

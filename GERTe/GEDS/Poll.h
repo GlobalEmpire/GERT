@@ -12,13 +12,14 @@ class Poll {
 	friend void removeTracker(SOCKET, Poll*);
 	friend void cleanup();
 
+	void * handler = nullptr;
+
 #ifndef _WIN32
 	int efd;
 	std::vector<Event_Data*> tracker;
 #else
 	std::vector<void*> tracker;
 	std::vector<void*> events;
-	void * handler = nullptr;
 #endif
 
 public:

@@ -138,8 +138,20 @@ int main( int argc, char* argv[] ) {
 	startLog(); //Create log handles
 
 	set_terminate(errHandler);
+
+#ifdef _WIN32
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
+#else
+	struct sigaction mem = { 0 };
+	struct sigaction intr = { 0 };
+
+	mem.sa_handler = OHCRAPOHCRAP;
+	intr.sa_handler = shutdownProceedure;
+
+	sigaction(SIGSEGV, &mem, nullptr);
+	sigaction(SIGINT, &intr, nullptr);
+#endif
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
 	int result = loadPeers(); //Load the peer database

@@ -5,6 +5,12 @@ typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 
+#ifdef _WIN32
+typedef unsigned long long SOCKET;
+#else
+typedef int SOCKET;
+#endif
+
 void runServer();
 
 void startup();

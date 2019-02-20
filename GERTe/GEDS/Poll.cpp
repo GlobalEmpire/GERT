@@ -1,12 +1,13 @@
 #include "Poll.h"
 #include "logging.h"
+#include <thread>
 
 #ifndef _WIN32
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <signal.h>
 #else
 #include <WinSock2.h>
-#include <thread>
 #endif
 
 extern volatile bool running;
@@ -73,6 +74,8 @@ Poll::~Poll() {
 	{
 		delete data;
 	}
+
+	delete (pthread_t*)handler;
 #else
 	CloseHandle(handler);
 #endif
@@ -124,8 +127,12 @@ void Poll::remove(SOCKET fd) {
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
 #ifndef _WIN32
 	epoll_event eEvent;
+	sigset_t mask;
 
-	if (epoll_wait(efd, &eEvent, 1, -1) == -1) {
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+
+	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1) {
 		if (errno == 4) {
 			return Event_Data{
 				0,
@@ -179,11 +186,16 @@ void Poll::claim() {
 
 	DWORD id = GetCurrentThreadId();
 	handler = OpenThread(THREAD_ALL_ACCESS, false, id);
+#else
+	handler = new pthread_t;
+	*(pthread_t*)handler = pthread_self();
 #endif
 }
 
 void Poll::update() {
 #ifdef _WIN32
 	QueueUserAPC(apc, handler, 0);
+#else
+	pthread_kill(*(std::thread::native_handle_type*)handler, SIGUSR1);
 #endif
 }
