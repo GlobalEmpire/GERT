@@ -48,7 +48,10 @@ Peer::Peer(SOCKET* newSocket) : Connection(newSocket, "Peer") { //Incoming Peer 
 
 	peers[ip] = this;
 	log("Peer connected from " + ip.stringify());
-	process();
+	transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+
+	if (vers[1] == 0)
+		transmit("\0");
 };
 
 Peer::~Peer() { //Peer destructor
@@ -76,7 +79,7 @@ void Peer::transmit(string data) {
 void Peer::process() {
 	if (state == 0) {
 		state = 1;
-		transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+		
 		/*
 			* Initial packet
 			* MAJOR VERSION
@@ -92,7 +95,7 @@ void Peer::process() {
 		NetString data = NetString::extract(this);
 		string cmd = { (char)Commands::ROUTE };
 		cmd += target.tostring() + source.tostring() + data.string();
-		if (!sendToGateway(target.external, cmd)) {
+		if (!Gateway::sendTo(target.external, cmd)) {
 			string errCmd = { UNREGISTERED };
 			errCmd += target.tostring();
 			this->transmit(errCmd);
@@ -101,12 +104,12 @@ void Peer::process() {
 	}
 	case REGISTERED: {
 		Address target = Address::extract(this);
-		setRoute(target, this);
+		RGateway * newGate = new RGateway{ target, this };
 		return;
 	}
 	case UNREGISTERED: {
 		Address target = Address::extract(this);
-		removeRoute(target);
+		delete RGateway::lookup(target);
 		return;
 	}
 	case RESOLVE: {
@@ -141,7 +144,7 @@ void Peer::process() {
 		if (Gateway::lookup(target)) {
 			string cmd = { REGISTERED };
 			cmd += target.tostring();
-			sendToGateway(target, cmd);
+			Gateway::sendTo(target, cmd);
 		}
 		else {
 			string cmd = { UNREGISTERED };

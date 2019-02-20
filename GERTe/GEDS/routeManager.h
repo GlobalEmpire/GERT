@@ -1,8 +1,8 @@
 #pragma once
-#include "Peer.h"
-#include "Address.h"
+#include "RGateway.h"
 #include <map>
-typedef std::map<Address, Peer*>::iterator routePtr;
+
+typedef std::map<Address, RGateway*>::iterator routePtr;
 
 class routeIter {
 	routePtr ptr;
@@ -14,7 +14,3 @@ class routeIter {
 };
 
 void killAssociated(Peer*);
-void setRoute(Address, Peer*);
-void removeRoute(Address);
-bool remoteSend(Address, std::string);
-bool isRemote(Address);

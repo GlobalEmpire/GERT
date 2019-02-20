@@ -28,7 +28,7 @@ extern volatile bool running;
 extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
-extern vector<Gateway*> noAddrList;
+extern vector<UGateway*> noAddrList;
 extern map<IP, Ports> peerList;
 
 constexpr unsigned int iplen = sizeof(sockaddr);
@@ -36,12 +36,14 @@ constexpr unsigned int iplen = sizeof(sockaddr);
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
+		delete *iter;
 	}
 	for (peerIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
 	}
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
+		delete *iter;
 	}
 }
 
@@ -56,7 +58,7 @@ void processGateways() {
 			return;
 
 		SOCKET sock = data.fd;
-		Gateway * gate = (Gateway*)data.ptr;
+		UGateway * gate = (UGateway*)data.ptr;
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
@@ -167,7 +169,7 @@ void runServer() { //Listen for new connections
 
 		try {
 			if (data.fd == gateServer) {
-				Gateway * gate = new Gateway(newSock);
+				UGateway * gate = new UGateway(newSock);
 				gatePoll.add(*newSock, gate);
 
 #ifdef _WIN32

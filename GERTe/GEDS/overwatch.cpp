@@ -15,7 +15,7 @@ enum scanResult {
 	MAJOR_ERR
 };
 
-int scanGateway(Gateway * checkgate, string addr) {
+int scanGateway(UGateway * checkgate, string addr) {
 	int errs = 0;
 	if (checkgate == nullptr) {
 		debug("[ESCAN] Gateway " + addr + " missing from gateways map");
@@ -62,7 +62,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	total += errs;
 	errs = 0;
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway * checkgate = *iter;
+		UGateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}
 	total += errs;

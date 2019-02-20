@@ -1,13 +1,10 @@
-#include <fcntl.h>
 #include "gatewayManager.h"
-#include "netty.h"
 #include "routeManager.h"
-#include "logging.h"
 
 using namespace std;
 
 extern map<Address, Gateway*> gateways; //Create Gateway database
-extern vector<Gateway*> noAddrList; //Create list for unregistered gateways
+extern vector<UGateway*> noAddrList; //Create list for unregistered gateways
 
 //For Gateway iterators
 bool gatewayIter::isEnd() { return ptr == gateways.end(); } //Add logic to isEnd()     Is last element
@@ -20,13 +17,5 @@ void gatewayIter::erase() { ptr = gateways.erase(ptr); }
 bool noAddrIter::isEnd() { return ptr >= noAddrList.end(); }
 noAddrIter noAddrIter::operator++ (int a) { return (ptr++, *this); }
 noAddrIter::noAddrIter() : ptr(noAddrList.begin()) {};
-Gateway* noAddrIter::operator* () { return *ptr; }
+UGateway* noAddrIter::operator* () { return *ptr; }
 void noAddrIter::erase() { ptr = noAddrList.erase(ptr); } //Add logic to erase()     Remove this element
-
-bool sendToGateway(Address addr, string data) { //Send to Gateway with address
-	if (gateways.count(addr) != 0) { //If that Gateway is in the database
-		gateways[addr]->transmit(data);
-		return true; //Notify the protocol library that we succeeded in sending
-	}
-	return remoteSend(addr, data); //Attempt to send to Gateway with address via routing. Notify protocol library of result.
-}
