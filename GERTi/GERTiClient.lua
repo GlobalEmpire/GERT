@@ -114,7 +114,6 @@ handler.CloseConnection = function(sendingModem, port, ID, dest, origin)
 	if destination ~= iAdd then
 		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "CloseConnection", ID, dest, origin)
 	end
-	paths[origin][dest] = nil
 	connections[dest][origin][ID] = nil
 end
 
