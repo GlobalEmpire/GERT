@@ -18,8 +18,8 @@ local connected
 
 local directory = os.getenv("_")
 directory = filesystem.path(directory)
-local version = "\1\0\0"
-local readableVersion = "1.0.0"
+local version = "\1\1"
+local readableVersion = "1.1.0"
 
 if card.isTcpEnabled() == false then
 	error("TCP Sockets are not permitted. If this is a server contact the administrator. If this is single player please modify the configuration file.")
@@ -129,10 +129,20 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 		if not err and result then
 			temp.write(version)
 			local response = ""
+			
+			local start = os.time()
+			local compat = false
 			while response:len() < 1 do
-				response = temp.read(5) or ""
+				response = temp.read(4) or coroutine.yield() or ""
+				if os.time() - start > 1 then
+					if os.time() - start > 3 then
+						break
+					elseif not compat
+						temp.write("\0") --Compatibility byte
+					end
+				end
 			end
-			if response:sub(1, 3) == "\0\1" .. version:sub(1, 1) then
+			if response:sub(1, 3) == "\0\1" .. version:sub(1, 1) and response:byte(4) <= version:byte(2) then
 				socket = temp
 				connected = peer
 				return
