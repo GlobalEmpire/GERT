@@ -136,7 +136,6 @@ handler["CloseConnection"] = function(sendingModem, port, connectionID, destinat
 	if destination ~= iAddress then
 		transmitInformation(paths[origin][destination]["nextHop"], paths[origin][destination]["port"], "CloseConnection", ID, destination, origin)
 	end
-	paths[origin][destination] = nil
 	connections[destination][ID] = nil
 end
 
