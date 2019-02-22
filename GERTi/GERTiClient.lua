@@ -240,18 +240,18 @@ if modem then
 end
 --Listen to computer.shutdown to allow for better network leaves
 local function safedown()
-	if tunnel then
-		tunnel.send("RemoveNeighbor", iAdd)
-	end
-	if modem then
-		modem.broadcast(4378, "RemoveNeighbor", iAdd)
-	end
 	for key, value in pairs(connections) do
 		for key2, value2 in pairs(connections[key]) do
 			for key3, value3 in pairs(connections[key][key2]) do
 				handler.CloseConnection((modem or tunnel).address, 4378, key3, key, key2)
 			end
 		end
+	end
+	if tunnel then
+		tunnel.send("RemoveNeighbor", iAdd)
+	end
+	if modem then
+		modem.broadcast(4378, "RemoveNeighbor", iAdd)
 	end
 end
 event.listen("shutdown", safedown)
