@@ -47,7 +47,7 @@ Connection::Connection(SOCKET* socket, std::string type) : sock(socket) {
 		throw 1;
 	}
 
-	log(type + " using " + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
+	log(type + " using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
 
 	if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
 		char err[3] = { 0, 0, 0 };
@@ -60,6 +60,9 @@ Connection::Connection(SOCKET* socket, std::string type) : sock(socket) {
 	if (vers[1] == 0) {
 		char spare;
 		recv(*newSocket, &spare, 1, 0);
+	}
+	else if (vers[1] > ThisVersion.minor) {
+		vers[1] = ThisVersion.minor;
 	}
 }
 

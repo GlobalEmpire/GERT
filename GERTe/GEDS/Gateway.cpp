@@ -141,7 +141,12 @@ void Gateway::close() {
 
 void Gateway::process() {
 	if (this->state == (char)Gate::States::FAILURE) {
-		changeState(this, Gate::States::CONNECTED, 3, (char*)&ThisVersion);
+		changeState(this, Gate::States::CONNECTED, 2, vers);
+
+		if (vers[1] == 0) {
+			transmit("\0");
+		}
+
 		/*
 		 * Response to connection attempt.
 		 * CMD STATE (0)
