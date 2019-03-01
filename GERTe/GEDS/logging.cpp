@@ -16,8 +16,12 @@ void startLog() {
 string timeOut() {
 	time_t rawtime;
 	time(&rawtime);
-	tm* curTime = localtime(&rawtime);
-	return to_string(curTime->tm_hour) + ":" + to_string(curTime->tm_min) + ":" + to_string(curTime->tm_sec);
+	tm * curTime = localtime(&rawtime);
+
+	char time[9];
+	strftime(time, 9, "%T", curTime);
+
+	return string{ time };
 }
 
 void log(string msg) {
