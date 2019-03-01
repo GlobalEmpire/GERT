@@ -176,13 +176,6 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	routeOpener(dest, origin, sendingModem, nodes[intermediary]["add"], port, nodes[intermediary]["port"], ID)
 end
 
-handler.RemoveNeighbor = function (sendingModem, port, origination)
-	if nodes[origination] ~= nil then
-		nodes[origination] = nil
-	end
-	transInfo(firstN["add"], firstN["port"], "RemoveNeighbor", origination)
-end
-
 handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)
 	transInfo(firstN["add"], firstN["port"], "RegisterNode", origination, nTier, serialTable)
 	addTempHandler(3, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
@@ -193,12 +186,19 @@ handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, 
 	end, function () end)
 end
 
+handler.RemoveNeighbor = function (sendingModem, port, origination)
+	if nodes[origination] then
+		nodes[origination] = nil
+	end
+	transInfo(firstN["add"], firstN["port"], "RemoveNeighbor", origination)
+end
+
 handler.RETURNSTART = function (sendingModem, port, gAddress, nTier)
 	storeNodes(tonumber(gAddress), sendingModem, port, nTier)
 end
 
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
-	if handler[code] ~= nil then
+	if handler[code] then
 		handler[code](sendingModem, port, ...)
 	end
 end
@@ -289,7 +289,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 			outID = 1
 		end
 	end
-	if nodes[gAddress] ~= nil then
+	if nodes[gAddress] then
 		port = nodes[gAddress]["port"]
 		add = nodes[gAddress]["add"]
 		storeConnection(iAdd, outID, gAddress)

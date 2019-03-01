@@ -132,22 +132,22 @@ local function transmitInformation(sendTo, port, ...)
 end
 
 local handler = {}
-handler["CloseConnection"] = function(sendingModem, port, connectionID, destination, origin)
+handler.CloseConnection = function(sendingModem, port, connectionID, destination, origin)
 	if destination ~= iAddress then
 		transmitInformation(paths[origin][destination]["nextHop"], paths[origin][destination]["port"], "CloseConnection", ID, destination, origin)
 	end
 	connections[destination][ID] = nil
 end
 
-handler["Data"] = function (sendingModem, port, data, destination, origination, connectionID, order)
-	if connections[origination] ~= nil and connections[origination][connectionID] ~= nil then
-		GERTe.transmitTo(destination, origination, data)
-	elseif connectionID > 0 then
+handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
+	if string.find(dest, ":") and GERTe then
+		GERTe.transmitTo(dest, origin, data)
+	elseif connections[dest] and connections[dest][origin] and connections[dest][origin][ID] then
 		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
 	end
 end
 
-handler["NewNode"] = function (sendingModem, port)
+handler.NewNode = function (sendingModem, port)
 	transmitInformation(sendingModem, port, "RETURNSTART", 0.0, 0)
 end
 -- Used in handler["OPENROUTE"]
@@ -167,12 +167,12 @@ local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort
 		if event.pull(3, "modem_message", nil, nil, nil, nil, "RouteOpen", nil, dest, origin) then
 			sendOKResponse(false)
 		end
-	else
+	elseif GERTe then
     	sendOKResponse(true)
 	end
 end
 
-handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin, ID)
+handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	if string.find(dest, ":") then
 		return routeOpener(dest, origin, sendingModem, modem.address, modem.address, port, port, ID)
 	end
@@ -196,7 +196,7 @@ handler["OpenRoute"] = function (sendingModem, port, dest, intermediary, origin,
 	end
 end
 
-handler["RegisterNode"] = function (sendingModem, port, originatorAddress, childTier, childTable)
+handler.RegisterNode = function (sendingModem, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, port, childTier)
 	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
@@ -224,7 +224,7 @@ handler["RegisterNode"] = function (sendingModem, port, originatorAddress, child
 	end
 end
 
-handler["RemoveNeighbor"] = function (sendingModem, port, origination)
+handler.RemoveNeighbor = function (sendingModem, port, origination)
 	if nodes[origination] ~= nil then
 		nodes[origination] = nil
 	end
@@ -240,8 +240,8 @@ end
 -- GERTe Integration
 local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
-	local message = GERTe.parse()
-	while message ~= nil do
+	local errC, message = pcall(GERTe.parse)
+	while not errC and message do
 		local found = false
 		local target = string.sub(message["target"], string.find(message["target"], ":")+1)
 		if connections[target] ~= nil then
@@ -253,8 +253,9 @@ local function readGMessage()
 			storeConnection(message["source"], 0, target)
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
-		message = GERTe.parse()
+		errC, message = pcall(GERTe.parse)
 	end
+  print("GERTe has closed the connection")
 end
 
 local function safedown()
