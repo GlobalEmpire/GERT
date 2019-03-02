@@ -7,7 +7,7 @@ class Gateway;
 //THIS IS NOT EVEN MY FINAL FORM!!!
 
 class UGateway : public Connection { //The OG Gateway
-	UGateway(SOCKET*);
+	UGateway(SOCKET);
 
 	friend void runServer();
 

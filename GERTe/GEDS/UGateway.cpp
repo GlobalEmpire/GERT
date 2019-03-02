@@ -91,7 +91,7 @@ noAddrIter find(UGateway * gate) {
 	return iter;
 }
 
-UGateway::UGateway(SOCKET* newSock) : Connection(newSock, "Gateway") {
+UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 	noAddrList.push_back(this);
 	changeState(this, Gate::States::CONNECTED, 3, (char*)&ThisVersion);
 
@@ -105,7 +105,7 @@ UGateway::~UGateway() {
 	if (!pos.isEnd())
 		pos.erase();
 
-	gatePoll.remove(*(SOCKET*)sock);
+	gatePoll.remove(sock);
 }
 
 UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
@@ -113,7 +113,7 @@ UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
 }
 
 void UGateway::transmit(string data) {
-	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+	send(this->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 bool UGateway::assign(Address requested, Key key) {

@@ -34,10 +34,10 @@ enum Commands : char {
 	QUERY
 };
 
-Peer::Peer(SOCKET* newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
+Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
-	getpeername(*newSocket, (sockaddr*)&remoteip, &iplen);
+	getpeername(newSocket, (sockaddr*)&remoteip, &iplen);
 	IP ip{ remoteip.sin_addr };
 
 	if (peerList.count(ip) == 0) {
@@ -58,12 +58,12 @@ Peer::~Peer() { //Peer destructor
 	killAssociated(this);
 	peers.erase(ip);
 
-	peerPoll.remove(*(SOCKET*)sock);
+	peerPoll.remove(sock);
 
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
-Peer::Peer(SOCKET* socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
+Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
 	peers[ip] = this;
 }
 
@@ -73,7 +73,7 @@ void Peer::close() {
 }
 
 void Peer::transmit(string data) {
-	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+	send(this->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 void Peer::process() {

@@ -10,14 +10,14 @@ typedef int SOCKET;
 
 class Connection {
 protected:
-	Connection(SOCKET*, std::string);
-	Connection(SOCKET*);
+	Connection(SOCKET, std::string);
+	Connection(SOCKET);
 	~Connection();
 
 	void error(char * err);
 
 public:
-	SOCKET * sock;
+	SOCKET sock;
 	unsigned char state = 0;
 	char vers[2];
 

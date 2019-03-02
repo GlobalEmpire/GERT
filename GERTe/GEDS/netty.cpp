@@ -159,8 +159,7 @@ void runServer() { //Listen for new connections
 			return;
 		}
 
-		SOCKET * newSock = new SOCKET;
-		*newSock = accept(data.fd, NULL, NULL);
+		SOCKET newSock = accept(data.fd, NULL, NULL);
 
 #ifdef _WIN32
 		serverPoll.remove(data.fd); //Work around winsock inheritance
@@ -170,7 +169,7 @@ void runServer() { //Listen for new connections
 		try {
 			if (data.fd == gateServer) {
 				UGateway * gate = new UGateway(newSock);
-				gatePoll.add(*newSock, gate);
+				gatePoll.add(newSock, gate);
 
 #ifdef _WIN32
 				gatePoll.update();
@@ -178,7 +177,7 @@ void runServer() { //Listen for new connections
 			}
 			else {
 				Peer * peer = new Peer(newSock);
-				peerPoll.add(*newSock, peer);
+				peerPoll.add(newSock, peer);
 
 #ifdef _WIN32
 				peerPoll.update();
@@ -201,8 +200,7 @@ void buildWeb() {
 			continue;
 		}
 
-		SOCKET * newSock = new SOCKET;
-		*newSock = socket(AF_INET, SOCK_STREAM, 0);
+		SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = ip.addr;
 		sockaddr_in addrFormat;
 		addrFormat.sin_addr = remoteIP;
@@ -214,7 +212,7 @@ void buildWeb() {
 		setsockopt(*newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
 #endif
 
-		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
+		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);
 
 		if (result != 0) {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
@@ -228,8 +226,8 @@ void buildWeb() {
 		char death[3];
 		timeval timeout = { 3, 0 };
 
-		setsockopt(*newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
-		int result2 = recv(*newSock, death, 2, 0);
+		setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
+		int result2 = recv(newSock, death, 2, 0);
 
 		if (result2 == -1) {
 			delete newConn;
@@ -238,7 +236,7 @@ void buildWeb() {
 		}
 
 		if (death[0] == 0) {
-			recv(*newSock, death + 2, 1, 0);
+			recv(newSock, death + 2, 1, 0);
 
 			if (death[3] == 0) {
 				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
@@ -255,6 +253,6 @@ void buildWeb() {
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 
-		peerPoll.add(*newSock, newConn);
+		peerPoll.add(newSock, newConn);
 	}
 }
