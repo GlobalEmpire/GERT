@@ -35,6 +35,10 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 #endif
 
 #ifdef WIN32
+	WSAEventSelect(socket, NULL, 0); //Clears all events associated with the new socket
+	u_long nonblock = 0;
+	int resulterr = ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
+#endif
 
 	setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
 

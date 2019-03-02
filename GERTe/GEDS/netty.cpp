@@ -161,11 +161,6 @@ void runServer() { //Listen for new connections
 
 		SOCKET newSock = accept(data.fd, NULL, NULL);
 
-#ifdef _WIN32
-		serverPoll.remove(data.fd); //Work around winsock inheritance
-		serverPoll.add(data.fd);
-#endif
-
 		try {
 			if (data.fd == gateServer) {
 				UGateway * gate = new UGateway(newSock);
