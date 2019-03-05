@@ -12,6 +12,7 @@
 #include "netty.h"
 #include "logging.h"
 #include "Versioning.h"
+#include "Error.h"
 
 void Connection::error(char * err) {
 	send(sock, err, 3, 0);
@@ -51,22 +52,7 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 	int result = recv(socket, vers, 2, 0);
 
 	if (result != 2) {
-		std::string message = "New connection failed to send sufficient version information: ";
-
-#ifndef _WIN32
-		::error(message + std::to_string(result) + " " + std::to_string(errno));
-#else
-		LPTSTR err = NULL;
-		int formatres = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, WSAGetLastError(), 0, (LPTSTR)&err, 256, NULL);
-
-		if (formatres == 0)
-			::error(message + " Failed to format message: " + std::to_string(GetLastError()));
-		else
-			::error(message + std::string{ err });
-
-		LocalFree(err);
-#endif
-
+		socketError("Error reading version information: ");
 		throw 1;
 	}
 

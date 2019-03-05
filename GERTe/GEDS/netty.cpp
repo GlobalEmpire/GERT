@@ -16,6 +16,7 @@
 #include "logging.h"
 #include "Poll.h"
 #include "Versioning.h"
+#include "Error.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
@@ -164,6 +165,11 @@ void runServer() { //Listen for new connections
 		}
 
 		SOCKET newSock = accept(data.fd, NULL, NULL);
+
+		if (newSock == -1) {
+			socketError("Error accepting a new connection: ");
+			continue;
+		}
 
 #ifdef _WIN32
 		serverPoll.remove(data.fd);
