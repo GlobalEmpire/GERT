@@ -38,7 +38,7 @@ std::string Address::stringify() const {
 
 Address Address::extract(Connection* conn) {
 	char * addr = conn->read(3);
-	Address result = Address{addr + 1};
+	Address result = Address{(unsigned char *)addr + 1};
 	delete addr;
 
 	return result;

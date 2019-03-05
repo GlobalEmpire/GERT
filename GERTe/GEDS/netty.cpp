@@ -61,8 +61,10 @@ void processGateways() {
 		UGateway * gate = (UGateway*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
+			gatePoll.remove(data.fd);
 			delete gate;
+		}
 		else
 			gate->process();
 	}
@@ -82,8 +84,10 @@ void processPeers() {
 		Peer * peer = (Peer*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
+		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
+			peerPoll.remove(data.fd);
 			delete peer;
+		}
 		else
 			peer->process();
 	}
@@ -160,6 +164,11 @@ void runServer() { //Listen for new connections
 		}
 
 		SOCKET newSock = accept(data.fd, NULL, NULL);
+
+#ifdef _WIN32
+		serverPoll.remove(data.fd);
+		serverPoll.add(data.fd);
+#endif
 
 		try {
 			if (data.fd == gateServer) {

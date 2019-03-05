@@ -26,8 +26,6 @@ char * Connection::read(int num) {
 }
 
 Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
-	timeval opt = { 1, 0 };
-
 #ifdef _WIN32
 #define PTR char*
 #else
@@ -40,6 +38,12 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 	int resulterr = ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
 #endif
 
+#ifndef _WIN32
+	timeval opt = { 1, 0 };
+#else
+	int opt = 1000;
+#endif
+
 	setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
 
 #undef PTR
@@ -47,7 +51,22 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 	int result = recv(socket, vers, 2, 0);
 
 	if (result != 2) {
-		::error("New connection failed to send sufficient version information: " + std::to_string(result) + " " + std::to_string(errno));
+		std::string message = "New connection failed to send sufficient version information: ";
+
+#ifndef _WIN32
+		::error(message + std::to_string(result) + " " + std::to_string(errno));
+#else
+		LPTSTR err = NULL;
+		int formatres = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, WSAGetLastError(), 0, (LPTSTR)&err, 256, NULL);
+
+		if (formatres == 0)
+			::error(message + " Failed to format message: " + std::to_string(GetLastError()));
+		else
+			::error(message + std::string{ err });
+
+		LocalFree(err);
+#endif
+
 		throw 1;
 	}
 
@@ -79,3 +98,13 @@ Connection::~Connection() {
 	close(sock);
 #endif
 }
+
+/*if (resulterr == -1) {
+	char temp[128];
+	int wsaerr = WSAGetLastError();
+	int WSAFAULT = WSAEFAULT;
+	int WSASOCK = WSAENOTSOCK;
+	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, wsaerr, 0, temp, 128, NULL);
+	debug("Extended error: " + std::string{ temp });
+	throw 1;
+}*/

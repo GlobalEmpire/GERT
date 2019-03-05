@@ -133,7 +133,7 @@ function api.startup() --Will ALWAYS ensure gateway is connected
 			local start = os.time()
 			local compat = false
 			while response:len() < 1 do
-        coroutine.yield()
+				coroutine.yield()
 				response = temp.read(4) or ""
 				if os.time() - start > 1 then
 					if os.time() - start > 3 then
