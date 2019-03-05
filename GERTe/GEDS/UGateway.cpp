@@ -113,7 +113,7 @@ UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
 }
 
 void UGateway::transmit(string data) {
-	send(this->sock, data.c_str(), (ULONG)data.length(), 0);
+	send(sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 bool UGateway::assign(Address requested, Key key) {
@@ -126,8 +126,8 @@ bool UGateway::assign(Address requested, Key key) {
 }
 
 void UGateway::close() {
-	this->transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
-	this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
+	transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
+	transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	//Used to free memory, ENSURE REFERENCES ARE PATCHED
 }
 

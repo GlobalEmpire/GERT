@@ -17,6 +17,7 @@
 #include "Poll.h"
 #include "Versioning.h"
 #include "Error.h"
+#include "Processor.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
@@ -148,9 +149,6 @@ void cleanup() {
 #endif
 
 	killConnections();
-
-	gatePoll.update(); //Trigger worker threads to awaken to their death
-	peerPoll.update();
 }
 
 //PUBLIC

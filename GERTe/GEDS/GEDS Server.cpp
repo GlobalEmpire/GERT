@@ -13,7 +13,6 @@
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 
-#include <thread> //Include thread type for server threading
 #include <signal.h> //Include signal processing API for error catching
 #include "netty.h" //Include netcode header for entering server process
 #include "overwatch.h" //Include overwatch header for error checking and "recovery"
@@ -23,6 +22,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include <exception> //Load exception library for terminate() hook
 #include <iostream>
 #include "Versioning.h"
+#include "Processor.h"
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes
@@ -40,10 +40,9 @@ char * LOCAL_IP = nullptr; //Set local address to predictable null value for tes
 char * peerPort = "59474"; //Set default peer port
 char * gatewayPort = "43780"; //Set default gateway port
 
-#ifdef _WIN32
-#include "Poll.h"
 extern Poll serverPoll;
-#endif
+extern Poll peerPoll;
+extern Poll gatePoll;
 
 void shutdownProceedure(int param) { //SIGINT handler function
 	if (running) { //If we actually started running
@@ -174,10 +173,10 @@ int main( int argc, char* argv[] ) {
 	running = true; //We've officially started running! SIGINT is now not evil!
 
 	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
-	thread gateways(processGateways); //Create message processor thread
+	Processor * gateways = new Processor{ &gatePoll };
 
 	debug("Starting peer message processor");
-	thread peers(processPeers);
+	Processor * peers = new Processor{ &peerPoll };
 
 	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
 	runServer(); //Process incoming connections (not messages)
@@ -186,10 +185,12 @@ int main( int argc, char* argv[] ) {
 	//Shutdown and Cleanup sequence
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
 	cleanup(); //Cleanup servers
+
 	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
-	gateways.join(); //Cleanup processor (wait for it to die)
+	delete gateways;
 	debug("Gateway processor exited");
-	peers.join();
+	delete peers;
+
 	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process

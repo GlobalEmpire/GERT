@@ -12,16 +12,18 @@ class Connection {
 protected:
 	Connection(SOCKET, std::string);
 	Connection(SOCKET);
-	~Connection();
 
 	void error(char * err);
 
 public:
+	virtual ~Connection();
+
 	SOCKET sock;
 	unsigned char state = 0;
 	char vers[2];
 
 	virtual void process() = 0;
+	virtual void close() = 0;
 
 	char * read(int=1);
 };

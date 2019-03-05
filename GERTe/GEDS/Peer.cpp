@@ -68,7 +68,7 @@ Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) { //Outgoi
 }
 
 void Peer::close() {
-	this->transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
+	transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
 	delete this;
 }
 

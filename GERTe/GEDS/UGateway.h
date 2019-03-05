@@ -15,7 +15,7 @@ protected:
 	UGateway(UGateway&&);
 
 public:
-	~UGateway();
+	virtual ~UGateway();
 
 	void transmit(std::string);
 	bool assign(Address, Key);
