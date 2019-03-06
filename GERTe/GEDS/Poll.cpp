@@ -23,7 +23,7 @@ typedef std::vector<void*> TrackerT;
 
 void apc(ULONG_PTR s) {}
 #else
-#define GETFD (*iter)->fd
+#define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
 #endif
 
@@ -35,6 +35,8 @@ void removeTracker(SOCKET fd, Poll* context) {
 	{
 #ifdef _WIN32
 		INNER * store = (INNER*)(*iter);
+#else
+		Event_Data * store = *iter;
 #endif
 
 		if (GETFD == fd) {
@@ -42,15 +44,16 @@ void removeTracker(SOCKET fd, Poll* context) {
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
+			context->events.shrink_to_fit();
 
 			delete store->data;
 #endif
-			delete *iter;
+			delete store;
 
 			tracker.erase(iter);
 			tracker.shrink_to_fit();
 
-			break;
+			return;
 		}
 
 		i++;
@@ -77,6 +80,15 @@ Poll::~Poll() {
 
 	delete (pthread_t*)handler;
 #else
+	for (void * data : tracker) {
+		INNER * store = (INNER*)data;
+
+		delete store->data;
+		WSACloseEvent(store->event);
+
+		delete store;
+	}
+
 	CloseHandle(handler);
 #endif
 }
@@ -133,7 +145,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	sigaddset(&mask, SIGUSR1);
 
 	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1) {
-		if (errno == 4) {
+		if (errno == SIGINT) {
 			return Event_Data{
 				0,
 				nullptr
