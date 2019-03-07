@@ -34,7 +34,7 @@ void Processor::run() {
 			return;
 
 		SOCKET sock = data.fd;
-		Connection * conn = (Connection*)data.ptr;
+		Connection * conn = data.ptr;
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
