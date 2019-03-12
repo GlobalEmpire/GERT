@@ -9,9 +9,9 @@
 #endif
 
 #include "Processor.h"
+#include "Pool.h"
 #include "Poll.h"
 #include <type_traits>
-#include <thread>
 
 extern volatile bool running;
 
@@ -20,17 +20,17 @@ void worker(void * thisref) {
 }
 
 Processor::Processor(Poll * poll) : poll(poll) {
-	proc = new std::thread{ &Processor::run, this };
+	pool = new Pool{ worker, this };
 }
 
 Processor::~Processor() {
-	poll->update();
-	((std::thread*)proc)->join();
+	Pool * poolp = (Pool*)pool;
+
+	poolp->interrupt();
+	delete poolp;
 }
 
 void Processor::run() {
-	poll->claim();
-
 	while (true) {
 		Event_Data data = poll->wait();
 
@@ -48,4 +48,8 @@ void Processor::run() {
 		else
 			conn->process();
 	}
+}
+
+void Processor::update() {
+	((Pool*)pool)->interrupt();
 }

@@ -1,7 +1,5 @@
 #include "Poll.h"
 #include "logging.h"
-#include <thread>
-#include "Error.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -26,6 +24,8 @@ void apc(ULONG_PTR s) {}
 #else
 #define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
+
+thread_local Event_data * last = nullptr;
 #endif
 
 void removeTracker(SOCKET fd, Poll* context) {
@@ -89,8 +89,6 @@ Poll::~Poll() {
 
 		delete store;
 	}
-
-	CloseHandle(handler);
 #endif
 }
 
@@ -103,7 +101,7 @@ void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the 
 #ifndef _WIN32
 	epoll_event newEvent;
 
-	newEvent.events = EPOLLIN;
+	newEvent.events = EPOLLIN | EPOLLONESHOT;
 
 	newEvent.data.ptr = data;
 
@@ -123,8 +121,6 @@ void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the 
 	};
 
 	tracker.push_back((void*)store);
-
-	QueueUserAPC(apc, handler, 0); //Cause blocked thread to return allowing it to update it's select call
 #endif
 }
 
@@ -132,6 +128,8 @@ void Poll::remove(SOCKET fd) {
 #ifndef _WIN32
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw errno;
+
+	last = nullptr;
 #endif
 
 	removeTracker(fd, this);
@@ -139,6 +137,17 @@ void Poll::remove(SOCKET fd) {
 
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
 #ifndef _WIN32
+	if (last != nullptr) {
+		epoll_event newEvent;
+		newEvent.events = EPOLLIN | EPOLLONESHOT;
+		newEvent.data.ptr = data;
+
+		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->fd, &newEvent) == -1)
+			throw errno;
+
+		last = nullptr;
+	}
+
 	epoll_event eEvent;
 	sigset_t mask;
 
@@ -195,28 +204,5 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				nullptr
 			};
 	}
-#endif
-}
-
-void Poll::claim() {
-#ifdef _WIN32
-	if (handler != nullptr) {
-		error("Attempt to double claim poll!");
-		exit(3);
-	}
-
-	DWORD id = GetCurrentThreadId();
-	handler = OpenThread(THREAD_ALL_ACCESS, false, id);
-#else
-	handler = new pthread_t;
-	*(pthread_t*)handler = pthread_self();
-#endif
-}
-
-void Poll::update() {
-#ifdef _WIN32
-	QueueUserAPC(apc, handler, 0);
-#else
-	pthread_kill(*(std::thread::native_handle_type*)handler, SIGUSR1);
 #endif
 }

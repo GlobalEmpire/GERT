@@ -12,8 +12,6 @@ class Poll {
 	friend void removeTracker(SOCKET, Poll*);
 	friend void cleanup();
 
-	void * handler = nullptr;
-
 #ifndef _WIN32
 	int efd;
 	std::vector<Event_Data*> tracker;
@@ -29,6 +27,4 @@ public:
 	void add(SOCKET, Connection* = nullptr);
 	void remove(SOCKET);
 	Event_Data wait();
-	void claim();
-	void update();
 };
