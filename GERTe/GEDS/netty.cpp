@@ -22,9 +22,8 @@ using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 
-Poll gatePoll;
-Poll peerPoll;
 Poll serverPoll;
+Poll clientPoll;
 
 extern volatile bool running;
 extern char * gatewayPort;
@@ -46,52 +45,6 @@ void killConnections() {
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
 		delete *iter;
-	}
-}
-
-//PUBLIC
-void processGateways() {
-	gatePoll.claim();
-
-	while (running) {
-		Event_Data data = gatePoll.wait();
-
-		if (data.fd == 0)
-			return;
-
-		SOCKET sock = data.fd;
-		UGateway * gate = (UGateway*)data.ptr;
-
-		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
-			gatePoll.remove(data.fd);
-			delete gate;
-		}
-		else
-			gate->process();
-	}
-}
-
-void processPeers() {
-	peerPoll.claim();
-
-	while (running) {
-		Event_Data data = peerPoll.wait();
-
-		if (data.fd == 0) {
-			return;
-		}
-
-		SOCKET sock = data.fd;
-		Peer * peer = (Peer*)data.ptr;
-
-		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
-			peerPoll.remove(data.fd);
-			delete peer;
-		}
-		else
-			peer->process();
 	}
 }
 
@@ -153,8 +106,10 @@ void cleanup() {
 
 //PUBLIC
 void runServer() { //Listen for new connections
-	serverPoll.claim();
+	debug("Starting message processor");
+	Processor proc{ &clientPoll };
 
+	debug("Starting connection processor");
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
 
@@ -174,23 +129,21 @@ void runServer() { //Listen for new connections
 		serverPoll.add(data.fd);
 #endif
 
+		Connection * newConn;
+
 		try {
 			if (data.fd == gateServer) {
-				UGateway * gate = new UGateway(newSock);
-				gatePoll.add(newSock, gate);
-
-#ifdef _WIN32
-				gatePoll.update();
-#endif
+				newConn = new UGateway(newSock);
 			}
 			else {
-				Peer * peer = new Peer(newSock);
-				peerPoll.add(newSock, peer);
-
-#ifdef _WIN32
-				peerPoll.update();
-#endif
+				newConn = new Peer(newSock);
 			}
+
+			clientPoll.add(newSock, newConn);
+			
+#ifdef _WIN32
+			proc.update();
+#endif
 		}
 		catch (int e) {
 #ifdef _WIN32

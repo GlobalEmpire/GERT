@@ -40,17 +40,13 @@ char * LOCAL_IP = nullptr; //Set local address to predictable null value for tes
 char * peerPort = "59474"; //Set default peer port
 char * gatewayPort = "43780"; //Set default gateway port
 
-extern Poll serverPoll;
-extern Poll peerPoll;
-extern Poll gatePoll;
-
 void shutdownProceedure(int param) { //SIGINT handler function
 	if (running) { //If we actually started running
 		warn("User requested shutdown. Flipping the switch!"); //Notify the user because reasons
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
 
 #ifdef _WIN32
-		serverPoll.update(); //Work around Windows oddities
+		//GETHANDLEANDQUEUEAPC //Work around Windows oddities
 #endif
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
@@ -172,26 +168,13 @@ int main( int argc, char* argv[] ) {
 
 	running = true; //We've officially started running! SIGINT is now not evil!
 
-	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
-	Processor * gateways = new Processor{ &gatePoll };
-
-	debug("Starting peer message processor");
-	Processor * peers = new Processor{ &peerPoll };
-
-	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
+	debug("Starting server"); //Use debug to notify user where we are in the loading process
 	runServer(); //Process incoming connections (not messages)
-	warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
+	warn("Server killed."); //Notify user we've stopped accepting incoming connections
 
 	//Shutdown and Cleanup sequence
 	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
 	cleanup(); //Cleanup servers
-
-	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
-	delete gateways;
-	debug("Gateway processor exited");
-	delete peers;
-
-	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
 	
 	debug("Saving peers"); //Notify user where we are in the shutdown process
 	savePeers(); //Save the peers database to file

@@ -15,6 +15,10 @@
 
 extern volatile bool running;
 
+void worker(void * thisref) {
+	((Processor*)thisref)->run();
+}
+
 Processor::Processor(Poll * poll) : poll(poll) {
 	proc = new std::thread{ &Processor::run, this };
 }
