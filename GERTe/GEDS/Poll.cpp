@@ -7,12 +7,14 @@
 #include <signal.h>
 #else
 #include <WinSock2.h>
+#include <mutex>
 #endif
 
 extern volatile bool running;
 
 #ifdef _WIN32
 #define GETFD store->data->fd
+
 struct INNER {
 	WSAEVENT * event;
 	Event_Data * data;
@@ -20,12 +22,15 @@ struct INNER {
 
 typedef std::vector<void*> TrackerT;
 
+std::mutex lock;
+std::vector<int> fired;
+thread_local int last = INVALID_SOCKET;
+
 void apc(ULONG_PTR s) {}
 #else
 #define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
-
-thread_local Event_data * last = nullptr;
+thread_local Event_Data * last = nullptr;
 #endif
 
 void removeTracker(SOCKET fd, Poll* context) {
@@ -43,6 +48,16 @@ void removeTracker(SOCKET fd, Poll* context) {
 		if (GETFD == fd) {
 #ifdef _WIN32
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
+
+			lock.lock();
+			for (std::vector<int>::iterator fiter = fired.begin(); fiter != fired.end(); iter++) {
+				if (*fiter == GETFD) {
+					fired.erase(fiter);
+					break;
+				}
+			}
+			lock.unlock();
+
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
 			context->events.shrink_to_fit();
@@ -59,6 +74,20 @@ void removeTracker(SOCKET fd, Poll* context) {
 
 		i++;
 	}
+}
+
+bool tryFire(int fd) {
+	lock.lock();
+	for (std::vector<int>::iterator iter = fired.begin(); iter != fired.end(); iter++) {
+		if (*iter == fd) {
+			lock.unlock();
+			return false;
+		}
+	}
+	
+	fired.push_back(fd);
+	lock.unlock();
+	return true;
 }
 
 Poll::Poll() {
@@ -129,7 +158,11 @@ void Poll::remove(SOCKET fd) {
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw errno;
 
-	last = nullptr;
+	if (last->fd)
+		last = nullptr;
+#else
+	if (last == fd)
+		last = INVALID_SOCKET;
 #endif
 
 	removeTracker(fd, this);
@@ -167,6 +200,20 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	}
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
+	if (last != INVALID_SOCKET) {
+		lock.lock();
+
+		for (std::vector<int>::iterator iter = fired.begin(); iter != fired.end(); iter++) {
+			if (*iter == last) {
+				fired.erase(iter);
+				break;
+			}
+		}
+
+		lock.unlock();
+		last = INVALID_SOCKET;
+	}
+
 	while (true) {
 		if (events.size() == 0)
 			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
@@ -181,16 +228,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				if (offset < events.size()) {
 					INNER * store = (INNER*)tracker[offset];
 
-					_WSANETWORKEVENTS waste;
-
-					int res = WSAEnumNetworkEvents(store->data->fd, events[offset], &waste);
-					if (res == SOCKET_ERROR) {
-						socketError("Failed to reset poll event: ");
-					}
-
-					if (waste.lNetworkEvents == 0)
-						error("Spurious wakeup!");
-					else
+					if (tryFire(store->data->fd))
 						return *(store->data);
 				}
 				else
