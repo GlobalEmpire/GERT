@@ -19,7 +19,7 @@ using namespace std;
 map<IP, Peer*> peers;
 map<IP, Ports> peerList;
 
-extern Poll peerPoll;
+extern Poll clientPoll;
 extern volatile bool running;
 
 enum Commands : char {
@@ -58,7 +58,7 @@ Peer::~Peer() { //Peer destructor
 	killAssociated(this);
 	peers.erase(ip);
 
-	peerPoll.remove(sock);
+	clientPoll.remove(sock);
 
 	log("Peer " + ip.stringify() + " disconnected");
 }

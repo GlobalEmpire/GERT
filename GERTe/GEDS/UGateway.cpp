@@ -11,8 +11,6 @@
 #include "Gateway.h"
 using namespace std;
 
-extern Poll gatePoll;
-
 namespace Gate {
 	enum class Commands : char {
 		STATE,
@@ -55,6 +53,8 @@ namespace GEDS {
 
 map<Address, Gateway*> gateways;
 vector<UGateway*> noAddrList;
+
+extern Poll clientPoll;
 
 void changeState(UGateway * gate, const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
 	gate->state = (char)newState;
@@ -107,7 +107,7 @@ UGateway::~UGateway() {
 		log("Unregistered gateway has closed the connection");
 	}
 
-	gatePoll.remove(sock);
+	clientPoll.remove(sock);
 }
 
 UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {

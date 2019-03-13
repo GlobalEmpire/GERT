@@ -25,8 +25,6 @@ typedef std::vector<void*> TrackerT;
 std::mutex lock;
 std::vector<int> fired;
 thread_local int last = INVALID_SOCKET;
-
-void apc(ULONG_PTR s) {}
 #else
 #define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
