@@ -106,6 +106,8 @@ UGateway::~UGateway() {
 		pos.erase();
 
 	gatePoll.remove(sock);
+
+	log("Unregistered gateway has closed the connection");
 }
 
 UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
@@ -132,7 +134,11 @@ void UGateway::close() {
 }
 
 void UGateway::process(Gateway * derived) {
-	Gate::Commands command = (Gate::Commands)(this->read(1))[1];
+	char * data = read(1);
+	Gate::Commands command = (Gate::Commands)data[1];
+
+	delete data;
+
 	switch (command) {
 	case Gate::Commands::REGISTER: {
 		Address request = Address::extract(this);
@@ -158,7 +164,7 @@ void UGateway::process(Gateway * derived) {
 			 */
 			return;
 		}
-		if (this->assign(request, requestkey)) {
+		if (assign(request, requestkey)) {
 			changeState(this, Gate::States::REGISTERED);
 			/*
 			 * Response to successful registration attempt
@@ -211,7 +217,7 @@ void UGateway::process(Gateway * derived) {
 				*/
 			return;
 		}
-		this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
+		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
 		/*
 		 * Response to successful data send request.
 		 * CMD STATE (0)
@@ -220,7 +226,7 @@ void UGateway::process(Gateway * derived) {
 		return;
 	}
 	case Gate::Commands::STATE: {
-		this->transmit(string({ (char)Gate::Commands::STATE, (char)this->state }));
+		transmit(string({ (char)Gate::Commands::STATE, (char)this->state }));
 		/*
 		 * Response to state request
 		 * CMD STATE (0)
@@ -230,13 +236,13 @@ void UGateway::process(Gateway * derived) {
 		return;
 	}
 	case Gate::Commands::CLOSE: {
-		this->transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
+		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
 		/*
 		 * Response to close request.
 		 * CMD STATE (0)
 		 * STATE CLOSED (3)
 		 */
-		if (this->state == (char)Gate::States::REGISTERED) {
+		if (state == (char)Gate::States::REGISTERED) {
 			string addr = derived->addr.tostring();
 			globalChange(GEDS::Commands::UNREGISTERED, addr.data(), addr.length());
 			/*

@@ -87,7 +87,12 @@ void Peer::process() {
 			*/
 		return;
 	}
-	UCHAR command = (this->read(1))[1];
+
+	char * data = read(1);
+	Commands command = (Commands)data[1];
+
+	delete data;
+
 	switch (command) {
 	case ROUTE: {
 		GERTc target = GERTc::extract(this);
@@ -168,7 +173,7 @@ void Peer::deny(IP target) {
 }
 
 void Peer::broadcast(std::string msg) {
-	for (map<IP, Peer*>::iterator iter; iter != peers.end(); iter++) {
+	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
 		iter->second->transmit(msg);
 	}
 }

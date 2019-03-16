@@ -16,7 +16,6 @@
 
 void Connection::error(char * err) {
 	send(sock, err, 3, 0);
-	delete this;
 }
 
 char * Connection::read(int num) {
@@ -42,7 +41,7 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 #ifndef _WIN32
 	timeval opt = { 1, 0 };
 #else
-	int opt = 1000;
+	int opt = 2000;
 #endif
 
 	setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
@@ -70,9 +69,8 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 		char spare;
 		recv(socket, &spare, 1, 0);
 	}
-	else if (vers[1] > ThisVersion.minor) {
+	else if (vers[1] > ThisVersion.minor)
 		vers[1] = ThisVersion.minor;
-	}
 }
 
 Connection::Connection(SOCKET socket) : sock(socket) {}	

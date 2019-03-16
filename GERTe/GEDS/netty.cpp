@@ -192,7 +192,13 @@ void runServer() { //Listen for new connections
 #endif
 			}
 		}
-		catch (int e) {}
+		catch (int e) {
+#ifdef _WIN32
+			closesocket(newSock);
+#else
+			close(newSock);
+#endif
+		}
 	}
 }
 

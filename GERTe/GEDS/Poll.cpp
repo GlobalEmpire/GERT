@@ -1,6 +1,7 @@
 #include "Poll.h"
 #include "logging.h"
 #include <thread>
+#include "Error.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -28,7 +29,7 @@ typedef std::vector<Event_Data*> TrackerT;
 #endif
 
 void removeTracker(SOCKET fd, Poll* context) {
-	TrackerT tracker = context->tracker;
+	TrackerT &tracker = context->tracker;
 
 	int i = 0;
 	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
@@ -163,20 +164,28 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 		else {
 			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
 
-			if (result == WSA_WAIT_FAILED) {
-				error("Unknown WSA failure. Code: " + std::to_string(WSAGetLastError()));
-			}
+			if (result == WSA_WAIT_FAILED)
+				socketError("Socket poll error: ");
 			else if (result != WSA_WAIT_IO_COMPLETION) {
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
 					INNER * store = (INNER*)tracker[offset];
 
-					return *(store->data);
+					_WSANETWORKEVENTS waste;
+
+					int res = WSAEnumNetworkEvents(store->data->fd, events[offset], &waste);
+					if (res == SOCKET_ERROR) {
+						socketError("Failed to reset poll event: ");
+					}
+
+					if (waste.lNetworkEvents == 0)
+						error("Spurious wakeup!");
+					else
+						return *(store->data);
 				}
-				else {
+				else
 					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
-				}
 			}
 		}
 

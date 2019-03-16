@@ -3,11 +3,16 @@
 #include "routeManager.h"
 #include "logging.h"
 #include <utility>
+#include "Poll.h"
 
 extern std::map<Address, Gateway*> gateways;
+extern Poll gatePoll;
 
 Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), addr(addr) {
 	gateways[addr] = this;
+
+	gatePoll.remove(sock);
+	gatePoll.add(sock);
 }
 
 Gateway::~Gateway() {
