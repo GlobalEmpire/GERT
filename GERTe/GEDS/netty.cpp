@@ -238,7 +238,7 @@ void buildWeb() {
 		newConn->transmit(ThisVersion.tostring());
 
 		char death[3];
-		timeval timeout = { 3, 0 };
+		timeval timeout = { 2, 0 };
 
 		setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
 		int result2 = recv(newSock, death, 2, 0);

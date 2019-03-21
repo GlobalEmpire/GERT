@@ -12,7 +12,7 @@ Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), ad
 	gateways[addr] = this;
 
 	gatePoll.remove(sock);
-	gatePoll.add(sock);
+	gatePoll.add(sock, this);
 }
 
 Gateway::~Gateway() {
