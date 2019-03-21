@@ -93,7 +93,7 @@ noAddrIter find(UGateway * gate) {
 
 UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 	noAddrList.push_back(this);
-	changeState(this, Gate::States::CONNECTED, 3, (char*)&ThisVersion);
+	changeState(this, Gate::States::CONNECTED, 2, (char*)&ThisVersion);
 
 	if (vers[1] == 0)
 		transmit("\0");
@@ -102,16 +102,17 @@ UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 UGateway::~UGateway() {
 	noAddrIter pos = find(this);
 
-	if (!pos.isEnd())
+	if (!pos.isEnd()) {
 		pos.erase();
+		log("Unregistered gateway has closed the connection");
+	}
 
 	gatePoll.remove(sock);
-
-	log("Unregistered gateway has closed the connection");
 }
 
 UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
 	find(&orig).erase();
+	std::free(&orig);
 }
 
 void UGateway::transmit(string data) {
@@ -120,7 +121,6 @@ void UGateway::transmit(string data) {
 
 bool UGateway::assign(Address requested, Key key) {
 	if (key.check(requested)) { //Determine if the key is for the address
-		Gateway * assigned = new Gateway{ requested, this };
 		log("Association from " + requested.stringify()); //Notify user that the address has registered
 		return true; //Notify the protocol library assignment was successful
 	}
@@ -143,7 +143,7 @@ void UGateway::process(Gateway * derived) {
 	case Gate::Commands::REGISTER: {
 		Address request = Address::extract(this);
 		Key requestkey = Key::extract(this);
-		if (this->state == (char)Gate::States::REGISTERED) {
+		if (state == (char)Gate::States::REGISTERED) {
 			failed(this, Gate::Errors::REGISTERED);
 			/*
 			 * Response to registration attempt when Gateway has address assigned.
@@ -178,6 +178,8 @@ void UGateway::process(Gateway * derived) {
 			 * CMD REGISTERED (0)
 			 * Address (4 bytes)
 			 */
+
+			Gateway * assigned = new Gateway{ request, this };
 		}
 		else
 			failed(this, Gate::Errors::BAD_KEY);
@@ -193,7 +195,7 @@ void UGateway::process(Gateway * derived) {
 		GERTc target = GERTc::extract(this);
 		Address source = Address::extract(this);
 		NetString data = NetString::extract(this);
-		if (this->state == (char)Gate::States::CONNECTED) {
+		if (state == (char)Gate::States::CONNECTED) {
 			failed(this, Gate::Errors::NOT_REGISTERED);
 			/*
 			 * Response to data before registration
