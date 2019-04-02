@@ -1,6 +1,7 @@
 #include "Poll.h"
 #include "logging.h"
 #include <thread>
+#include "Error.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -23,18 +24,20 @@ typedef std::vector<void*> TrackerT;
 
 void apc(ULONG_PTR s) {}
 #else
-#define GETFD (*iter)->fd
+#define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
 #endif
 
 void removeTracker(SOCKET fd, Poll* context) {
-	TrackerT tracker = context->tracker;
+	TrackerT &tracker = context->tracker;
 
 	int i = 0;
 	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
 #ifdef _WIN32
 		INNER * store = (INNER*)(*iter);
+#else
+		Event_Data * store = *iter;
 #endif
 
 		if (GETFD == fd) {
@@ -42,15 +45,16 @@ void removeTracker(SOCKET fd, Poll* context) {
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
+			context->events.shrink_to_fit();
 
 			delete store->data;
 #endif
-			delete *iter;
+			delete store;
 
 			tracker.erase(iter);
 			tracker.shrink_to_fit();
 
-			break;
+			return;
 		}
 
 		i++;
@@ -77,11 +81,20 @@ Poll::~Poll() {
 
 	delete (pthread_t*)handler;
 #else
+	for (void * data : tracker) {
+		INNER * store = (INNER*)data;
+
+		delete store->data;
+		WSACloseEvent(store->event);
+
+		delete store;
+	}
+
 	CloseHandle(handler);
 #endif
 }
 
-void Poll::add(SOCKET fd, void * ptr) { //Adds the file descriptor to the pollset and tracks useful information
+void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the pollset and tracks useful information
 	Event_Data * data = new Event_Data{
 		fd,
 		ptr
@@ -133,7 +146,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	sigaddset(&mask, SIGUSR1);
 
 	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1) {
-		if (errno == 4) {
+		if (errno == SIGINT) {
 			return Event_Data{
 				0,
 				nullptr
@@ -151,20 +164,28 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 		else {
 			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
 
-			if (result == WSA_WAIT_FAILED) {
-				error("Unknown WSA failure. Code: " + std::to_string(WSAGetLastError()));
-			}
+			if (result == WSA_WAIT_FAILED)
+				socketError("Socket poll error: ");
 			else if (result != WSA_WAIT_IO_COMPLETION) {
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
 					INNER * store = (INNER*)tracker[offset];
 
-					return *(store->data);
+					_WSANETWORKEVENTS waste;
+
+					int res = WSAEnumNetworkEvents(store->data->fd, events[offset], &waste);
+					if (res == SOCKET_ERROR) {
+						socketError("Failed to reset poll event: ");
+					}
+
+					if (waste.lNetworkEvents == 0)
+						error("Spurious wakeup!");
+					else
+						return *(store->data);
 				}
-				else {
+				else
 					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
-				}
 			}
 		}
 

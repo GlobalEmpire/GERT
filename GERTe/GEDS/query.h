@@ -1,3 +1,3 @@
 #include "Address.h"
 
-bool queryWeb(Address);
+void query(Address);

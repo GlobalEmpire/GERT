@@ -38,6 +38,12 @@ void error(string msg) {
 	fputs(log.c_str(), logFile);
 }
 
+void error2(string msg) {
+	string log = "[E][" + timeOut() + "] " + msg;
+	cout << log;
+	fputs(log.c_str(), logFile);
+}
+
 void debug(string msg) {
 	if (debugMode)
 		cout << "[D][" << timeOut() << "] " << msg << "\n";

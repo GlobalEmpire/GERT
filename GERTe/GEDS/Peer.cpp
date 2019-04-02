@@ -34,10 +34,10 @@ enum Commands : char {
 	QUERY
 };
 
-Peer::Peer(SOCKET* newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
+Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
-	getpeername(*newSocket, (sockaddr*)&remoteip, &iplen);
+	getpeername(newSocket, (sockaddr*)&remoteip, &iplen);
 	IP ip{ remoteip.sin_addr };
 
 	if (peerList.count(ip) == 0) {
@@ -48,35 +48,38 @@ Peer::Peer(SOCKET* newSocket) : Connection(newSocket, "Peer") { //Incoming Peer 
 
 	peers[ip] = this;
 	log("Peer connected from " + ip.stringify());
-	process();
+	transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+
+	if (vers[1] == 0)
+		transmit("\0");
 };
 
 Peer::~Peer() { //Peer destructor
 	killAssociated(this);
 	peers.erase(ip);
 
-	peerPoll.remove(*(SOCKET*)sock);
+	peerPoll.remove(sock);
 
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
-Peer::Peer(SOCKET* socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
+Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) { //Outgoing peer constructor
 	peers[ip] = this;
 }
 
 void Peer::close() {
-	this->transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
+	transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
 	delete this;
 }
 
 void Peer::transmit(string data) {
-	send(*(SOCKET*)this->sock, data.c_str(), (ULONG)data.length(), 0);
+	send(this->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 void Peer::process() {
 	if (state == 0) {
 		state = 1;
-		transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+		
 		/*
 			* Initial packet
 			* MAJOR VERSION
@@ -84,7 +87,12 @@ void Peer::process() {
 			*/
 		return;
 	}
-	UCHAR command = (this->read(1))[1];
+
+	char * data = read(1);
+	Commands command = (Commands)data[1];
+
+	delete data;
+
 	switch (command) {
 	case ROUTE: {
 		GERTc target = GERTc::extract(this);
@@ -92,7 +100,7 @@ void Peer::process() {
 		NetString data = NetString::extract(this);
 		string cmd = { (char)Commands::ROUTE };
 		cmd += target.tostring() + source.tostring() + data.string();
-		if (!sendToGateway(target.external, cmd)) {
+		if (!Gateway::sendTo(target.external, cmd)) {
 			string errCmd = { UNREGISTERED };
 			errCmd += target.tostring();
 			this->transmit(errCmd);
@@ -101,12 +109,12 @@ void Peer::process() {
 	}
 	case REGISTERED: {
 		Address target = Address::extract(this);
-		setRoute(target, this);
+		RGateway * newGate = new RGateway{ target, this };
 		return;
 	}
 	case UNREGISTERED: {
 		Address target = Address::extract(this);
-		removeRoute(target);
+		delete RGateway::lookup(target);
 		return;
 	}
 	case RESOLVE: {
@@ -141,7 +149,7 @@ void Peer::process() {
 		if (Gateway::lookup(target)) {
 			string cmd = { REGISTERED };
 			cmd += target.tostring();
-			sendToGateway(target, cmd);
+			Gateway::sendTo(target, cmd);
 		}
 		else {
 			string cmd = { UNREGISTERED };
@@ -165,7 +173,7 @@ void Peer::deny(IP target) {
 }
 
 void Peer::broadcast(std::string msg) {
-	for (map<IP, Peer*>::iterator iter; iter != peers.end(); iter++) {
+	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
 		iter->second->transmit(msg);
 	}
 }

@@ -4,7 +4,7 @@
 
 struct Event_Data {
 	SOCKET fd;
-	void * ptr;
+	Connection * ptr;
 };
 
 class Poll {
@@ -26,7 +26,7 @@ public:
 	Poll();
 	~Poll();
 
-	void add(SOCKET, void* = nullptr);
+	void add(SOCKET, Connection* = nullptr);
 	void remove(SOCKET);
 	Event_Data wait();
 	void claim();

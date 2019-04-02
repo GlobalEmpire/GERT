@@ -12,38 +12,46 @@
 #include "netty.h"
 #include "logging.h"
 #include "Versioning.h"
+#include "Error.h"
 
 void Connection::error(char * err) {
-	send(*(SOCKET*)sock, err, 3, 0);
-	delete this;
+	send(sock, err, 3, 0);
 }
 
 char * Connection::read(int num) {
 	char * buf = new char[num+1];
-	int len = recv(*(SOCKET*)this->sock, buf+1, num, 0);
+	int len = recv(this->sock, buf+1, num, 0);
 	buf[0] = (char)len;
 	return buf;
 }
 
-Connection::Connection(SOCKET* socket, std::string type) : sock(socket) {
-	SOCKET * newSocket = (SOCKET*)sock;
-
-	timeval opt = { 1, 0 };
-
+Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 #ifdef _WIN32
 #define PTR char*
 #else
 #define PTR void*
 #endif
 
-	setsockopt(*newSocket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
+#ifdef WIN32
+	WSAEventSelect(socket, NULL, 0); //Clears all events associated with the new socket
+	u_long nonblock = 0;
+	int resulterr = ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
+#endif
+
+#ifndef _WIN32
+	timeval opt = { 1, 0 };
+#else
+	int opt = 2000;
+#endif
+
+	setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
 
 #undef PTR
 
-	int result = recv(*newSocket, vers, 2, 0);
+	int result = recv(socket, vers, 2, 0);
 
 	if (result != 2) {
-		::error("New connection failed to send sufficient version information: " + std::to_string(result) + " " + std::to_string(errno));
+		socketError("Error reading version information: ");
 		throw 1;
 	}
 
@@ -59,19 +67,28 @@ Connection::Connection(SOCKET* socket, std::string type) : sock(socket) {
 	//If version is pre-1.1.0 then read an extra byte for compatibility
 	if (vers[1] == 0) {
 		char spare;
-		recv(*newSocket, &spare, 1, 0);
+		recv(socket, &spare, 1, 0);
 	}
-	else if (vers[1] > ThisVersion.minor) {
+	else if (vers[1] > ThisVersion.minor)
 		vers[1] = ThisVersion.minor;
-	}
 }
 
-Connection::Connection(SOCKET * socket) : sock(socket) {}	
+Connection::Connection(SOCKET socket) : sock(socket) {}	
 
 Connection::~Connection() {
 #ifdef WIN32
-	closesocket(*(SOCKET*)sock);
+	closesocket(sock);
 #else
-	close(*(SOCKET*)sock);
+	close(sock);
 #endif
 }
+
+/*if (resulterr == -1) {
+	char temp[128];
+	int wsaerr = WSAGetLastError();
+	int WSAFAULT = WSAEFAULT;
+	int WSASOCK = WSAENOTSOCK;
+	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, wsaerr, 0, temp, 128, NULL);
+	debug("Extended error: " + std::string{ temp });
+	throw 1;
+}*/

@@ -15,16 +15,11 @@ enum scanResult {
 	MAJOR_ERR
 };
 
-int scanGateway(Gateway * checkgate, string addr) {
+int scanGateway(UGateway * checkgate, string addr) {
 	int errs = 0;
 	if (checkgate == nullptr) {
 		debug("[ESCAN] Gateway " + addr + " missing from gateways map");
 		return 1;
-	}
-	void * checksock = checkgate->sock;
-	if (checksock == nullptr) {
-		debug("[ESCAN] Gateway " + addr + " missing socket");
-		errs++;
 	}
 	return errs;
 }
@@ -40,11 +35,6 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
 			continue;
-		}
-		void * checksock = checkpeer->sock;
-		if (checksock == nullptr) {
-			debug("[ESCAN] Peer missing socket");
-			errs++;
 		}
 	}
 	debug("[ESCAN] Peer error count: " + to_string(errs));
@@ -62,7 +52,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	total += errs;
 	errs = 0;
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway * checkgate = *iter;
+		UGateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}
 	total += errs;
