@@ -1,4 +1,4 @@
--- GERT v1.1 RC4
+-- GERT v1.1 Release
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -255,7 +255,11 @@ local function readGMessage()
 		end
 		errC, message = pcall(GERTe.parse)
 	end
-  print("GERTe has closed the connection")
+	if errC then
+		print("GERTe has closed the connection")
+		event.cancel(timerID)
+		GERTe = nil
+	end
 end
 
 local function safedown()

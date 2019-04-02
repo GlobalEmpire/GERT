@@ -1,4 +1,4 @@
--- GERT v1.1 RC4
+-- GERT v1.1 Release
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
