@@ -1,15 +1,33 @@
 #pragma once
-#include "Version.h"
+#include <string>
+
+#ifdef _WIN32
+typedef unsigned long long SOCKET;
+static unsigned long nonZero = 1;
+#else
+typedef int SOCKET;
+#endif
 
 #ifdef _WIN32
 static unsigned long nonZero = 1;
 #endif
 
 class Connection {
+protected:
+	Connection(SOCKET, std::string);
+	Connection(SOCKET);
+
+	void error(char * err);
+
 public:
-	void * sock;
-	Version * api;
+	virtual ~Connection();
+
+	SOCKET sock;
 	unsigned char state = 0;
-	Connection(void * socket, Version * vers = nullptr) : sock(socket), api(vers) {};
+	char vers[2];
+
+	virtual void process() = 0;
+	virtual void close() = 0;
+
 	char * read(int=1);
 };

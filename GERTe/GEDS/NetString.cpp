@@ -25,6 +25,6 @@ NetString NetString::extract(Connection* conn) {
 	return string;
 }
 
-string NetString::tostring() const {
-	return string{this->length} + string{this->str, this->length};
+std::string NetString::string() const {
+	return std::string{this->length} + std::string{this->str, (size_t)this->length};
 }

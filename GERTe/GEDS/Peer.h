@@ -1,15 +1,20 @@
 #pragma once
-#include "KnownPeer.h"
-#include "Connection.h"
+#include "IP.h"
+#include "Ports.h"
 
 class Peer : public Connection {
 	friend int emergencyScan();
-	KnownPeer * id;
+	IP ip;
+
 public:
-	Peer(void *);
-	Peer(void*, Version*, KnownPeer*);
-	void process() { api->procPeer(this); }
-	void kill() { api->killPeer(this); }
+	Peer(SOCKET);
+	~Peer();
+	Peer(SOCKET, IP);
 	void close();
 	void transmit(std::string);
+	void process();
+
+	static void allow(IP, Ports);
+	static void deny(IP);
+	static void broadcast(std::string);
 };

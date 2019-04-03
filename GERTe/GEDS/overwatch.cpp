@@ -1,5 +1,4 @@
-#include "Key.h"
-#include "peerManager.h"
+#include "Peer.h"
 #include "gatewayManager.h"
 #include "logging.h"
 #include <thread>
@@ -8,6 +7,7 @@ using namespace std;
 typedef unsigned long long pointer;
 
 extern volatile bool running;
+extern map<IP, Peer*> peers;
 
 enum scanResult {
 	CLEAN,
@@ -15,45 +15,12 @@ enum scanResult {
 	MAJOR_ERR
 };
 
-int scanAPI(Version * checkapi, string addr, string type) {
-	int errs = 0;
-	if (checkapi == nullptr) {
-		debug("[ESCAN] " + type + " " + addr + " missing api");
-		return 1;
-	}
-	string apiopeer = "[ESCAN] " + type + " " + addr + " API missing ";
-	if (checkapi->killGate == nullptr) {
-		debug(apiopeer + "killGate function");
-		errs++;
-	}
-	if (checkapi->killPeer == nullptr) {
-		debug(apiopeer + "killPeer function");
-		errs++;
-	}
-	if (checkapi->procGate == nullptr) {
-		debug(apiopeer + "procGate function");
-		errs++;
-	}
-	if (checkapi->procPeer == nullptr) {
-		debug(apiopeer + "procPeer function");
-		errs++;
-	}
-	return errs;
-}
-
-int scanGateway(Gateway * checkgate, string addr) {
+int scanGateway(UGateway * checkgate, string addr) {
 	int errs = 0;
 	if (checkgate == nullptr) {
 		debug("[ESCAN] Gateway " + addr + " missing from gateways map");
 		return 1;
 	}
-	void * checksock = checkgate->sock;
-	if (checksock == nullptr) {
-		debug("[ESCAN] Gateway " + addr + " missing socket");
-		errs++;
-	}
-	Version * checkapi = checkgate->api;
-	errs += scanAPI(checkapi, addr, "Gateway");
 	return errs;
 }
 
@@ -62,21 +29,13 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		Peer * checkpeer = *iter;
+	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
+		Peer * checkpeer = iter->second;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
 			continue;
 		}
-		string addr = checkpeer->id->addr.stringify();
-		void * checksock = checkpeer->sock;
-		if (checksock == nullptr) {
-			debug("[ESCAN] Peer " + addr + "missing socket");
-			errs++;
-		}
-		Version * checkapi = checkpeer->api;
-		errs += scanAPI(checkapi, addr, "Peer");
 	}
 	debug("[ESCAN] Peer error count: " + to_string(errs));
 	if (errs > 0)
@@ -93,7 +52,7 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	total += errs;
 	errs = 0;
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		Gateway * checkgate = *iter;
+		UGateway * checkgate = *iter;
 		errs += scanGateway(checkgate, "without address");
 	}
 	total += errs;
@@ -103,13 +62,4 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	else if (peerErr == false)
 		return MINOR_ERR;
 	return MAJOR_ERR;
-}
-
-void overwatch() {
-	while (running) {
-		gateWatcher();
-		this_thread::yield();
-		peerWatcher();
-		this_thread::yield();
-	}
 }

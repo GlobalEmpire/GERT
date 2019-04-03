@@ -1,20 +1,19 @@
 #pragma once
+#include "UGateway.h"
 #include "Address.h"
-#include "Key.h"
-#include "Ports.h"
 
-class Gateway : public Connection {
-	Gateway(void*);
+//THIS IS NOT EVEN MY FINAL FORM!!!
 
-	friend void runServer();
+class Gateway : public UGateway {
+public:
+	Address addr;
 
-	public:
-		Address addr;
-		bool local = false;
-		void process() { api->procGate(this); };
-		void kill() { api->killGate(this); };
-		static Gateway* lookup(Address);
-		void transmit(std::string);
-		bool assign(Address, Key);
-		void close();
+	Gateway(Address, UGateway*);
+	~Gateway();
+
+	static Gateway * lookup(Address);
+	static bool sendTo(Address, std::string);
+
+	void process();
 };
+

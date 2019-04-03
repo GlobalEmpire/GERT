@@ -1,6 +1,4 @@
-#include "Status.h"
-
-Status loadPeers();
-Status loadResolutions();
+int loadPeers();
+int loadResolutions();
 void savePeers();
 void saveResolutions();

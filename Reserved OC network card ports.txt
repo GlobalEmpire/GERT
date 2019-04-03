@@ -12,3 +12,5 @@ Ports 4378-4379: GERTi: Reserved by Global Empire
 Port 4662: Short messages: Reserved by Dustpuppy
 
 Port 9100: Network Print Service: Reserved by Dustpuppy
+
+Port 9900: Zorya BIOS LAN boot: Reserved by awoo

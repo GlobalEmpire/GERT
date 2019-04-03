@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <WinSock2.h>
 #pragma comment(lib, "Ws2_32.lib")
 #else
@@ -18,6 +19,7 @@ class Ports {
 		Ports static extract(Connection * conn) {
 			char * raw = conn->read(4);
 			unsigned short * ports = (unsigned short *)(raw + 1);
+
 			Ports result = {
 					ports[0],
 					ports[1]

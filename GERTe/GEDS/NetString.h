@@ -1,11 +1,11 @@
-#include "../Connection.h"
+#include "Connection.h"
 
 class NetString {
 public:
 	~NetString();
 
 	NetString static extract(Connection*);
-	string tostring() const;
+	std::string string() const;
 	char length;
 	char * str;
 };

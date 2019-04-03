@@ -4,7 +4,7 @@
 #include <vector>
 
 typedef std::map<Address, Gateway*>::iterator gatewayPtr;
-typedef std::vector<Gateway*>::iterator noAddrPtr;
+typedef std::vector<UGateway*>::iterator noAddrPtr;
 
 class gatewayIter {
 	gatewayPtr ptr;
@@ -22,12 +22,6 @@ class noAddrIter {
 		bool isEnd();
 		noAddrIter operator++(int);
 		noAddrIter();
-		Gateway* operator*();
+		UGateway* operator*();
 		void erase();
 };
-
-extern "C" {
-	bool sendToGateway(Address, std::string);
-	void gateWatcher();
-	bool isLocal(Address);
-}

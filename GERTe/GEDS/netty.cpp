@@ -1,22 +1,23 @@
-#define WIN32_LEAN_AND_MEAN
-#define _CRT_SECURE_NO_WARNINGS
-
 #ifdef _WIN32
-#include <winsock2.h>
-#pragma comment(lib, "Ws2_32.lib")
+#define _CRT_SECURE_NO_WARNINGS
 #else
 #include <sys/socket.h> //Load C++ standard socket API
+#include <netinet/tcp.h>
+#include <unistd.h>
+#include <poll.h>
+#include <signal.h>
 #endif
 #include <sys/types.h>
 #include <thread>
-#include "libLoad.h"
 #include "peerManager.h"
 #include "routeManager.h"
 #include "gatewayManager.h"
 #include "query.h"
-#include "netty.h"
 #include "logging.h"
 #include "Poll.h"
+#include "Versioning.h"
+#include "Error.h"
+#include "Processor.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
@@ -29,59 +30,66 @@ extern volatile bool running;
 extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
-extern vector<Gateway*> noAddrList;
+extern vector<UGateway*> noAddrList;
+extern map<IP, Ports> peerList;
 
-void destroy(SOCKET * target) { //Close a socket
-#ifdef _WIN32 //If compiled for Windows
-	closesocket(*target); //Close socket using WinSock API
-#else //If not compiled for Windows
-	close(*target); //Close socket using C++ standard API
-#endif
-	delete target;
-}
-
-void destroy(void * target) {
-	destroy((SOCKET*) target);
-}
+constexpr unsigned int iplen = sizeof(sockaddr);
 
 void killConnections() {
 	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		(*iter)->close();
+		delete *iter;
 	}
 	for (peerIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		(*iter)->close();
 	}
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		(*iter)->kill();
+		(*iter)->close();
+		delete *iter;
 	}
 }
 
 //PUBLIC
 void processGateways() {
+	gatePoll.claim();
+
 	while (running) {
 		Event_Data data = gatePoll.wait();
 
+		if (data.fd == 0)
+			return;
+
 		SOCKET sock = data.fd;
-		Gateway * gate = (Gateway*)data.ptr;
+		UGateway * gate = (UGateway*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			gate->close();
+		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
+			gatePoll.remove(data.fd);
+			delete gate;
+		}
 		else
 			gate->process();
 	}
 }
 
 void processPeers() {
+	peerPoll.claim();
+
 	while (running) {
-		Event_Data data = gatePoll.wait();
+		Event_Data data = peerPoll.wait();
+
+		if (data.fd == 0) {
+			return;
+		}
 
 		SOCKET sock = data.fd;
 		Peer * peer = (Peer*)data.ptr;
 
 		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) //If there's no data when we were told there was, the socket closed
-			peer->close();
+		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
+			peerPoll.remove(data.fd);
+			delete peer;
+		}
 		else
 			peer->process();
 	}
@@ -145,70 +153,121 @@ void cleanup() {
 
 //PUBLIC
 void runServer() { //Listen for new connections
+	serverPoll.claim();
+
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
-		SOCKET * newSock = new SOCKET;
-		*newSock = accept(data.fd, NULL, NULL);
+
+		if (data.fd == 0) {
+			return;
+		}
+
+		SOCKET newSock = accept(data.fd, NULL, NULL);
+
+		if (newSock == -1) {
+			socketError("Error accepting a new connection: ");
+			continue;
+		}
+
+#ifdef _WIN32
+		serverPoll.remove(data.fd);
+		serverPoll.add(data.fd);
+#endif
+
 		try {
 			if (data.fd == gateServer) {
-				Gateway * gate = new Gateway(newSock);
-				gatePoll.add(*newSock, gate);
+				UGateway * gate = new UGateway(newSock);
+				gatePoll.add(newSock, gate);
+
+#ifdef _WIN32
+				gatePoll.update();
+#endif
 			}
 			else {
 				Peer * peer = new Peer(newSock);
-				peerPoll.add(*newSock, peer);
+				peerPoll.add(newSock, peer);
+
+#ifdef _WIN32
+				peerPoll.update();
+#endif
 			}
+		}
+		catch (int e) {
+#ifdef _WIN32
+			closesocket(newSock);
+#else
+			close(newSock);
+#endif
 		}
 		catch (int e) {}
 	}
 }
 
 void buildWeb() {
-	Version* best = getVersion(highestVersion());
-	Versioning vers = best->vers;
-	for (knownIter iter; !iter.isEnd(); iter++) {
-		KnownPeer known = *iter;
-		IP ip = known.addr;
-		Ports ports = known.ports;
-		if (ports.peer == 0) {
-			debug("Skipping peer " + ip.stringify() + " because it's outbound only.");
+	for (map<IP, Ports>::iterator iter = peerList.begin(); iter != peerList.end(); iter++) {
+		IP ip = iter->first;
+		Ports ports = iter->second;
+
+		if (ip.stringify() == LOCAL_IP)
 			continue;
-		} else if (ip.stringify() == LOCAL_IP)
+		else if (ports.peer == 0) {
+			debug("Skipping peer " + ip.stringify() + " because its outbound only.");
 			continue;
-		SOCKET * newSock = new SOCKET;
-		*newSock = socket(AF_INET, SOCK_STREAM, 0);
+		}
+
+		SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
 		in_addr remoteIP = ip.addr;
 		sockaddr_in addrFormat;
 		addrFormat.sin_addr = remoteIP;
 		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
-		int result = connect(*newSock, (sockaddr*)&addrFormat, iplen);
+
+#ifndef _WIN32
+		int opt = 3;
+		setsockopt(*newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
+#endif
+
+		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);
+
 		if (result != 0) {
 			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 			continue;
 		}
-		unsigned char verc[3] = {vers.major, vers.minor, vers.patch};
-		send(*newSock, (const char *)verc, (ULONG)3, 0);
+
+		Peer * newConn = new Peer(newSock, ip);
+
+		newConn->transmit(ThisVersion.tostring());
+
 		char death[3];
-		pollfd pollReq = {*newSock, POLLIN};
-#ifdef _WIN32
-		int result2 = WSAPoll(&pollReq, 1, 5);
-#else
-		int result2 = poll(&pollReq, 1, 5);
-#endif
-		if (result2 < 1) {
-			destroy(newSock);
+		timeval timeout = { 2, 0 };
+
+		setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
+		int result2 = recv(newSock, death, 2, 0);
+
+		if (result2 == -1) {
+			delete newConn;
 			error("Connection to " + ip.stringify() + " dropped during negotiation");
-		}
-		recv(*newSock, death, 3, 0);
-		if (death[0] == 0) {
-			warn("Peer " + ip.stringify() + " doesn't support " + vers.stringify());
-			destroy(newSock);
 			continue;
 		}
 
-		Peer* newConn = new Peer((void*)newSock, best, &known);
+		if (death[0] == 0) {
+			recv(newSock, death + 2, 1, 0);
+
+			if (death[3] == 0) {
+				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
+				delete newConn;
+				continue;
+			}
+			else if (death[3] == 1) {
+				error("Peer " + ip.stringify() + " rejected this IP!");
+				delete newConn;
+				continue;
+			}
+		}
+
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
+
+		peerPoll.add(newSock, newConn);
 	}
 }

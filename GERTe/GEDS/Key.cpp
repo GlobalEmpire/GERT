@@ -1,5 +1,5 @@
+#include "Connection.h"
 #include "Key.h"
-#include "Address.h"
 #include <map>
 
 std::map<Address, Key> resolutions;
@@ -12,12 +12,16 @@ Key Key::extract(Connection * conn) {
 	return key;
 }
 
-extern "C" {
-	void addResolution(Address addr, Key key) {
-		resolutions[addr] = key;
-	}
+void Key::add(Address addr, Key key) {
+	resolutions[addr] = key;
+}
 
-	void removeResolution(Address addr) {
-		resolutions.erase(addr);
-	}
+void Key::remove(Address addr) {
+	resolutions.erase(addr);
+}
+
+bool Key::check(Address target) {
+	if (resolutions.count(target) > 0 && resolutions[target] == *this)
+		return true;
+	return false;
 }
