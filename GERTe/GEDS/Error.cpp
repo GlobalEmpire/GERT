@@ -13,10 +13,6 @@ thread_local bool recursionCheck = false;
 void inline printError(int, std::string); //Fixes circular dependency
 
 #ifdef _WIN32
-void socketError(std::string prefix) {
-	printError(WSAGetLastError(), prefix);
-}
-
 void inline formaterror() {
 	if (recursionCheck) {
 		error("Whoops! Looping in error handling function. Passing the code to terminate.");
@@ -35,11 +31,15 @@ void inline cleanup(HLOCAL buffer) {
 	if (result != NULL)
 		formaterror();
 }
-#else
-void socketError(std::string prefix) {
-	printError(errno, prefix);
-}
 #endif
+
+void socketError(std::string prefix) {
+#ifdef _WIN32
+	printError(WSAGetLastError(), prefix);
+#else
+	generalError(prefix);
+#endif
+}
 
 void generalError(std::string prefix) {
 #ifdef _WIN32
