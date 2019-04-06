@@ -19,7 +19,7 @@ class IP {
 		IP(in_addr target) : addr(target) {};
 		IP(std::string target) : addr(*(in_addr*)target.c_str()) {};
 		std::string stringify() {
-			unsigned char* rep = (unsigned char*)&addr.s_addr;
+			unsigned char* rep = (unsigned char*)&addr;
 			return std::to_string(rep[0]) + "." + std::to_string(rep[1]) + "." + std::to_string(rep[2]) + "." + std::to_string(rep[3]);
 		};
 		IP static extract(Connection * conn) {

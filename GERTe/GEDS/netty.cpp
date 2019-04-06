@@ -81,11 +81,7 @@ void startup() {
 		error("Peer port is in use");
 		exit(-1);
 	}
-
-	//Activate servers
-	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
-	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
-	//Servers constructed and started
+	//Servers constructed
 
 	//Add servers to poll
 	serverPoll.add(gateServer);
@@ -111,6 +107,10 @@ void runServer() { //Listen for new connections
 	Processor proc{ &clientPoll };
 
 	debug("Starting connection processor");
+	//Activate servers
+	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
+	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
+
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
 
