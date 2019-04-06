@@ -16,7 +16,7 @@ void interrupt(std::thread &thread) {
 #ifdef _WIN32
 	QueueUserAPC(apc, thread.native_handle(), 0);
 #else
-	pthread_kill(*(std::thread::native_handle_type*)handler, SIGUSR1);
+	pthread_kill(thread.native_handle(), SIGUSR1);
 #endif
 }
 

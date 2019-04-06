@@ -75,6 +75,7 @@ void removeTracker(SOCKET fd, Poll* context) {
 	}
 }
 
+#ifdef _WIN32
 bool tryFire(int fd) {
 	lock.lock();
 	for (std::vector<int>::iterator iter = fired.begin(); iter != fired.end(); iter++) {
@@ -88,6 +89,7 @@ bool tryFire(int fd) {
 	lock.unlock();
 	return true;
 }
+#endif
 
 Poll::Poll() {
 #ifndef _WIN32
@@ -106,8 +108,6 @@ Poll::~Poll() {
 	{
 		delete data;
 	}
-
-	delete (pthread_t*)handler;
 #else
 	for (void * data : tracker) {
 		INNER * store = (INNER*)data;
@@ -172,7 +172,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	if (last != nullptr) {
 		epoll_event newEvent;
 		newEvent.events = EPOLLIN | EPOLLONESHOT;
-		newEvent.data.ptr = data;
+		newEvent.data.ptr = last->data;
 
 		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->fd, &newEvent) == -1)
 			throw errno;
