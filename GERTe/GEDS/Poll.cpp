@@ -154,9 +154,6 @@ void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the 
 
 void Poll::remove(SOCKET fd) {
 #ifndef _WIN32
-	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
-		throw errno;
-
 	if (last != nullptr && last->fd == fd)
 		last = nullptr;
 #else
