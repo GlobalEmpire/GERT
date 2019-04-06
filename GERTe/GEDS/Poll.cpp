@@ -1,5 +1,6 @@
 #include "Poll.h"
 #include "logging.h"
+#include "Error.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
