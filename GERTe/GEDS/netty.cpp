@@ -1,5 +1,6 @@
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
+#include <Ws2tcpip.h>
 #else
 #include <sys/socket.h> //Load C++ standard socket API
 #include <netinet/tcp.h>
@@ -174,9 +175,11 @@ void buildWeb() {
 		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
 
+		int opt = 2;
 #ifndef _WIN32
-		int opt = 3;
 		setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
+#else
+		setsockopt(newSock, IPPROTO_TCP, TCP_MAXRT, (char*)&opt, sizeof(opt)); //Correct excessive timeout period on Windows
 #endif
 
 		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);

@@ -172,7 +172,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	if (last != nullptr) {
 		epoll_event newEvent;
 		newEvent.events = EPOLLIN | EPOLLONESHOT;
-		newEvent.data.ptr = last->data;
+		newEvent.data.ptr = last;
 
 		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->fd, &newEvent) == -1)
 			throw errno;
