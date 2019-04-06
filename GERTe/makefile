@@ -1,19 +1,12 @@
 CC=g++
-CFLAGS=-c
-LFLAGS=-lpthread
+CFLAGS=-pthread
 VERS=1.1
 
-default: build clean
+default: build
 
-debug: CFLAGS += -g
+debug: CFLAGS += -g -rdynamic
 debug: VERS := $(VERS)d
 debug: default
 
-compile:
-	$(CC) $(CFLAGS) GEDS/*.cpp
-
-build: compile
-	$(CC) $(LFLAGS) -o GEDSv$(VERS) *.o
-
-clean:
-	rm -f *.o
+build:
+	$(CC) $(CFLAGS) GEDS/*.cpp -o GEDSv$(VERS)
