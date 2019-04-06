@@ -157,7 +157,7 @@ void Poll::remove(SOCKET fd) {
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw errno;
 
-	if (last->fd)
+	if (last != nullptr && last->fd == fd)
 		last = nullptr;
 #else
 	if (last == fd)
