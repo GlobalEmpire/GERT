@@ -175,10 +175,11 @@ void buildWeb() {
 		addrFormat.sin_port = ports.peer;
 		addrFormat.sin_family = AF_INET;
 
-		int opt = 2;
 #ifndef _WIN32
+		int opt = 3;
 		setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
 #else
+		int opt = 2;
 		setsockopt(newSock, IPPROTO_TCP, TCP_MAXRT, (char*)&opt, sizeof(opt)); //Correct excessive timeout period on Windows
 #endif
 
