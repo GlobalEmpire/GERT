@@ -125,7 +125,8 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 int main( int argc, char* argv[] ) {
 
 	cout << "GEDS Server v" << ThisVersion.stringify() << endl; //Print version information
-	cout << "Copyright 2017" << endl; //Print simple copyright information
+	cout << "Written by Tyler Kuhn (TYKUHN2)" << endl;			//Print author information
+	cout << "Copyright 2017-2019" << endl;						//Print simple copyright information
 
 	processArgs(argc, argv); //Process command line argument
 	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
