@@ -141,8 +141,8 @@ void UGateway::process(Gateway * derived) {
 
 	switch (command) {
 	case Gate::Commands::REGISTER: {
-		Address request = Address::extract(this);
-		Key requestkey = Key::extract(this);
+		Address request{ this };
+		Key requestkey{ this };
 		if (state == (char)Gate::States::REGISTERED) {
 			failed(this, Gate::Errors::REGISTERED);
 			/*
@@ -192,9 +192,9 @@ void UGateway::process(Gateway * derived) {
 		return;
 	}
 	case Gate::Commands::DATA: {
-		GERTc target = GERTc::extract(this);
-		Address source = Address::extract(this);
-		NetString data = NetString::extract(this);
+		GERTc target{ this };
+		Address source{ this };
+		NetString data{ this };
 		if (state == (char)Gate::States::CONNECTED) {
 			failed(this, Gate::Errors::NOT_REGISTERED);
 			/*

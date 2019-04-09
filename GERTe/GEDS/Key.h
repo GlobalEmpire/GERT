@@ -11,10 +11,10 @@ class Key {
 		Key (const std::string& keyin) : key(keyin) {
 			key.resize(20);
 		};
+		Key(Connection * conn);
 		Key () {};
-		bool check(Address);
 
-		static Key extract(Connection*);
+		bool check(Address);
 		static void add(Address, Key);
 		static void remove(Address);
 };

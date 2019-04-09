@@ -4,6 +4,16 @@ Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsign
 
 Address::Address(const unsigned char* arr) : addr{arr[0], arr[1], arr[2]} {};
 
+Address::Address(Connection * conn) {
+	char * data = conn->read(3);
+	
+	addr[0] = data[1];
+	addr[1] = data[2];
+	addr[2] = data[3];
+
+	delete data;
+}
+
 bool Address::operator== (const Address &target) const {
 	bool first = (target.addr[0] == addr[0]);
 	bool second = (target.addr[1] == addr[1]);
@@ -34,14 +44,6 @@ std::string Address::stringify() const {
 	high = (unsigned short)(addr[0]) << 4 | (unsigned short)(addr[1]) >> 4;
 	low = ((unsigned short)addr[1] & 0x0F) << 8 | (unsigned short)addr[2];
 	return std::to_string(high) + "." + std::to_string(low);
-}
-
-Address Address::extract(Connection* conn) {
-	char * addr = conn->read(3);
-	Address result = Address{(unsigned char *)addr + 1};
-	delete addr;
-
-	return result;
 }
 
 std::string Address::tostring() const {

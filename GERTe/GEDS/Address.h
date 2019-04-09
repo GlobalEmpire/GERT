@@ -10,7 +10,8 @@ public:
 	Address(const std::string&);
 	Address(const unsigned char*);
 	Address() : addr{0, 0, 0} {};
-	Address static extract(Connection*);
+	Address(Connection*);
+
 	const unsigned char* getAddr() const;
 	std::string stringify() const;
 	std::string tostring() const;

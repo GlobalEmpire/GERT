@@ -1,11 +1,7 @@
 #include "NetString.h"
 #include <cstring>
 
-NetString::~NetString() {
-	delete this->str;
-}
-
-NetString NetString::extract(Connection* conn) {
+NetString::NetString(Connection * conn) {
 	char * len = conn->read(1);
 	char * data = conn->read(len[1]);
 
@@ -13,16 +9,16 @@ NetString NetString::extract(Connection* conn) {
 		len[1] = data[0];
 	}
 
-	NetString string = {
-			len[1],
-			new char[len[1]]
-	};
+	length = len[1];
+	str = new char[length];
 
-	memcpy(&string.str, data+1, len[1]);
+	memcpy(str, data + 1, len[1]);
 	delete len;
 	delete data;
+}
 
-	return string;
+NetString::~NetString() {
+	delete this->str;
 }
 
 std::string NetString::string() const {

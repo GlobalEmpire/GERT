@@ -95,9 +95,9 @@ void Peer::process() {
 
 	switch (command) {
 	case ROUTE: {
-		GERTc target = GERTc::extract(this);
-		GERTc source = GERTc::extract(this);
-		NetString data = NetString::extract(this);
+		GERTc target = { this };
+		GERTc source = { this };
+		NetString data{ this };
 		string cmd = { (char)Commands::ROUTE };
 		cmd += target.tostring() + source.tostring() + data.string();
 		if (!Gateway::sendTo(target.external, cmd)) {
@@ -108,34 +108,34 @@ void Peer::process() {
 		return;
 	}
 	case REGISTERED: {
-		Address target = Address::extract(this);
+		Address target{ this };
 		RGateway * newGate = new RGateway{ target, this };
 		return;
 	}
 	case UNREGISTERED: {
-		Address target = Address::extract(this);
+		Address target{ this };
 		delete RGateway::lookup(target);
 		return;
 	}
 	case RESOLVE: {
-		Address target = Address::extract(this);
-		Key key = Key::extract(this);
+		Address target{ this };
+		Key key{ this };
 		Key::add(target, key);
 		return;
 	}
 	case UNRESOLVE: {
-		Address target = Address::extract(this);
+		Address target{ this };
 		Key::remove(target);
 		return;
 	}
 	case LINK: {
-		IP target = IP::extract(this);
-		Ports ports = Ports::extract(this);
+		IP target{ this };
+		Ports ports{ this };
 		allow(target, ports);
 		return;
 	}
 	case UNLINK: {
-		IP target = IP::extract(this);
+		IP target{ this };
 		deny(target);
 		return;
 	}
@@ -145,7 +145,7 @@ void Peer::process() {
 		return;
 	}
 	case QUERY: {
-		Address target = Address::extract(this);
+		Address target{ this };
 		if (Gateway::lookup(target)) {
 			string cmd = { REGISTERED };
 			cmd += target.tostring();
