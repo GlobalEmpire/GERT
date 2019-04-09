@@ -49,7 +49,7 @@ void removeTracker(SOCKET fd, Poll* context) {
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 
 			lock.lock();
-			for (std::vector<int>::iterator fiter = fired.begin(); fiter != fired.end(); iter++) {
+			for (std::vector<int>::iterator fiter = fired.begin(); fiter != fired.end(); fiter++) {
 				if (*fiter == GETFD) {
 					fired.erase(fiter);
 					break;
