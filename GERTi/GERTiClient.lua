@@ -111,10 +111,13 @@ end
 
 local handler = {}
 handler.CloseConnection = function(sendingModem, port, ID, dest, origin)
-	if destination ~= iAdd then
+	if dest ~= iAdd then
 		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "CloseConnection", ID, dest, origin)
 	end
-	connections[dest][origin][ID] = nil
+	if dest == iAdd or origin == iAdd then
+		connections[dest][origin][ID] = nil
+		computer.pushSignal("GERTConnectionClose", origin, dest, ID)
+	end
 end
 
 handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
