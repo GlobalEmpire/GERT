@@ -3,7 +3,8 @@
 #include "fileMngr.h"
 #include "Key.h"
 #include "logging.h"
-#include "peerManager.h"
+#include "Peer.h"
+#include <map>
 
 typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 

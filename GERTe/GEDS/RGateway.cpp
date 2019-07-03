@@ -54,3 +54,12 @@ bool RGateway::sendTo(Address tgt, std::string data) {
 void RGateway::transmit(std::string data) {
 	relay->transmit(data);
 }
+
+void RGateway::clean(Peer* target) {
+	for (std::map<Address, RGateway*>::iterator iter = remotes.begin(); iter != remotes.end(); iter++) {
+		if (iter->second->relay == target) {
+			delete iter->second;
+			remotes.erase(iter);
+		}
+	}
+}

@@ -4,15 +4,16 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #endif
 
-#include "routeManager.h"
+#include "Peer.h"
 #include "logging.h"
 #include <fcntl.h>
 #include "Poll.h"
+#include "Gateway.h"
 #include "GERTc.h"
 #include "NetString.h"
-#include "gatewayManager.h"
-#include "peerManager.h"
 #include "Versioning.h"
+#include "RGateway.h"
+#include <map>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ map<IP, Ports> peerList;
 
 extern Poll clientPoll;
 extern volatile bool running;
+extern std::map<Address, RGateway*> remotes;
 
 enum Commands : char {
 	REGISTERED,
@@ -55,7 +57,7 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 };
 
 Peer::~Peer() { //Peer destructor
-	killAssociated(this);
+	RGateway::clean(this);
 	peers.erase(ip);
 
 	clientPoll.remove(sock);

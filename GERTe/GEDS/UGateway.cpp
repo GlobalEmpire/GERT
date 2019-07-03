@@ -1,9 +1,7 @@
-#include "gatewayManager.h"
 #include "logging.h"
 #include <fcntl.h>
 #include "Poll.h"
 #include "routeManager.h"
-#include "peerManager.h"
 #include "GERTc.h"
 #include "NetString.h"
 #include "query.h"
@@ -81,14 +79,15 @@ void failed(UGateway * gate, const Gate::Errors error) {
 	gate->transmit(response);
 }
 
-noAddrIter find(UGateway * gate) {
-	noAddrIter iter;
-	for (iter; !iter.isEnd(); iter++) { //Loop through list of non-registered gateways
+bool removeNoAddr(UGateway* gate) {
+	for (vector<UGateway*>::iterator iter = noAddrList.begin(); iter != noAddrList.end(); iter++) { //Loop through list of non-registered gateways
 		if (*iter == gate) { //If we found the Gateway
-			return iter;
+			noAddrList.erase(iter);
+			return true;
 		}
 	}
-	return iter;
+
+	return false;
 }
 
 UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
@@ -100,18 +99,14 @@ UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 }
 
 UGateway::~UGateway() {
-	noAddrIter pos = find(this);
-
-	if (!pos.isEnd()) {
-		pos.erase();
+	if (removeNoAddr(this))
 		log("Unregistered gateway has closed the connection");
-	}
 
 	clientPoll.remove(sock);
 }
 
 UGateway::UGateway(UGateway&& orig) noexcept : Connection(std::move(orig)) {
-	find(&orig).erase();
+	removeNoAddr(&orig);
 	std::free(&orig);
 }
 

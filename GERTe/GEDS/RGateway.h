@@ -4,7 +4,7 @@
 //THIS IS NOT EVEN MY FINAL FORM!!!
 
 class RGateway {
-	friend void killAssociated(Peer*);
+	friend Peer;
 
 	Peer * relay;
 
@@ -16,6 +16,7 @@ public:
 
 	static RGateway * lookup(Address);
 	static bool sendTo(Address, std::string);
+	static void clean(Peer*);
 
 	void transmit(std::string);
 };

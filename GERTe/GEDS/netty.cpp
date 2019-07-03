@@ -10,10 +10,9 @@
 #endif
 #include <sys/types.h>
 #include <thread>
-#include "peerManager.h"
 #include "routeManager.h"
-#include "gatewayManager.h"
 #include "query.h"
+#include "Gateway.h"
 #include "logging.h"
 #include "Poll.h"
 #include "Versioning.h"
@@ -35,21 +34,24 @@ extern char * gatewayPort;
 extern char * peerPort;
 extern char * LOCAL_IP;
 extern vector<UGateway*> noAddrList;
+extern map<IP, Peer*> peers;
+extern std::map<Address, Gateway*> gateways;
 extern map<IP, Ports> peerList;
 
 constexpr unsigned int iplen = sizeof(sockaddr);
 
 void killConnections() {
-	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
-		delete *iter;
+	for (std::pair<Address, Gateway*> pair : gateways) {
+		pair.second->close();
+		delete pair.second;
 	}
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
+	for (std::pair<IP, Peer*> pair : peers) {
+		pair.second->close();
+		delete pair.second;
 	}
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
-		delete *iter;
+	for (UGateway* gate : noAddrList) {
+		gate->close();
+		delete gate;
 	}
 }
 

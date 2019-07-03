@@ -1,13 +1,17 @@
 #include "Peer.h"
-#include "gatewayManager.h"
+#include "Gateway.h"
 #include "logging.h"
 #include <thread>
+#include <map>
+#include <vector>
 using namespace std;
 
 typedef unsigned long long pointer;
 
 extern volatile bool running;
 extern map<IP, Peer*> peers;
+extern vector<UGateway*> noAddrList;
+extern std::map<Address, Gateway*> gateways;
 
 enum scanResult {
 	CLEAN,
@@ -29,8 +33,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	int total = 0;
 	int errs = 0;
 	debug("[ESCAN] Emergency scan triggered!");
-	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
-		Peer * checkpeer = iter->second;
+	for (std::pair<IP, Peer*> pair : peers) {
+		Peer* checkpeer = pair.second;
 		if (checkpeer == nullptr) {
 			debug("[ESCAN] Found a missing peer within peers map");
 			errs++;
@@ -42,8 +46,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 		peerErr = true;
 	total += errs;
 	errs = 0;
-	for (gatewayIter iter; !iter.isEnd(); iter++) {
-		Gateway * checkgate = *iter;
+	for (std::pair<Address, Gateway*> pair : gateways) {
+		Gateway* checkgate = pair.second;
 		Address addrstrct = checkgate->addr;
 		string addr = addrstrct.stringify();
 		errs += scanGateway(checkgate, addr);
@@ -51,9 +55,8 @@ int emergencyScan() { //EMERGENCY CLEANUP FOR TERMINATE/ABORT/SIGNAL HANDLING
 	debug("[ESCAN] Gateway error count: " + to_string(errs));
 	total += errs;
 	errs = 0;
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		UGateway * checkgate = *iter;
-		errs += scanGateway(checkgate, "without address");
+	for (UGateway* gate : noAddrList) {
+		errs += scanGateway(gate, "without address");
 	}
 	total += errs;
 	debug("[ESCAN] Emergency scan finished with " + to_string(errs) + " errors\n");

@@ -1,5 +1,4 @@
 #include "Gateway.h"
-#include "gatewayManager.h"
 #include "routeManager.h"
 #include "logging.h"
 #include <utility>
