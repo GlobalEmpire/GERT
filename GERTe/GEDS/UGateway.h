@@ -7,14 +7,11 @@ class Gateway;
 //THIS IS NOT EVEN MY FINAL FORM!!!
 
 class UGateway : public Connection { //The OG Gateway
-	UGateway(SOCKET);
-
-	friend void runServer();
-
 protected:
 	UGateway(UGateway&&);
 
 public:
+	UGateway(SOCKET);
 	virtual ~UGateway();
 
 	void transmit(std::string);

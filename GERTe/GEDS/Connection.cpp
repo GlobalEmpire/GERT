@@ -18,14 +18,16 @@ void Connection::error(char * err) {
 	send(sock, err, 3, 0);
 }
 
-char * Connection::read(int num) {
+char * Connection::read(unsigned char num) {
 	char * buf = new char[num+1];
 	int len = recv(this->sock, buf+1, num, 0);
 	buf[0] = (char)len;
 	return buf;
 }
 
-Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
+Connection::Connection(SOCKET socket, std::string type) {
+	sock = socket;
+
 #ifdef _WIN32
 #define PTR char*
 #else
@@ -73,7 +75,9 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 		vers[1] = ThisVersion.minor;
 }
 
-Connection::Connection(SOCKET socket) : sock(socket) {}	
+Connection::Connection(SOCKET socket) {
+	sock = socket;
+}	
 
 Connection::~Connection() {
 #ifdef WIN32

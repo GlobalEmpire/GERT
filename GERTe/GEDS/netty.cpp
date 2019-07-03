@@ -19,9 +19,11 @@
 #include "Versioning.h"
 #include "Error.h"
 #include "Processor.h"
+#include "Server.h"
 using namespace std;
 
-SOCKET gateServer, gedsServer; //Define both server sockets
+Server* gateServer;
+Server* peerServer;
 
 Poll serverPoll;
 Poll clientPoll;
@@ -57,46 +59,14 @@ void startup() {
 	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
 #endif
 
-	sockaddr_in gate = {
-			AF_INET,
-			htons(stoi(gatewayPort)),
-			INADDR_ANY
-	};
-	sockaddr_in geds = {
-			AF_INET,
-			htons(stoi(peerPort)),
-			INADDR_ANY
-	};
-
-	//Construct server sockets
-	gateServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct gateway inbound socket
-	gedsServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //Construct GEDS P2P inbound socket
-
-	//Bind servers to addresses
-	if (::bind(gateServer, (sockaddr*)&gate, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize gateway inbound socket
-		error("Gateway port is in use");
-		exit(-1);
-	}
-	if (::bind(gedsServer, (sockaddr*)&geds, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) { //Initialize GEDS P2P inbound socket
-		error("Peer port is in use");
-		exit(-1);
-	}
-	//Servers constructed
-
-	//Add servers to poll
-	serverPoll.add(gateServer);
-	serverPoll.add(gedsServer);
+	gateServer = new Server{ std::stoi(gatewayPort), Server::Type::GATEWAY };
+	peerServer = new Server{ std::stoi(peerPort), Server::Type::PEER };
 }
 
 //PUBLIC
 void cleanup() {
-#ifdef _WIN32
-	closesocket(gedsServer);
-	closesocket(gateServer);
-#else
-	close(gedsServer);
-	close(gateServer);
-#endif
+	delete gateServer;
+	delete peerServer;
 
 	killConnections();
 }
@@ -107,9 +77,8 @@ void runServer() { //Listen for new connections
 	Processor proc{ &clientPoll };
 
 	debug("Starting connection processor");
-	//Activate servers
-	listen(gateServer, SOMAXCONN); //Open gateway inbound socket
-	listen(gedsServer, SOMAXCONN); //Open gateway inbound socket
+	gateServer->start();
+	peerServer->start();
 
 	while (running) { //Dies on SIGINT
 		Event_Data data = serverPoll.wait();
@@ -117,42 +86,17 @@ void runServer() { //Listen for new connections
 		if (data.fd == 0) {
 			return;
 		}
-
-		SOCKET newSock = accept(data.fd, NULL, NULL);
-
-		if (newSock == -1) {
-			socketError("Error accepting a new connection: ");
-			continue;
+		else if (data.fd == gateServer->sock) {
+			gateServer->process();
+		}
+		else {
+			peerServer->process();
 		}
 
 #ifdef _WIN32
 		serverPoll.remove(data.fd);
 		serverPoll.add(data.fd);
 #endif
-
-		Connection * newConn;
-
-		try {
-			if (data.fd == gateServer) {
-				newConn = new UGateway(newSock);
-			}
-			else {
-				newConn = new Peer(newSock);
-			}
-
-			clientPoll.add(newSock, newConn);
-			
-#ifdef _WIN32
-			proc.update();
-#endif
-		}
-		catch (int e) {
-#ifdef _WIN32
-			closesocket(newSock);
-#else
-			close(newSock);
-#endif
-		}
 	}
 }
 
