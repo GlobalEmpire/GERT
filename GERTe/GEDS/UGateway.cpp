@@ -110,7 +110,7 @@ UGateway::~UGateway() {
 	clientPoll.remove(sock);
 }
 
-UGateway::UGateway(UGateway&& orig) : Connection(std::move(orig)) {
+UGateway::UGateway(UGateway&& orig) noexcept : Connection(std::move(orig)) {
 	find(&orig).erase();
 	std::free(&orig);
 }

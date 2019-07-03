@@ -15,7 +15,7 @@
 
 extern volatile bool running;
 
-void worker(void * thisref) {
+void worker(void * thisref) {		// Redirection, allows use of a member function
 	((Processor*)thisref)->run();
 }
 

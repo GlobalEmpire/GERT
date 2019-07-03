@@ -8,7 +8,7 @@ class Gateway;
 
 class UGateway : public Connection { //The OG Gateway
 protected:
-	UGateway(UGateway&&);
+	UGateway(UGateway&&) noexcept;
 
 public:
 	UGateway(SOCKET);

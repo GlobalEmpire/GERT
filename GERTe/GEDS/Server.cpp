@@ -16,7 +16,7 @@
 #include "Error.h"
 
 extern Poll clientPoll;
-extern Processor proc;
+extern Processor* proc;
 
 Server::Server(short port, Server::Type type) : type{ type } {
 	sockaddr_in info = {
@@ -68,7 +68,7 @@ void Server::process() {
 		clientPoll.add(newSock, newConn);
 
 #ifdef _WIN32
-		proc.update();
+		proc->update();
 #endif
 	}
 	catch (int e) {

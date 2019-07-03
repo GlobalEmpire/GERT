@@ -37,7 +37,7 @@ void socketError(std::string prefix) {
 #ifdef _WIN32
 	printError(WSAGetLastError(), prefix);
 #else
-	generalError(prefix);
+	printError(errno, prefix);
 #endif
 }
 
@@ -47,6 +47,10 @@ void generalError(std::string prefix) {
 #else
 	printError(errno, prefix);
 #endif
+}
+
+void knownError(int code, std::string prefix) {
+	printError(code, prefix);
 }
 
 void inline printError(int code, std::string prefix) { //Inlined to minimize overhead

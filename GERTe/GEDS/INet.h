@@ -17,5 +17,7 @@ class INet {							// Generic processible network object
 public:
 	SOCKET sock;						// Associated socket
 
+	virtual ~INet() = default;			// Virtual destructor to allow appropriate cleanup regardless of context
+
 	virtual void process() = 0;			// Process network event
 };

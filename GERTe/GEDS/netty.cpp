@@ -28,6 +28,8 @@ Server* peerServer;
 Poll serverPoll;
 Poll clientPoll;
 
+Processor* proc;
+
 extern volatile bool running;
 extern char * gatewayPort;
 extern char * peerPort;
@@ -56,11 +58,16 @@ void startup() {
 	//Server construction
 #ifdef _WIN32 //If compiled for Windows
 	WSADATA socketConfig; //Construct WSA configuration destination
-	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
+	int res = WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
+
+	if (res != 0) {
+		knownError(res, "Cannot start networking: ");
+		exit(4);
+	}
 #endif
 
-	gateServer = new Server{ std::stoi(gatewayPort), Server::Type::GATEWAY };
-	peerServer = new Server{ std::stoi(peerPort), Server::Type::PEER };
+	gateServer = new Server{ (short)std::stoi(gatewayPort), Server::Type::GATEWAY };
+	peerServer = new Server{ (short)std::stoi(peerPort), Server::Type::PEER };
 }
 
 //PUBLIC
@@ -74,7 +81,7 @@ void cleanup() {
 //PUBLIC
 void runServer() { //Listen for new connections
 	debug("Starting message processor");
-	Processor proc{ &clientPoll };
+	proc = new Processor{ &clientPoll };
 
 	debug("Starting connection processor");
 	gateServer->start();
@@ -153,12 +160,12 @@ void buildWeb() {
 		if (death[0] == 0) {
 			recv(newSock, death + 2, 1, 0);
 
-			if (death[3] == 0) {
+			if (death[2] == 0) {
 				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
 				delete newConn;
 				continue;
 			}
-			else if (death[3] == 1) {
+			else if (death[2] == 1) {
 				error("Peer " + ip.stringify() + " rejected this IP!");
 				delete newConn;
 				continue;
