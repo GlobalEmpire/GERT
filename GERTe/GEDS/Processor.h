@@ -2,9 +2,9 @@
 #include "Poll.h"
 
 class Processor {
-	friend void worker(void*);
-
 	Poll * poll;
+
+	unsigned int poolsize;
 	void * pool;
 
 	void run();

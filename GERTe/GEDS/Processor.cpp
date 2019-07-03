@@ -9,25 +9,46 @@
 #endif
 
 #include "Processor.h"
-#include "Pool.h"
 #include "Poll.h"
 #include <type_traits>
+#include <thread>
 
 extern volatile bool running;
 
-void worker(void * thisref) {		// Redirection, allows use of a member function
-	((Processor*)thisref)->run();
+#ifdef _WIN32
+void apc(ULONG_PTR s) {}
+#endif
+
+void inline interrupt(std::thread& thread) {
+#ifdef _WIN32
+	QueueUserAPC(apc, thread.native_handle(), 0);
+#else
+	pthread_kill(thread.native_handle(), SIGUSR1);
+#endif
 }
 
 Processor::Processor(Poll * poll) : poll(poll) {
-	pool = new Pool{ worker, this };
+	poolsize = std::thread::hardware_concurrency();
+
+	if (poolsize == 0)
+		poolsize = 1;
+
+	std::thread* threadp = new std::thread[poolsize];
+
+	for (int i = 0; i < poolsize; i++)
+		threadp[i] = std::thread{ &Processor::run, this };
+
+	pool = threadp;
 }
 
 Processor::~Processor() {
-	Pool * poolp = (Pool*)pool;
+	std::thread* threadp = (std::thread*)pool;
 
-	poolp->interrupt();
-	delete poolp;
+	for (int i = 0; i < poolsize; i++) {
+		interrupt(threadp[i]);
+		threadp[i].join();
+	}
+	delete threadp;
 }
 
 void Processor::run() {
@@ -51,5 +72,8 @@ void Processor::run() {
 }
 
 void Processor::update() {
-	((Pool*)pool)->interrupt();
+	std::thread* threadp = (std::thread*)pool;
+
+	for (int i = 0; i < poolsize; i++)
+		interrupt(threadp[i]);
 }
