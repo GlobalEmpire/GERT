@@ -18,7 +18,7 @@
 extern Poll clientPoll;
 extern Processor* proc;
 
-Server::Server(short port, Server::Type type) : type{ type } {
+Server::Server(short port, Server::Type type) : type{ type }, INet{ INet::Type::LISTEN } {
 	sockaddr_in info = {
 			AF_INET,
 			htons(port),

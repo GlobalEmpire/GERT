@@ -12,7 +12,7 @@
 void apc(ULONG_PTR s) {}
 #endif
 
-void interrupt(std::thread &thread) {
+void inline interrupt(std::thread &thread) {
 #ifdef _WIN32
 	QueueUserAPC(apc, thread.native_handle(), 0);
 #else
@@ -24,7 +24,7 @@ Pool::Pool(POOLFUNC func, void * data) {
 	threads = std::thread::hardware_concurrency();
 
 	if (threads == 0)
-		threads = 2;
+		threads = 1;
 
 	std::thread * threadp = new std::thread[threads];
 

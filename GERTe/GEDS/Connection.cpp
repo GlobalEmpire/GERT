@@ -25,7 +25,7 @@ char * Connection::read(unsigned char num) {
 	return buf;
 }
 
-Connection::Connection(SOCKET socket, std::string type) {
+Connection::Connection(SOCKET socket, std::string type) : INet{ INet::Type::CONNECT } {
 	sock = socket;
 
 #ifdef _WIN32
@@ -75,7 +75,7 @@ Connection::Connection(SOCKET socket, std::string type) {
 		vers[1] = ThisVersion.minor;
 }
 
-Connection::Connection(SOCKET socket) {
+Connection::Connection(SOCKET socket) : INet{ INet::Type::CONNECT } {
 	sock = socket;
 }	
 
@@ -86,13 +86,3 @@ Connection::~Connection() {
 	::close(sock);
 #endif
 }
-
-/*if (resulterr == -1) {
-	char temp[128];
-	int wsaerr = WSAGetLastError();
-	int WSAFAULT = WSAEFAULT;
-	int WSASOCK = WSAENOTSOCK;
-	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, wsaerr, 0, temp, 128, NULL);
-	debug("Extended error: " + std::string{ temp });
-	throw 1;
-}*/

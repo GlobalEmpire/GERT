@@ -4,11 +4,10 @@
 
 struct Event_Data {
 	SOCKET fd;
-	Connection * ptr;
+	INet * ptr;
 };
 
 class Poll {
-
 	friend void removeTracker(SOCKET, Poll*);
 	friend void cleanup();
 
@@ -24,7 +23,7 @@ public:
 	Poll();
 	~Poll();
 
-	void add(SOCKET, Connection* = nullptr);
+	void add(SOCKET, INet*);
 	void remove(SOCKET);
 	Event_Data wait();
 };

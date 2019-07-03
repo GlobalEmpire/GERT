@@ -68,6 +68,9 @@ void startup() {
 
 	gateServer = new Server{ (short)std::stoi(gatewayPort), Server::Type::GATEWAY };
 	peerServer = new Server{ (short)std::stoi(peerPort), Server::Type::PEER };
+
+	serverPoll.add(gateServer->sock, gateServer);
+	serverPoll.add(peerServer->sock, peerServer);
 }
 
 //PUBLIC
@@ -102,7 +105,7 @@ void runServer() { //Listen for new connections
 
 #ifdef _WIN32
 		serverPoll.remove(data.fd);
-		serverPoll.add(data.fd);
+		serverPoll.add(data.fd, data.ptr);
 #endif
 	}
 }

@@ -120,7 +120,7 @@ Poll::~Poll() {
 #endif
 }
 
-void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the pollset and tracks useful information
+void Poll::add(SOCKET fd, INet * ptr) { //Adds the file descriptor to the pollset and tracks useful information
 	Event_Data * data = new Event_Data{
 		fd,
 		ptr
