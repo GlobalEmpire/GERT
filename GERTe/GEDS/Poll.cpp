@@ -22,10 +22,7 @@ struct INNER {
 };
 
 typedef std::vector<void*> TrackerT;
-
-std::mutex lock;
-std::vector<int> fired;
-thread_local int last = INVALID_SOCKET;
+thread_local INet* last = nullptr;
 #else
 #define GETFD store->fd
 typedef std::vector<Event_Data*> TrackerT;
@@ -48,15 +45,6 @@ void removeTracker(SOCKET fd, Poll* context) {
 #ifdef _WIN32
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 
-			lock.lock();
-			for (std::vector<int>::iterator fiter = fired.begin(); fiter != fired.end(); fiter++) {
-				if (*fiter == GETFD) {
-					fired.erase(fiter);
-					break;
-				}
-			}
-			lock.unlock();
-
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
 			context->events.shrink_to_fit();
@@ -74,22 +62,6 @@ void removeTracker(SOCKET fd, Poll* context) {
 		i++;
 	}
 }
-
-#ifdef _WIN32
-bool tryFire(int fd) {
-	lock.lock();
-	for (std::vector<int>::iterator iter = fired.begin(); iter != fired.end(); iter++) {
-		if (*iter == fd) {
-			lock.unlock();
-			return false;
-		}
-	}
-	
-	fired.push_back(fd);
-	lock.unlock();
-	return true;
-}
-#endif
 
 Poll::Poll() {
 #ifndef _WIN32
@@ -157,8 +129,10 @@ void Poll::remove(SOCKET fd) {
 	if (last != nullptr && last->fd == fd)
 		last = nullptr;
 #else
-	if (last == fd)
-		last = INVALID_SOCKET;
+	if (last != nullptr && last->sock == fd) {
+		last->lock.unlock();
+		last = nullptr;
+	}
 #endif
 
 	removeTracker(fd, this);
@@ -196,18 +170,8 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	}
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
-	if (last != INVALID_SOCKET) {
-		lock.lock();
-
-		for (std::vector<int>::iterator iter = fired.begin(); iter != fired.end(); iter++) {
-			if (*iter == last) {
-				fired.erase(iter);
-				break;
-			}
-		}
-
-		lock.unlock();
-		last = INVALID_SOCKET;
+	if (last != nullptr) {
+		last->lock.unlock();
 	}
 
 	while (true) {
@@ -222,10 +186,13 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
-					INNER * store = (INNER*)tracker[offset];
+					INNER* store = (INNER*)tracker[offset];
+					INet* obj = store->data->ptr;
 
-					if (tryFire(store->data->fd))
+					if (obj->lock.try_lock()) {
+						last = obj;
 						return *(store->data);
+					}
 				}
 				else
 					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));

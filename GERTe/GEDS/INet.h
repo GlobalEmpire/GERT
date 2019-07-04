@@ -1,4 +1,7 @@
 #pragma once
+#ifdef _WIN32
+#include <mutex>
+#endif
 
 #ifdef _WIN32
 typedef unsigned long long SOCKET;
@@ -23,7 +26,13 @@ public:
 	SOCKET sock = -1;						// Associated socket
 	Type type;								// The type of the INet object
 
-	INet(INet::Type type) : type(type) {};	// Constructor for generic INet objects to force proper initalization
+#ifdef _WIN32
+	std::mutex lock;						// Polls on Windows lock INet objects to ensure only a single thread uses it.
+
+	INet(const INet&) noexcept;				// Mutex containing objects need a special move constructor
+#endif
+
+	INet(INet::Type);						// Constructor for generic INet objects to force proper initalization
 	virtual ~INet() = default;				// Virtual destructor to allow appropriate cleanup regardless of context
 
 	virtual void process() = 0;				// Process network event
