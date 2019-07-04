@@ -182,8 +182,11 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 		else {
 			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
 
-			if (result == WSA_WAIT_FAILED)
-				socketError("Socket poll error: ");
+			if (result == WSA_WAIT_FAILED) {
+				int err = WSAGetLastError();
+				if (err != WSA_INVALID_HANDLE)
+					knownError(err, "Socket poll error: ");
+			}
 			else if (result != WSA_WAIT_IO_COMPLETION) {
 				int offset = result - WSA_WAIT_EVENT_0;
 
