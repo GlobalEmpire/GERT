@@ -166,6 +166,8 @@ void Peer::process() {
 	case GEDS::Commands::QUERY:
 		if (consume(3)) {
 			Address target{ this, 0 };
+			clean();
+
 			if (Gateway::lookup(target)) {
 				string cmd = { (char)GEDS::Commands::REGISTERED };
 				cmd += target.tostring();
