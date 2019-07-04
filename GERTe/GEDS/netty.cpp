@@ -10,15 +10,16 @@
 #endif
 #include <sys/types.h>
 #include <thread>
-#include "routeManager.h"
 #include "query.h"
 #include "Gateway.h"
 #include "logging.h"
+#include "Peer.h"
 #include "Poll.h"
 #include "Versioning.h"
 #include "Error.h"
 #include "Processor.h"
 #include "Server.h"
+#include <map>
 using namespace std;
 
 Server* gateServer;

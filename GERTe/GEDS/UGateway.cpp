@@ -1,12 +1,14 @@
 #include "logging.h"
-#include <fcntl.h>
 #include "Poll.h"
-#include "routeManager.h"
 #include "GERTc.h"
 #include "NetString.h"
 #include "query.h"
 #include "Versioning.h"
 #include "Gateway.h"
+#include "Peer.h"
+#include "RGateway.h"
+#include <map>
+#include <fcntl.h>
 using namespace std;
 
 namespace Gate {
