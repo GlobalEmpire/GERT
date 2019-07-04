@@ -11,7 +11,7 @@ public:
 
 	Server::Type type;			// Determines which type of connection is constructed when processed
 
-	Server(short, Server::Type);
+	Server(unsigned short, Server::Type);
 	~Server();
 
 	void start();				// Begin listening to new connections - Prevents premature connections

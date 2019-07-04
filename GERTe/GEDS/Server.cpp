@@ -4,6 +4,7 @@
 #else
 #include <sys/socket.h> //Load C++ standard socket API
 #include <netinet/tcp.h>
+#include <unistd.h>
 #endif
 
 #include "Server.h"
@@ -18,7 +19,7 @@
 extern Poll clientPoll;
 extern Processor* proc;
 
-Server::Server(short port, Server::Type type) : type{ type }, INet{ INet::Type::LISTEN } {
+Server::Server(unsigned short port, Server::Type type) : type{ type }, INet{ INet::Type::LISTEN } {
 	sockaddr_in info = {
 			AF_INET,
 			htons(port),

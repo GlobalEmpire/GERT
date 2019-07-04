@@ -45,6 +45,7 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 	if (peerList.count(ip) == 0) {
 		char err[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
 		error(err);
+		::error("Unauthorized peer attempted to connect");
 		throw 1;
 	}
 

@@ -69,8 +69,8 @@ void startup() {
 	}
 #endif
 
-	gateServer = new Server{ (short)std::stoi(gatewayPort), Server::Type::GATEWAY };
-	peerServer = new Server{ (short)std::stoi(peerPort), Server::Type::PEER };
+	gateServer = new Server{ (unsigned short)std::stoi(gatewayPort), Server::Type::GATEWAY };
+	peerServer = new Server{ (unsigned short)std::stoi(peerPort), Server::Type::PEER };
 
 	serverPoll.add(gateServer->sock, gateServer);
 	serverPoll.add(peerServer->sock, peerServer);
