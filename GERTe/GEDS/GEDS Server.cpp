@@ -13,6 +13,11 @@
 typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
 #include <signal.h> //Include signal processing API for error catching
 #include "netty.h" //Include netcode header for entering server process
 #include "fileMngr.h" //Include file manager library for loading and saving databases
@@ -39,13 +44,19 @@ char * LOCAL_IP = nullptr; //Set local address to predictable null value for tes
 char * peerPort = "59474"; //Set default peer port
 char * gatewayPort = "43780"; //Set default gateway port
 
+#ifdef _WIN32
+HANDLE thisThread = INVALID_HANDLE_VALUE;
+
+void dud(ULONG_PTR waste) {};
+#endif
+
 void shutdownProceedure(int param) { //SIGINT handler function
 	if (running) { //If we actually started running
 		warn("User requested shutdown. Flipping the switch!"); //Notify the user because reasons
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
 
 #ifdef _WIN32
-		//GETHANDLEANDQUEUEAPC //Work around Windows oddities
+		QueueUserAPC(dud, thisThread, NULL);					// Windows Workaround
 #endif
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
@@ -130,6 +141,9 @@ int main( int argc, char* argv[] ) {
 
 #ifdef _WIN32
 	signal(SIGSEGV, &OHCRAPOHCRAP); //Catches the SIGSEGV CPU fault
+
+	DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &thisThread, NULL, FALSE, DUPLICATE_SAME_ACCESS);
+
 	signal(SIGINT, &shutdownProceedure); //Hook SIGINT with custom handler
 #else
 	struct sigaction mem = { 0 };
