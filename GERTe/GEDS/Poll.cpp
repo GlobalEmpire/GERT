@@ -128,14 +128,16 @@ void Poll::remove(SOCKET fd) {
 #ifndef _WIN32
 	if (last != nullptr && last->fd == fd)
 		last = nullptr;
-#else
+#endif
+
+	removeTracker(fd, this);
+
+#ifdef _WIN32
 	if (last != nullptr && last->sock == fd) {
 		last->lock.unlock();
 		last = nullptr;
 	}
 #endif
-
-	removeTracker(fd, this);
 }
 
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
