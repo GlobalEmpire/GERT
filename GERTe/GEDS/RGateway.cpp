@@ -5,20 +5,6 @@
 
 std::map<Address, RGateway*> remotes;
 
-namespace GEDS {
-	enum class Commands : char {
-		REGISTERED,
-		UNREGISTERED,
-		ROUTE,
-		RESOLVE,
-		UNRESOLVE,
-		LINK,
-		UNLINK,
-		CLOSE,
-		QUERY
-	};
-}
-
 RGateway::RGateway(Address addr, Peer * from) : addr(addr), relay(from) {
 	remotes[addr] = this;
 	log("Received routing information for " + addr.stringify());

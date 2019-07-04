@@ -16,6 +16,11 @@ Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), ad
 }
 
 Gateway::~Gateway() {
+	std::string data = std::string{ (char)GEDS::Commands::UNREGISTERED };
+	data += addr.tostring();
+
+	Peer::broadcast(data);
+
 	gateways.erase(this->addr);
 	log("Disassociation from " + this->addr.stringify());
 }

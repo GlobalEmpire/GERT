@@ -2,7 +2,7 @@
 
 class NetString {
 public:
-	NetString(Connection*);
+	NetString(Connection*, int);
 	~NetString();
 
 	std::string string() const;

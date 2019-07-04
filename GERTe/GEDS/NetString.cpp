@@ -1,24 +1,14 @@
 #include "NetString.h"
 #include <cstring>
 
-NetString::NetString(Connection * conn) {
-	char * len = conn->read(1);
-	char * data = conn->read(len[1]);
-
-	if (data[0] < len[1]) {
-		len[1] = data[0];
-	}
-
-	length = len[1];
+NetString::NetString(Connection * conn, int offset) {
+	length = conn->bufsize;
 	str = new char[length];
-
-	memcpy(str, data + 1, len[1]);
-	delete len;
-	delete data;
+	memcpy(str, conn->buf, length);
 }
 
 NetString::~NetString() {
-	delete this->str;
+	delete[] str;
 }
 
 std::string NetString::string() const {

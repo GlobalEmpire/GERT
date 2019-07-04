@@ -1,10 +1,12 @@
 #pragma once
+#include "IConsumer.hpp"
 #include <string>
-#include "INet.h"
 
-class Connection : public INet
+class Connection : public IConsumer
 {
 protected:
+	char last = 0;
+
 	Connection(SOCKET, std::string);
 	Connection(SOCKET);
 
@@ -17,6 +19,4 @@ public:
 	char vers[2];
 
 	virtual void close() = 0;
-
-	char * read(unsigned char=1);
 };

@@ -2,8 +2,21 @@
 #include "IP.h"
 #include "Ports.h"
 
+namespace GEDS {
+	enum class Commands : char {
+		REGISTERED,
+		UNREGISTERED,
+		ROUTE,
+		RESOLVE,
+		UNRESOLVE,
+		LINK,
+		UNLINK,
+		CLOSE,
+		QUERY
+	};
+}
+
 class Peer : public Connection {
-	friend int emergencyScan();
 	IP ip;
 
 public:

@@ -24,18 +24,6 @@ extern Poll clientPoll;
 extern volatile bool running;
 extern std::map<Address, RGateway*> remotes;
 
-enum Commands : char {
-	REGISTERED,
-	UNREGISTERED,
-	ROUTE,
-	RESOLVE,
-	UNRESOLVE,
-	LINK,
-	UNLINK,
-	CLOSEPEER,
-	QUERY
-};
-
 Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
@@ -55,6 +43,8 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 
 	if (vers[1] == 0)
 		transmit("\0");
+
+	last = (char)GEDS::Commands::CLOSE;											// Needs something that never calls consume
 };
 
 Peer::~Peer() { //Peer destructor
@@ -71,7 +61,7 @@ Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) { //Outgoi
 }
 
 void Peer::close() {
-	transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
+	transmit(string{ (char)GEDS::Commands::CLOSE }); //SEND CLOSE REQUEST
 	delete this;
 }
 
@@ -80,87 +70,116 @@ void Peer::transmit(string data) {
 }
 
 void Peer::process() {
-	if (state == 0) {
-		state = 1;
-		
-		/*
-			* Initial packet
-			* MAJOR VERSION
-			* MINOR VERSION
-			*/
-		return;
+	if (last == (char)GEDS::Commands::CLOSE) {
+		consume(1);
+		last = buf[0];
+		clean();
 	}
 
-	char * data = read(1);
-	Commands command = (Commands)data[1];
-
-	delete data;
+	GEDS::Commands command = (GEDS::Commands)last;
 
 	switch (command) {
-	case ROUTE: {
-		GERTc target = { this };
-		GERTc source = { this };
-		NetString data{ this };
-		string cmd = { (char)Commands::ROUTE };
-		cmd += target.tostring() + source.tostring() + data.string();
-		if (!Gateway::sendTo(target.external, cmd)) {
-			string errCmd = { UNREGISTERED };
-			errCmd += target.tostring();
-			this->transmit(errCmd);
+	case GEDS::Commands::ROUTE:
+		if (consume(12, true)) {
+			GERTc target = { this, 0 };
+			GERTc source = { this, 6 };
+			NetString data{ this, 13 };
+			clean();
+
+			string cmd = { (char)GEDS::Commands::ROUTE };
+			cmd += target.tostring() + source.tostring() + data.string();
+			if (!Gateway::sendTo(target.external, cmd)) {
+				string errCmd = { (char)GEDS::Commands::UNREGISTERED };
+				errCmd += target.tostring();
+				transmit(errCmd);
+			}
+
+			last = (char)GEDS::Commands::CLOSE;
 		}
 		return;
-	}
-	case REGISTERED: {
-		Address target{ this };
-		RGateway * newGate = new RGateway{ target, this };
+	case GEDS::Commands::REGISTERED:
+		if (consume(3)) {
+			Address target{ this, 0 };
+			clean();
+
+			RGateway* newGate = new RGateway{ target, this };
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case UNREGISTERED: {
-		Address target{ this };
-		delete RGateway::lookup(target);
+	case GEDS::Commands::UNREGISTERED:
+		if (consume(3)) {
+			Address target{ this, 0 };
+			clean();
+
+			delete RGateway::lookup(target);
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case RESOLVE: {
-		Address target{ this };
-		Key key{ this };
-		Key::add(target, key);
+	case GEDS::Commands::RESOLVE:
+		if (consume(23)) {
+			Address target{ this, 0 };
+			Key key{ this, 3 };
+			clean();
+
+			Key::add(target, key);
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case UNRESOLVE: {
-		Address target{ this };
-		Key::remove(target);
+	case GEDS::Commands::UNRESOLVE:
+		if (consume(3)) {
+			Address target{ this, 0 };
+			clean();
+
+			Key::remove(target);
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case LINK: {
-		IP target{ this };
-		Ports ports{ this };
-		allow(target, ports);
+	case GEDS::Commands::LINK:
+		if (consume(8)) {
+			IP target{ this, 0 };
+			Ports ports{ this, 4 };
+			clean();
+
+			allow(target, ports);
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case UNLINK: {
-		IP target{ this };
-		deny(target);
+	case GEDS::Commands::UNLINK:
+		if (consume(4)) {
+			IP target{ this, 0 };
+			clean();
+
+			deny(target);
+
+			last = (char)GEDS::Commands::CLOSE;
+		}
 		return;
-	}
-	case CLOSEPEER: {
-		this->transmit(string({ CLOSEPEER }));
+	case GEDS::Commands::CLOSE:
+		transmit(string({ (char)GEDS::Commands::CLOSE }));
 		delete this;
 		return;
-	}
-	case QUERY: {
-		Address target{ this };
-		if (Gateway::lookup(target)) {
-			string cmd = { REGISTERED };
-			cmd += target.tostring();
-			Gateway::sendTo(target, cmd);
-		}
-		else {
-			string cmd = { UNREGISTERED };
-			cmd += target.tostring();
-			this->transmit(cmd);
+	case GEDS::Commands::QUERY:
+		if (consume(3)) {
+			Address target{ this, 0 };
+			if (Gateway::lookup(target)) {
+				string cmd = { (char)GEDS::Commands::REGISTERED };
+				cmd += target.tostring();
+				Gateway::sendTo(target, cmd);
+			}
+			else {
+				string cmd = { (char)GEDS::Commands::UNREGISTERED };
+				cmd += target.tostring();
+				transmit(cmd);
+			}
+
+			last = (char)GEDS::Commands::CLOSE;
 		}
 		return;
-	}
 	}
 }
 

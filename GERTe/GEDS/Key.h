@@ -8,10 +8,8 @@ class Key {
 	std::string key{20, 0};
 	public:
 		bool operator== (const Key& comp) const { return (key == comp.key); };
-		Key (const char * keyin) {
-			key.assign(keyin, 20);
-		};
-		Key(Connection * conn);
+		Key(const char*);
+		Key(Connection*, int);
 		Key () {};
 
 		bool check(Address);

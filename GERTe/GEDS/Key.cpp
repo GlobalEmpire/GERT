@@ -4,10 +4,12 @@
 
 std::map<Address, Key> resolutions;
 
-Key::Key(Connection * conn) {
-	char * data = conn->read(20);
-	key = std::string{ data + 1, 20 };
-	delete data;
+Key::Key(const char* keyin) {
+	key.assign(keyin, 20);
+}
+
+Key::Key(Connection * conn, int offset) {
+	key = std::string{ conn->buf + offset, 20 };
 }
 
 void Key::add(Address addr, Key key) {

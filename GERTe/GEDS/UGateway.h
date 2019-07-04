@@ -4,7 +4,33 @@
 
 class Gateway;
 
-//THIS IS NOT EVEN MY FINAL FORM!!!
+#undef REGISTERED
+
+namespace Gate {
+	enum class Commands : char {
+		STATE,
+		REGISTER,
+		DATA,
+		CLOSE
+	};
+
+	enum class States : char {
+		FAILURE,
+		CONNECTED,
+		REGISTERED,
+		CLOSED,
+		SENT
+	};
+
+	enum class Errors : char {
+		VERSION,
+		BAD_KEY,
+		REGISTERED,
+		NOT_REGISTERED,
+		NO_ROUTE,
+		ADDRESS_TAKEN
+	};
+}
 
 class UGateway : public Connection { //The OG Gateway
 protected:

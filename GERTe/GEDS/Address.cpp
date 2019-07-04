@@ -4,14 +4,8 @@ Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsign
 
 Address::Address(const unsigned char* arr) : addr{arr[0], arr[1], arr[2]} {};
 
-Address::Address(Connection * conn) {
-	char * data = conn->read(3);
-	
-	addr[0] = data[1];
-	addr[1] = data[2];
-	addr[2] = data[3];
-
-	delete data;
+Address::Address(Connection * conn, int offset) {
+	memcpy(addr, conn->buf + offset, 3);
 }
 
 bool Address::operator== (const Address &target) const {

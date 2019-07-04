@@ -11,46 +11,6 @@
 #include <fcntl.h>
 using namespace std;
 
-namespace Gate {
-	enum class Commands : char {
-		STATE,
-		REGISTER,
-		DATA,
-		CLOSE
-	};
-
-	enum class States : char {
-		FAILURE,
-		CONNECTED,
-		REGISTERED,
-		CLOSED,
-		SENT
-	};
-
-	enum class Errors : char {
-		VERSION,
-		BAD_KEY,
-		REGISTERED,
-		NOT_REGISTERED,
-		NO_ROUTE,
-		ADDRESS_TAKEN
-	};
-}
-
-namespace GEDS {
-	enum class Commands : char {
-		REGISTERED,
-		UNREGISTERED,
-		ROUTE,
-		RESOLVE,
-		UNRESOLVE,
-		LINK,
-		UNLINK,
-		CLOSE,
-		QUERY
-	};
-}
-
 map<Address, Gateway*> gateways;
 vector<UGateway*> noAddrList;
 
@@ -98,6 +58,8 @@ UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 
 	if (vers[1] == 0)
 		transmit("\0");
+
+	last = (char)Gate::Commands::STATE;										// Needs something that never calls consume
 }
 
 UGateway::~UGateway() {
@@ -131,99 +93,112 @@ void UGateway::close() {
 }
 
 void UGateway::process(Gateway * derived) {
-	char * data = read(1);
-	Gate::Commands command = (Gate::Commands)data[1];
+	if (last == (char)Gate::Commands::STATE) {
+		consume(1);
+		last = buf[0];
+		clean();
+	}
 
-	delete data;
+	Gate::Commands command = (Gate::Commands)last;
 
 	switch (command) {
-	case Gate::Commands::REGISTER: {
-		Address request{ this };
-		Key requestkey{ this };
-		if (state == (char)Gate::States::REGISTERED) {
-			failed(this, Gate::Errors::REGISTERED);
-			/*
-			 * Response to registration attempt when Gateway has address assigned.
-			 * CMD STATE (0)
-			 * STATE FAILURE (0)
-			 * REASON ALREADY_REGISTERED (2)
-			 */
-			return;
-		}
-		if (Gateway::lookup(request) || RGateway::lookup(request)) {
-			warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
-			failed(this, Gate::Errors::ADDRESS_TAKEN);
-			/*
-			 * Response to registration attempt when address is already taken.
-			 * CMD STATE (0)
-			 * STATE FAILURE (0)
-			 * REASON ADDRESS_TAKEN (5)
-			 */
-			return;
-		}
-		if (assign(request, requestkey)) {
-			changeState(this, Gate::States::REGISTERED);
-			/*
-			 * Response to successful registration attempt
-			 * CMD STATE (0)
-			 * STATE REGISTERED (2)
-			 */
-			string addr = request.tostring();
-			globalChange(GEDS::Commands::REGISTERED, addr.data(), addr.length());
-			/*
-			 * Broadcast to all peers registration
-			 * CMD REGISTERED (0)
-			 * Address (4 bytes)
-			 */
+	case Gate::Commands::REGISTER:
+		if (consume(23)) {
+			Address request{ this, 0 };
+			Key requestkey{ this, 3 };
+			clean();
 
-			Gateway * assigned = new Gateway{ request, this };
-		}
-		else
-			failed(this, Gate::Errors::BAD_KEY);
-		/*
-		 * Response to failed registration attempt.
-		 * CMD STATE (0)
-		 * STATE FAILURE (0)
-		 * REASON BAD_KEY (1)
-		 */
-		return;
-	}
-	case Gate::Commands::DATA: {
-		GERTc target{ this };
-		Address source{ this };
-		NetString data{ this };
-		if (state == (char)Gate::States::CONNECTED) {
-			failed(this, Gate::Errors::NOT_REGISTERED);
+			last = (char)Gate::Commands::STATE;
+
+			if (state == (char)Gate::States::REGISTERED) {
+				failed(this, Gate::Errors::REGISTERED);
+				/*
+				 * Response to registration attempt when Gateway has address assigned.
+				 * CMD STATE (0)
+				 * STATE FAILURE (0)
+				 * REASON ALREADY_REGISTERED (2)
+				 */
+				return;
+			}
+			if (Gateway::lookup(request) || RGateway::lookup(request)) {
+				warn("Gateway attempted to claim " + request.stringify() + " but it was already taken");
+				failed(this, Gate::Errors::ADDRESS_TAKEN);
+				/*
+				 * Response to registration attempt when address is already taken.
+				 * CMD STATE (0)
+				 * STATE FAILURE (0)
+				 * REASON ADDRESS_TAKEN (5)
+				 */
+				return;
+			}
+			if (assign(request, requestkey)) {
+				changeState(this, Gate::States::REGISTERED);
+				/*
+				 * Response to successful registration attempt
+				 * CMD STATE (0)
+				 * STATE REGISTERED (2)
+				 */
+				string addr = request.tostring();
+				globalChange(GEDS::Commands::REGISTERED, addr.data(), addr.length());
+				/*
+				 * Broadcast to all peers registration
+				 * CMD REGISTERED (0)
+				 * Address (4 bytes)
+				 */
+
+				Gateway* assigned = new Gateway{ request, this };
+			}
+			else
+				failed(this, Gate::Errors::BAD_KEY);
 			/*
-			 * Response to data before registration
+			 * Response to failed registration attempt.
 			 * CMD STATE (0)
 			 * STATE FAILURE (0)
-			 * REASON NOT_REGISTERED (3)
+			 * REASON BAD_KEY (1)
 			 */
-			break;
 		}
-		string newCmd = string{ (char)Gate::Commands::DATA } + target.tostring() + derived->addr.tostring() + source.tostring() + data.string();
-		if (RGateway::lookup(target.external) || Gateway::lookup(target.external)) { //Target is remote
-			Gateway::sendTo(target.external, newCmd); //Send to target
-		}
-		else {
-			failed(this, Gate::Errors::NO_ROUTE);
-			/*
-				* Response to failed data send request.
-				* CMD STATE (0)
-				* STATE FAILURE (0)
-				* REASON NO_ROUTE (4)
-				*/
-			return;
-		}
-		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
-		/*
-		 * Response to successful data send request.
-		 * CMD STATE (0)
-		 * STATE SENT (5)
-		 */
 		return;
-	}
+	case Gate::Commands::DATA:
+		if (consume(9, true)) {
+			GERTc target{ this, 0 };
+			Address source{ this, 6 };
+			NetString data{ this, 9 };
+			clean();
+
+			last = (char)Gate::Commands::STATE;
+
+			if (state == (char)Gate::States::CONNECTED) {
+				failed(this, Gate::Errors::NOT_REGISTERED);
+				/*
+				 * Response to data before registration
+				 * CMD STATE (0)
+				 * STATE FAILURE (0)
+				 * REASON NOT_REGISTERED (3)
+				 */
+				return;;
+			}
+			string newCmd = string{ (char)Gate::Commands::DATA } +target.tostring() + derived->addr.tostring() + source.tostring() + data.string();
+			if (RGateway::lookup(target.external) || Gateway::lookup(target.external)) { //Target is remote
+				Gateway::sendTo(target.external, newCmd); //Send to target
+			}
+			else {
+				failed(this, Gate::Errors::NO_ROUTE);
+				/*
+					* Response to failed data send request.
+					* CMD STATE (0)
+					* STATE FAILURE (0)
+					* REASON NO_ROUTE (4)
+					*/
+				return;
+			}
+			transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
+			/*
+			 * Response to successful data send request.
+			 * CMD STATE (0)
+			 * STATE SENT (5)
+			 */
+		}
+		return;
 	case Gate::Commands::STATE: {
 		transmit(string({ (char)Gate::Commands::STATE, (char)this->state }));
 		/*
@@ -234,23 +209,13 @@ void UGateway::process(Gateway * derived) {
 		 */
 		return;
 	}
-	case Gate::Commands::CLOSE: {
+	case Gate::Commands::CLOSE:
 		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
 		/*
 		 * Response to close request.
 		 * CMD STATE (0)
 		 * STATE CLOSED (3)
 		 */
-		if (state == (char)Gate::States::REGISTERED) {
-			string addr = derived->addr.tostring();
-			globalChange(GEDS::Commands::UNREGISTERED, addr.data(), addr.length());
-			/*
-			 * Broadcast that registered Gateway left.
-			 * CMD UNREGISTERED (1)
-			 * Address (4 bytes)
-			 */
-		}
 		delete this;
-	}
 	}
 }
