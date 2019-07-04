@@ -64,7 +64,7 @@ void startup() {
 
 	if (res != 0) {
 		knownError(res, "Cannot start networking: ");
-		exit(4);
+		crash(ErrorCode::LIBRARY_ERROR);
 	}
 #endif
 

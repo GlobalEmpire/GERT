@@ -68,3 +68,8 @@ void inline printError(int code, std::string prefix) { //Inlined to minimize ove
 	error(prefix + std::to_string(code));
 #endif
 }
+
+[[noreturn]]
+void crash(ErrorCode code) {
+	exit((int)code);
+}

@@ -29,7 +29,7 @@ Server::Server(short port, Server::Type type) : type{ type }, INet{ INet::Type::
 
 	if (::bind(sock, (sockaddr*)& info, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) {
 		error("Port " + std::to_string(port) + " is in use");
-		exit(-1);
+		crash(ErrorCode::LIBRARY_ERROR);
 	}
 }
 

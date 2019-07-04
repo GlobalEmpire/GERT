@@ -7,13 +7,14 @@ using namespace std;
 
 extern bool debugMode;
 
-FILE * logFile;
+FILE * logFile = nullptr;
 
 void startLog() {
-	logFile = fopen("errors.log", "a");
+	logFile = fopen("geds.log", "a");
+	fputs("-----START LOG-----", logFile);
 }
 
-string timeOut() {
+string inline timeOut() {
 	time_t rawtime;
 	time(&rawtime);
 	tm * curTime = localtime(&rawtime);
@@ -24,31 +25,44 @@ string timeOut() {
 	return string{ time };
 }
 
+void inline doPrint(const string msg, const char type) {
+	char* buf = new char[15 + msg.length()];
+
+	sprintf(buf, "[%c][%s] %s\n", type, timeOut().c_str(), msg.c_str());
+
+	if (type == 'E')
+		cerr << buf;
+	else
+		cout << buf;
+
+	if (logFile != nullptr)
+		fputs(buf, logFile);
+}
+
 void log(string msg) {
-	cout << "[I][" << timeOut() << "] " << msg << "\n";
+	doPrint(msg, 'I');
 }
 
 void warn(string msg) {
-	cout << "[W][" << timeOut() << "] " << msg << "\n";
+	doPrint(msg, 'W');
 }
 
 void error(string msg) {
-	string log = "[E][" + timeOut() + "] " + msg + "\n";
-	cout << log;
-	fputs(log.c_str(), logFile);
+	doPrint(msg, 'E');
 }
 
 void error2(string msg) {
 	string log = "[E][" + timeOut() + "] " + msg;
-	cout << log;
+	cerr << log;
 	fputs(log.c_str(), logFile);
 }
 
 void debug(string msg) {
 	if (debugMode)
-		cout << "[D][" << timeOut() << "] " << msg << "\n";
+		doPrint(msg, 'D');
 }
 
 void stopLog() {
+	fputs("-----END FILE-----", logFile);
 	fclose(logFile);
 }

@@ -27,15 +27,8 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include <iostream>
 #include "Versioning.h"
 #include "Processor.h"
+#include "Error.h"
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
-
-enum status { //Create a list of error codes
-	NORMAL, //YAY WE RAN AS WE SHOULD HAVE (0)
-	PEER_LOAD_ERR, //Unknown error when loading peer database (3)
-	KEY_LOAD_ERR, //Unknown error when loading key database (4)
-	UNKNOWN_CRITICAL, //Unknown error which resulted in a crash, either terminate() or SIGSEGV (5)
-	UNKNOWN_MINOR //Unknown error occured preceeding closing, not necessarily a crash (6)
-};
 
 volatile bool running = false; //SIGINT tracker
 bool debugMode = false; //Set debug mode to false by default
@@ -61,7 +54,7 @@ void shutdownProceedure(int param) { //SIGINT handler function
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
 		error("!!! Forcing termination of server. !!!"); //Warn user we are stopping
-		exit(UNKNOWN_MINOR); //Exit with correct exit code
+		crash(ErrorCode::GENERAL_ERROR);
 	}
 };
 
@@ -72,14 +65,8 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 	savePeers();
 
 	dumpStack();
-	cout << "Well, this is the end\n"; //Print a little poem to the user
-	cout << "I've read too much, and written so far\n"; //Reference to memory error
-	cout << "But here I am, faulting to death\n";
-	cout << "\nSIGSEGV THROWN: SEGMENTATION FAULT.\n"; //Actual error
-	cout << "SIGSEGV is a critical error thrown by the operating system\n"; //Information for uninformed user
-	cout << "It signifies a MASSIVE error that won't correct itself and probably can't be fixed without changing the code.\n"; //Create sense of urgency in user
-	cout << "Please post a bug report including any potentially useful logs.\n"; //Call to action trying to get user to submit report
-	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
+	error("SEGMENTATION FAULT");
+	crash(ErrorCode::GENERAL_ERROR);
 }
 
 void errHandler() { //Error catcher, provides minor error recovery facilities
@@ -88,8 +75,8 @@ void errHandler() { //Error catcher, provides minor error recovery facilities
 	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
 	savePeers();
 
-	cout << "Unknown error, system called terminate() with code " << to_string(errno) << "\n"; //Report fault to user
-	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
+	error("Unknown error, system called terminate() with code " + to_string(errno) + "\n");
+	crash(ErrorCode::GENERAL_ERROR);
 }
 
 inline void printHelp() { //Prints help on parameters
@@ -160,13 +147,13 @@ int main( int argc, char* argv[] ) {
 	int result = loadPeers(); //Load the peer database
 
 	if (result == -1)
-		return PEER_LOAD_ERR;
+		crash(ErrorCode::PEER_LOAD_ERROR);
 
 	debug("Loading resolutions"); //Use debug to notify user where we are in the loading process
 	result = loadResolutions(); //Load the key resolution database
 
 	if (result == -1)
-		return KEY_LOAD_ERR;
+		crash(ErrorCode::KEY_LOAD_ERROR);
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process
 	startup(); //Startup server sockets
@@ -192,5 +179,5 @@ int main( int argc, char* argv[] ) {
 
 	stopLog(); //Release log handles
 
-	return NORMAL; //Exit with correct exit code
+	return 0;						//Exit successfully
 }
