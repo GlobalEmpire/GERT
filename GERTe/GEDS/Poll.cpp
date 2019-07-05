@@ -14,20 +14,12 @@
 extern volatile bool running;
 
 #ifdef _WIN32
-#define GETFD store->data->fd
-
-struct INNER {
-	WSAEVENT * event;
-	Event_Data * data;
-};
-
-typedef std::vector<void*> TrackerT;
 thread_local INet* last = nullptr;
 #else
-#define GETFD store->fd
-typedef std::vector<Event_Data*> TrackerT;
 thread_local Event_Data * last = nullptr;
 #endif
+
+typedef std::vector<Event_Data*> TrackerT;
 
 void removeTracker(SOCKET fd, Poll* context) {
 	TrackerT &tracker = context->tracker;
@@ -35,21 +27,15 @@ void removeTracker(SOCKET fd, Poll* context) {
 	int i = 0;
 	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
-#ifdef _WIN32
-		INNER * store = (INNER*)(*iter);
-#else
 		Event_Data * store = *iter;
-#endif
 
-		if (GETFD == fd) {
+		if (store->fd == fd) {
 #ifdef _WIN32
 			std::vector<void*>::iterator eiter = context->events.begin() + i;
 
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
 			context->events.shrink_to_fit();
-
-			delete store->data;
 #endif
 			delete store;
 
@@ -75,21 +61,12 @@ Poll::~Poll() {
 
 #ifndef _WIN32
 	close(efd);
+#endif
 
-	for (Event_Data * data : tracker)
+	for (Event_Data* data : tracker)
 	{
 		delete data;
 	}
-#else
-	for (void * data : tracker) {
-		INNER * store = (INNER*)data;
-
-		delete store->data;
-		WSACloseEvent(store->event);
-
-		delete store;
-	}
-#endif
 }
 
 void Poll::add(SOCKET fd, INet * ptr) { //Adds the file descriptor to the pollset and tracks useful information
@@ -113,14 +90,8 @@ void Poll::add(SOCKET fd, INet * ptr) { //Adds the file descriptor to the pollse
 	WSAEVENT e = WSACreateEvent();
 	WSAEventSelect(fd, e, FD_READ | FD_ACCEPT | FD_CLOSE);
 
+	tracker.push_back(data);
 	events.push_back(e);
-
-	INNER * store = new INNER{
-		&(events.back()),
-		data
-	};
-
-	tracker.push_back((void*)store);
 #endif
 }
 
@@ -191,12 +162,12 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
-					INNER* store = (INNER*)tracker[offset];
-					INet* obj = store->data->ptr;
+					Event_Data * store = tracker[offset];
+					INet* obj = store->ptr;
 
 					if (obj->lock.try_lock()) {
 						last = obj;
-						return *(store->data);
+						return *(store);
 					}
 				}
 				else

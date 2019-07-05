@@ -13,11 +13,11 @@ class Poll {
 
 #ifndef _WIN32
 	int efd;
-	std::vector<Event_Data*> tracker;
 #else
-	std::vector<void*> tracker;
 	std::vector<void*> events;
 #endif
+
+	std::vector<Event_Data*> tracker;
 
 public:
 	Poll();
