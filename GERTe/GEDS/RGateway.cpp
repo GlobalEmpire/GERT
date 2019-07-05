@@ -43,9 +43,15 @@ void RGateway::transmit(std::string data) {
 
 void RGateway::clean(Peer* target) {
 	for (std::map<Address, RGateway*>::iterator iter = remotes.begin(); iter != remotes.end(); iter++) {
+		loop:
 		if (iter->second->relay == target) {
 			delete iter->second;
-			remotes.erase(iter);
+			iter = remotes.erase(iter);
+
+			if (iter == remotes.end())
+				return;
+
+			goto loop;
 		}
 	}
 }
