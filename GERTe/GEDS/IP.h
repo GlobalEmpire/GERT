@@ -9,6 +9,7 @@
 #endif
 
 #include "Connection.h"
+#include <cstring>
 
 class IP {
 	public:

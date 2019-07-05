@@ -1,4 +1,5 @@
 #include "Address.h"
+#include <cstring>
 
 Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsigned char)data[1], (unsigned char)data[2]} {};
 
