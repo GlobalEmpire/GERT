@@ -4,6 +4,7 @@
 
 #ifndef _WIN32
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <signal.h>
 #else
@@ -13,19 +14,14 @@
 
 extern volatile bool running;
 
-thread_local Event_Data * last = nullptr;
+thread_local INet * last = nullptr;
 
 #ifndef _WIN32
 sigset_t mask;
 #endif
 
-bool testForClose(INet* obj) {
-	char test;
-	return obj->type == INet::Type::CONNECT || recv(obj->sock, &test, 1, MSG_PEEK) != 1;
-}
-
 #ifdef _WIN32
-inline Event_Data* Poll::WSALoop() {
+inline INet* Poll::WSALoop() {
 	while (true) {
 		if (events.size() == 0)
 			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
@@ -41,18 +37,17 @@ inline Event_Data* Poll::WSALoop() {
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
-					Event_Data* store = tracker[offset];
-					INet* obj = store->ptr;
+					INet* obj = tracker[offset];
 
 					if (obj->lock.try_lock()) {
-						return store;
+						return obj;
 					}
 				}
 				else
 					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
 			}
 			else
-				throw 1;
+				return nullptr;
 		}
 	}
 }
@@ -71,54 +66,43 @@ Poll::~Poll() {
 #ifndef _WIN32
 	close(efd);
 #endif
-	for (Event_Data* data : tracker)
-	{
-		delete data;
-	}
 }
 
-void Poll::add(SOCKET fd, INet * ptr) { //Adds the file descriptor to the pollset and tracks useful information
-	Event_Data * data = new Event_Data{
-		fd,
-		ptr
-	};
-
+void Poll::add(INet * ptr) { //Adds the file descriptor to the pollset and tracks useful information
 #ifndef _WIN32
 	epoll_event newEvent;
 
 	newEvent.events = EPOLLIN | EPOLLONESHOT;
 
-	newEvent.data.ptr = data;
+	newEvent.data.ptr = ptr;
 
-	if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &newEvent) == -1)
+	if (epoll_ctl(efd, EPOLL_CTL_ADD, ptr->sock, &newEvent) == -1)
 		throw errno;
 
-	tracker.push_back(data);
+	tracker.push_back(ptr);
 #else
 	WSAEVENT e = WSACreateEvent();
-	WSAEventSelect(fd, e, FD_READ | FD_ACCEPT | FD_CLOSE);
+	WSAEventSelect(ptr->sock, e, FD_READ | FD_ACCEPT | FD_CLOSE);
 
-	tracker.push_back(data);
+	tracker.push_back(ptr);
 	events.push_back(e);
 #endif
 }
 
-void Poll::remove(SOCKET fd) {
+void Poll::remove(INet* target) {
 #ifdef _WIN32
 	std::vector<void*>::iterator eiter = events.begin();	
 #endif
-	for (std::vector<Event_Data*>::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
+	for (std::vector<INet*>::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
-		Event_Data* store = *iter;
+		INet* obj = *iter;
 
-		if (store->fd == fd) {
+		if (obj == target) {
 #ifdef _WIN32
 			WSACloseEvent(*eiter);
 			events.erase(eiter);
 			events.shrink_to_fit();
 #endif
-			delete store;
-
 			tracker.erase(iter);
 			tracker.shrink_to_fit();
 
@@ -129,34 +113,34 @@ void Poll::remove(SOCKET fd) {
 #endif
 	}
 
-	if (last != nullptr && last->fd == fd) {
+	if (last != nullptr && last == target) {
 #ifdef _WIN32
-		last->ptr->lock.unlock();
+		last->lock.unlock();
 #endif
 		last = nullptr;
 	}
 #ifndef _WIN32
-	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
+	if (epoll_ctl(efd, EPOLL_CTL_DEL, target->sock, nullptr) == -1)
 		throw errno;
 #endif
 }
 
-Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
+INet* Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
 	if (last != nullptr) {
 #ifdef _WIN32
-		last->ptr->lock.unlock();
+		last->lock.unlock();
 #else
 		epoll_event newEvent;
 		newEvent.events = EPOLLIN | EPOLLONESHOT;
 		newEvent.data.ptr = last;
 
-		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->fd, &newEvent) == -1)
+		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->sock, &newEvent) == -1)
 			throw errno;
 #endif
 		last = nullptr;
 	}
 
-	Event_Data* store;
+	INet* obj;
 
 	start:
 #ifndef _WIN32
@@ -164,31 +148,24 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 
 	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
 		if (errno == SIGINT)
-			return Event_Data{
-				0,
-				nullptr
-			};
+			obj = nullptr;
 		else
 			throw errno;
 
-	store = eEvent.data.ptr;
+	obj = (INet*)eEvent.data.ptr;
 #else
-	try {
-		store = WSALoop();
-	}
-	catch (int e) {
-		return Event_Data{
-			0,
-			nullptr
-		};
-	}
+	obj = WSALoop();
 #endif
-	if (testForClose(store->ptr)) {
-		delete store->ptr;
+	char test;
+
+	if (obj == nullptr)
+		return obj;
+	else if (obj->type == INet::Type::CONNECT && recv(obj->sock, &test, 1, MSG_PEEK) != 1) {
+		delete obj;
 		goto start;
 	}
 	else {
-		last = store;
-		return *store;
+		last = obj;
+		return obj;
 	}
 }

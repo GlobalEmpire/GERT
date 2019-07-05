@@ -71,8 +71,8 @@ void startup() {
 	gateServer = new Server{ (unsigned short)std::stoi(gatewayPort), Server::Type::GATEWAY };
 	peerServer = new Server{ (unsigned short)std::stoi(peerPort), Server::Type::PEER };
 
-	netPoll.add(gateServer->sock, gateServer);
-	netPoll.add(peerServer->sock, peerServer);
+	netPoll.add(gateServer);
+	netPoll.add(peerServer);
 }
 
 //PUBLIC
@@ -167,6 +167,6 @@ void buildWeb() {
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 
-		netPoll.add(newSock, newConn);
+		netPoll.add(newConn);
 	}
 }

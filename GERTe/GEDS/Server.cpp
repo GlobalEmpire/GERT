@@ -66,11 +66,11 @@ void Server::process() {
 			newConn = new Peer{ newSock };
 		}
 
-		netPoll.add(newSock, newConn);
+		netPoll.add(newConn);
 
 #ifdef _WIN32
-		netPoll.remove(sock);
-		netPoll.add(sock, this);
+		netPoll.remove(this);
+		netPoll.add(this);
 
 		proc->update();
 #endif

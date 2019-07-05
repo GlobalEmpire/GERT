@@ -2,27 +2,22 @@
 #include "netty.h"
 #include <vector>
 
-struct Event_Data {
-	SOCKET fd;
-	INet * ptr;
-};
-
 class Poll {
 #ifndef _WIN32
 	int efd;
 #else
 	std::vector<void*> events;
 
-	inline Event_Data* WSALoop();
+	inline INet* WSALoop();
 #endif
 
-	std::vector<Event_Data*> tracker;
+	std::vector<INet*> tracker;
 
 public:
 	Poll();
 	~Poll();
 
-	void add(SOCKET, INet*);
-	void remove(SOCKET);
-	Event_Data wait();
+	void add(INet*);
+	void remove(INet*);
+	INet* wait();
 };

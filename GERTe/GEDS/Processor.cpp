@@ -1,11 +1,6 @@
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#pragma comment(lib, "Ws2_32.lib")
+#include <Windows.h>
 #else
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <signal.h>
 #endif
 
@@ -54,12 +49,12 @@ Processor::~Processor() {
 
 void Processor::run() {
 	while (true) {
-		Event_Data data = poll->wait();
+		INet* obj = poll->wait();
 
-		if (data.fd == 0)
+		if (obj == nullptr)
 			return;
 
-		data.ptr->process();
+		obj->process();
 	}
 }
 

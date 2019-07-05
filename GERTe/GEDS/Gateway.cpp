@@ -11,8 +11,8 @@ extern Poll netPoll;
 Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), addr(addr) {
 	gateways[addr] = this;
 
-	netPoll.remove(sock);
-	netPoll.add(sock, this);
+	netPoll.remove(this);
+	netPoll.add(this);
 }
 
 Gateway::~Gateway() {
@@ -24,7 +24,7 @@ Gateway::~Gateway() {
 	gateways.erase(this->addr);
 	log("Disassociation from " + this->addr.stringify());
 
-	netPoll.remove(sock);
+	netPoll.remove(this);
 }
 
 Gateway* Gateway::lookup(Address req) {
