@@ -25,8 +25,7 @@ using namespace std;
 Server* gateServer;
 Server* peerServer;
 
-Poll serverPoll;
-Poll clientPoll;
+Poll poll;
 
 Processor* proc;
 
@@ -72,8 +71,8 @@ void startup() {
 	gateServer = new Server{ (unsigned short)std::stoi(gatewayPort), Server::Type::GATEWAY };
 	peerServer = new Server{ (unsigned short)std::stoi(peerPort), Server::Type::PEER };
 
-	serverPoll.add(gateServer->sock, gateServer);
-	serverPoll.add(peerServer->sock, peerServer);
+	poll.add(gateServer->sock, gateServer);
+	poll.add(peerServer->sock, peerServer);
 }
 
 //PUBLIC
@@ -87,30 +86,17 @@ void cleanup() {
 //PUBLIC
 void runServer() { //Listen for new connections
 	debug("Starting message processor");
-	proc = new Processor{ &clientPoll };
+	proc = new Processor{ &poll };
 
 	debug("Starting connection processor");
 	gateServer->start();
 	peerServer->start();
 
-	while (running) { //Dies on SIGINT
-		Event_Data data = serverPoll.wait();
-
-		if (data.fd == 0) {
-			return;
-		}
-		else if (data.fd == gateServer->sock) {
-			gateServer->process();
-		}
-		else {
-			peerServer->process();
-		}
-
 #ifdef _WIN32
-		serverPoll.remove(data.fd);
-		serverPoll.add(data.fd, data.ptr);
+	SuspendThread(GetCurrentThread());
+#else
+	pause();
 #endif
-	}
 }
 
 void buildWeb() {
@@ -181,6 +167,6 @@ void buildWeb() {
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 
-		clientPoll.add(newSock, newConn);
+		poll.add(newSock, newConn);
 	}
 }

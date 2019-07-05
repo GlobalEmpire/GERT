@@ -6,13 +6,13 @@
 #include <map>
 
 extern std::map<Address, Gateway*> gateways;
-extern Poll clientPoll;
+extern Poll poll;
 
 Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), addr(addr) {
 	gateways[addr] = this;
 
-	clientPoll.remove(sock);
-	clientPoll.add(sock, this);
+	poll.remove(sock);
+	poll.add(sock, this);
 }
 
 Gateway::~Gateway() {
@@ -23,6 +23,8 @@ Gateway::~Gateway() {
 
 	gateways.erase(this->addr);
 	log("Disassociation from " + this->addr.stringify());
+
+	poll.remove(sock);
 }
 
 Gateway* Gateway::lookup(Address req) {

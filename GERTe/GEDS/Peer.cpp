@@ -20,7 +20,7 @@ using namespace std;
 map<IP, Peer*> peers;
 map<IP, Ports> peerList;
 
-extern Poll clientPoll;
+extern Poll poll;
 extern volatile bool running;
 extern std::map<Address, RGateway*> remotes;
 
@@ -51,7 +51,7 @@ Peer::~Peer() { //Peer destructor
 	RGateway::clean(this);
 	peers.erase(ip);
 
-	clientPoll.remove(sock);
+	poll.remove(sock);
 
 	log("Peer " + ip.stringify() + " disconnected");
 }

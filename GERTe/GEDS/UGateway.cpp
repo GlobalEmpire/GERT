@@ -14,7 +14,7 @@ using namespace std;
 map<Address, Gateway*> gateways;
 vector<UGateway*> noAddrList;
 
-extern Poll clientPoll;
+extern Poll poll;
 
 void changeState(UGateway * gate, const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
 	gate->state = (char)newState;
@@ -66,7 +66,7 @@ UGateway::~UGateway() {
 	if (removeNoAddr(this))
 		log("Unregistered gateway has closed the connection");
 
-	clientPoll.remove(sock);
+	poll.remove(sock);
 }
 
 UGateway::UGateway(UGateway&& orig) noexcept : Connection(orig) {

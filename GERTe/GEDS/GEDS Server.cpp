@@ -39,17 +39,15 @@ char * gatewayPort = "43780"; //Set default gateway port
 
 #ifdef _WIN32
 HANDLE thisThread = INVALID_HANDLE_VALUE;
-
-void dud(ULONG_PTR waste) {};
 #endif
 
 void shutdownProceedure(int param) { //SIGINT handler function
 	if (running) { //If we actually started running
-		warn("User requested shutdown. Flipping the switch!"); //Notify the user because reasons
+		warn("User requested shutdown. Flipping the switch!");	//Notify the user because reasons
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
 
 #ifdef _WIN32
-		QueueUserAPC(dud, thisThread, NULL);					// Windows Workaround
+		ResumeThread(thisThread);								// Windows Workaround
 #endif
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
