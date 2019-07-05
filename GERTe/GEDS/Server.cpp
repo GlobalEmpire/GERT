@@ -16,7 +16,7 @@
 #include "Processor.h"
 #include "Error.h"
 
-extern Poll poll;
+extern Poll netPoll;
 extern Processor* proc;
 
 Server::Server(unsigned short port, Server::Type type) : type{ type }, INet{ INet::Type::LISTEN } {
@@ -66,11 +66,11 @@ void Server::process() {
 			newConn = new Peer{ newSock };
 		}
 
-		poll.add(newSock, newConn);
+		netPoll.add(newSock, newConn);
 
 #ifdef _WIN32
-		poll.remove(sock);
-		poll.add(sock, this);
+		netPoll.remove(sock);
+		netPoll.add(sock, this);
 
 		proc->update();
 #endif

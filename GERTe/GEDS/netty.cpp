@@ -25,7 +25,7 @@ using namespace std;
 Server* gateServer;
 Server* peerServer;
 
-Poll poll;
+Poll netPoll;
 
 Processor* proc;
 
@@ -71,8 +71,8 @@ void startup() {
 	gateServer = new Server{ (unsigned short)std::stoi(gatewayPort), Server::Type::GATEWAY };
 	peerServer = new Server{ (unsigned short)std::stoi(peerPort), Server::Type::PEER };
 
-	poll.add(gateServer->sock, gateServer);
-	poll.add(peerServer->sock, peerServer);
+	netPoll.add(gateServer->sock, gateServer);
+	netPoll.add(peerServer->sock, peerServer);
 }
 
 //PUBLIC
@@ -86,7 +86,7 @@ void cleanup() {
 //PUBLIC
 void runServer() { //Listen for new connections
 	debug("Starting message processor");
-	proc = new Processor{ &poll };
+	proc = new Processor{ &netPoll };
 
 	debug("Starting connection processor");
 	gateServer->start();
@@ -167,6 +167,6 @@ void buildWeb() {
 		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 
-		poll.add(newSock, newConn);
+		netPoll.add(newSock, newConn);
 	}
 }
