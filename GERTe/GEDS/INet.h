@@ -1,9 +1,7 @@
 #pragma once
 #ifdef _WIN32
 #include <mutex>
-#endif
 
-#ifdef _WIN32
 typedef unsigned long long SOCKET;
 static unsigned long nonZero = 1;
 #else
