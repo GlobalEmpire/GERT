@@ -8,13 +8,12 @@ struct Event_Data {
 };
 
 class Poll {
-	friend void removeTracker(SOCKET, Poll*);
-	friend void cleanup();
-
 #ifndef _WIN32
 	int efd;
 #else
 	std::vector<void*> events;
+
+	inline Event_Data* WSALoop();
 #endif
 
 	std::vector<Event_Data*> tracker;

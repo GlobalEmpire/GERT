@@ -59,15 +59,7 @@ void Processor::run() {
 		if (data.fd == 0)
 			return;
 
-		SOCKET sock = data.fd;
-		INet * obj = data.ptr;
-
-		char test[1];
-		if (obj->type == INet::Type::CONNECT && recv(sock, test, 1, MSG_PEEK) != 1) { //If there's no data when we were told there was, the socket closed
-			delete obj;
-		}
-		else
-			obj->process();
+		data.ptr->process();
 	}
 }
 

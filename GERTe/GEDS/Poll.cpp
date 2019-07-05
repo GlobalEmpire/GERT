@@ -13,56 +13,64 @@
 
 extern volatile bool running;
 
-#ifdef _WIN32
-thread_local INet* last = nullptr;
-#else
 thread_local Event_Data * last = nullptr;
+
+#ifndef _WIN32
+sigset_t mask;
 #endif
 
-typedef std::vector<Event_Data*> TrackerT;
+bool testForClose(INet* obj) {
+	char test;
+	return obj->type == INet::Type::CONNECT || recv(obj->sock, &test, 1, MSG_PEEK) != 1;
+}
 
-void removeTracker(SOCKET fd, Poll* context) {
-	TrackerT &tracker = context->tracker;
-
-	int i = 0;
-	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
-	{
-		Event_Data * store = *iter;
-
-		if (store->fd == fd) {
 #ifdef _WIN32
-			std::vector<void*>::iterator eiter = context->events.begin() + i;
+inline Event_Data* Poll::WSALoop() {
+	while (true) {
+		if (events.size() == 0)
+			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
+		else {
+			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
 
-			WSACloseEvent(*eiter);
-			context->events.erase(eiter);
-			context->events.shrink_to_fit();
-#endif
-			delete store;
+			if (result == WSA_WAIT_FAILED) {
+				int err = WSAGetLastError();
+				if (err != WSA_INVALID_HANDLE)
+					knownError(err, "Socket poll error: ");
+			}
+			else if (result != WSA_WAIT_IO_COMPLETION) {
+				int offset = result - WSA_WAIT_EVENT_0;
 
-			tracker.erase(iter);
-			tracker.shrink_to_fit();
+				if (offset < events.size()) {
+					Event_Data* store = tracker[offset];
+					INet* obj = store->ptr;
 
-			return;
+					if (obj->lock.try_lock()) {
+						return store;
+					}
+				}
+				else
+					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
+			}
+			else
+				throw 1;
 		}
-
-		i++;
 	}
 }
+#endif
 
 Poll::Poll() {
 #ifndef _WIN32
 	efd = epoll_create(1);
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
 #endif
 }
 
 Poll::~Poll() {
-	if (running)
-		warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
-
 #ifndef _WIN32
 	close(efd);
 #endif
-
 	for (Event_Data* data : tracker)
 	{
 		delete data;
@@ -96,90 +104,91 @@ void Poll::add(SOCKET fd, INet * ptr) { //Adds the file descriptor to the pollse
 }
 
 void Poll::remove(SOCKET fd) {
-#ifndef _WIN32
-	if (last != nullptr && last->fd == fd)
-		last = nullptr;
-#endif
-
-	removeTracker(fd, this);
-
 #ifdef _WIN32
-	if (last != nullptr && last->sock == fd) {
-		last->lock.unlock();
+	std::vector<void*>::iterator eiter = events.begin();	
+#endif
+	for (std::vector<Event_Data*>::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
+	{
+		Event_Data* store = *iter;
+
+		if (store->fd == fd) {
+#ifdef _WIN32
+			WSACloseEvent(*eiter);
+			events.erase(eiter);
+			events.shrink_to_fit();
+#endif
+			delete store;
+
+			tracker.erase(iter);
+			tracker.shrink_to_fit();
+
+			return;
+		}
+#ifdef _WIN32
+		eiter++;
+#endif
+	}
+
+	if (last != nullptr && last->fd == fd) {
+#ifdef _WIN32
+		last->ptr->lock.unlock();
+#endif
 		last = nullptr;
 	}
+#ifndef _WIN32
+	if (epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr) == -1)
+		throw errno;
 #endif
 }
 
 Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
-#ifndef _WIN32
 	if (last != nullptr) {
+#ifdef _WIN32
+		last->ptr->lock.unlock();
+#else
 		epoll_event newEvent;
 		newEvent.events = EPOLLIN | EPOLLONESHOT;
 		newEvent.data.ptr = last;
 
 		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->fd, &newEvent) == -1)
 			throw errno;
-
+#endif
 		last = nullptr;
 	}
 
+	Event_Data* store;
+
+	start:
+#ifndef _WIN32
 	epoll_event eEvent;
-	sigset_t mask;
 
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGUSR1);
-
-	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1) {
-		if (errno == SIGINT) {
+	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
+		if (errno == SIGINT)
 			return Event_Data{
 				0,
 				nullptr
 			};
-		}
-		else {
+		else
 			throw errno;
-		}
-	}
-	return *(Event_Data*)(eEvent.data.ptr);
+
+	store = eEvent.data.ptr;
 #else
-	if (last != nullptr) {
-		last->lock.unlock();
+	try {
+		store = WSALoop();
 	}
-
-	while (true) {
-		if (events.size() == 0)
-			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
-		else {
-			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
-
-			if (result == WSA_WAIT_FAILED) {
-				int err = WSAGetLastError();
-				if (err != WSA_INVALID_HANDLE)
-					knownError(err, "Socket poll error: ");
-			}
-			else if (result != WSA_WAIT_IO_COMPLETION) {
-				int offset = result - WSA_WAIT_EVENT_0;
-
-				if (offset < events.size()) {
-					Event_Data * store = tracker[offset];
-					INet* obj = store->ptr;
-
-					if (obj->lock.try_lock()) {
-						last = obj;
-						return *(store);
-					}
-				}
-				else
-					error("Attempted to return from wait, but result was invalid: " + std::to_string(result));
-			}
-		}
-
-		if (!running)
-			return Event_Data{
-				0,
-				nullptr
-			};
+	catch (int e) {
+		return Event_Data{
+			0,
+			nullptr
+		};
 	}
 #endif
+	if (testForClose(store->ptr)) {
+		delete store->ptr;
+		goto start;
+	}
+	else {
+		last = store;
+		return *store;
+	}
 }
