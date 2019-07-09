@@ -92,6 +92,7 @@ void runServer() { //Listen for new connections
 	gateServer->start();
 	peerServer->start();
 
+	debug("Main thread going to sleep");
 #ifdef _WIN32
 	SuspendThread(GetCurrentThread());
 #else

@@ -106,7 +106,7 @@ void Poll::remove(INet* target) {
 			tracker.erase(iter);
 			tracker.shrink_to_fit();
 
-			return;
+			break;
 		}
 #ifdef _WIN32
 		eiter++;
@@ -119,8 +119,9 @@ void Poll::remove(INet* target) {
 #endif
 		last = nullptr;
 	}
+
 #ifndef _WIN32
-	if (epoll_ctl(efd, EPOLL_CTL_DEL, target->sock, nullptr) == -1)
+	if (epoll_ctl(efd, EPOLL_CTL_DEL, target->sock, nullptr) == -1 && errno != EBADF)
 		throw errno;
 #endif
 }
@@ -147,7 +148,7 @@ INet* Poll::wait() { //Awaits for an event on a file descriptor. Returns the Eve
 	epoll_event eEvent;
 
 	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
-		if (errno == SIGINT)
+		if (errno == EINTR)
 			obj = nullptr;
 		else
 			throw errno;

@@ -11,7 +11,7 @@ extern Poll netPoll;
 Gateway::Gateway(Address addr, UGateway * orig) : UGateway(std::move(*orig)), addr(addr) {
 	gateways[addr] = this;
 
-	netPoll.remove(this);
+	netPoll.remove(orig);
 	netPoll.add(this);
 }
 
