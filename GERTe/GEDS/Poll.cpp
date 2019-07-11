@@ -14,7 +14,7 @@
 
 extern volatile bool running;
 
-thread_local INet* this_obj = nullptr;
+thread_local SOCKET this_sock = ~0;
 
 #ifndef _WIN32
 sigset_t mask;
@@ -102,7 +102,7 @@ void Poll::add(INet * ptr) { //Adds the file descriptor to the pollset and track
 #endif
 }
 
-void Poll::remove(INet* target) {
+void Poll::remove(SOCKET target) {
 #ifdef _WIN32
 	std::vector<void*>::iterator eiter = events.begin();	
 #endif
@@ -110,7 +110,7 @@ void Poll::remove(INet* target) {
 	{
 		INet* obj = *iter;
 
-		if (obj == target) {
+		if (obj->sock == target) {
 #ifdef _WIN32
 			WSACloseEvent(*eiter);
 			events.erase(eiter);
@@ -126,15 +126,11 @@ void Poll::remove(INet* target) {
 #endif
 	}
 
-	if (this_obj != nullptr && this_obj == target) {
-#ifdef _WIN32
-		this_obj->lock.unlock();
-#endif
-		this_obj = nullptr;
+	if (this_sock != ~0 && this_sock == target) {
+		this_sock = ~0;
 	}
-
 #ifndef _WIN32
-	if (epoll_ctl(efd, EPOLL_CTL_DEL, target->sock, nullptr) == -1 && errno != EBADF)
+	if (epoll_ctl(efd, EPOLL_CTL_DEL, target, nullptr) == -1 && errno != EBADF)
 		throw errno;
 #endif
 }
@@ -153,21 +149,22 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 		else if (obj->type == INet::Type::CONNECT && recv(obj->sock, &test, 1, MSG_PEEK) != 1)
 			delete obj;
 		else {
-			this_obj = obj;
+			this_sock = obj->sock;
 			obj->process();
 #ifdef _WIN32
-			if (this_obj != nullptr)
+			if (this_sock != ~0)
 				obj->lock.unlock();
 #else
-			if (this_obj != nullptr) {
+			if (this_sock != ~0) {
 				epoll_event newEvent;
 				newEvent.events = EPOLLIN | EPOLLONESHOT;
-				newEvent.data.ptr = last;
+				newEvent.data.ptr = obj;
 
 				if (epoll_ctl(efd, EPOLL_CTL_MOD, obj->sock, &newEvent) == -1)
 					throw errno;
 			}
 #endif
+			this_sock = ~0;
 		}
 	}
 }

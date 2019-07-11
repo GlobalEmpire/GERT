@@ -69,7 +69,7 @@ void Server::process() {
 		netPoll.add(newConn);
 
 #ifdef _WIN32
-		netPoll.remove(this);
+		netPoll.remove(sock);
 		netPoll.add(this);
 
 		proc->update();

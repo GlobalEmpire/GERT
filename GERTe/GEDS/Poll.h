@@ -20,6 +20,6 @@ public:
 	~Poll();
 
 	void add(INet*);
-	void remove(INet*);
+	void remove(SOCKET);
 	void wait();
 };

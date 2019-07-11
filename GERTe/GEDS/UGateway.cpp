@@ -66,7 +66,7 @@ UGateway::~UGateway() {
 	if (removeNoAddr(this))
 		log("Unregistered gateway has closed the connection");
 
-	netPoll.remove(this);
+	netPoll.remove(sock);
 }
 
 UGateway::UGateway(UGateway&& orig) noexcept : Connection(orig) {
