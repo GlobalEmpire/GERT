@@ -32,7 +32,7 @@ Processor::Processor(Poll * poll) : poll(poll) {
 	std::thread* threadp = new std::thread[poolsize];
 
 	for (int i = 0; i < poolsize; i++)
-		threadp[i] = std::thread{ &Processor::run, this };
+		threadp[i] = std::thread{ &Poll::wait, poll };
 
 	pool = threadp;
 }
@@ -45,17 +45,6 @@ Processor::~Processor() {
 		threadp[i].join();
 	}
 	delete threadp;
-}
-
-void Processor::run() {
-	while (true) {
-		INet* obj = poll->wait();
-
-		if (obj == nullptr)
-			return;
-
-		obj->process();
-	}
 }
 
 void Processor::update() {

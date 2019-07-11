@@ -14,7 +14,7 @@
 
 extern volatile bool running;
 
-thread_local INet * last = nullptr;
+thread_local INet* this_obj = nullptr;
 
 #ifndef _WIN32
 sigset_t mask;
@@ -50,6 +50,19 @@ inline INet* Poll::WSALoop() {
 				return nullptr;
 		}
 	}
+}
+#else
+inline INet* Poll::linuxLoop() {
+	INet* obj;
+	epoll_event eEvent;
+
+	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
+		if (errno == EINTR)
+			obj = nullptr;
+		else
+			throw errno;
+
+	return (INet*)eEvent.data.ptr;
 }
 #endif
 
@@ -113,11 +126,11 @@ void Poll::remove(INet* target) {
 #endif
 	}
 
-	if (last != nullptr && last == target) {
+	if (this_obj != nullptr && this_obj == target) {
 #ifdef _WIN32
-		last->lock.unlock();
+		this_obj->lock.unlock();
 #endif
-		last = nullptr;
+		this_obj = nullptr;
 	}
 
 #ifndef _WIN32
@@ -126,47 +139,35 @@ void Poll::remove(INet* target) {
 #endif
 }
 
-INet* Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
-	if (last != nullptr) {
-#ifdef _WIN32
-		last->lock.unlock();
-#else
-		epoll_event newEvent;
-		newEvent.events = EPOLLIN | EPOLLONESHOT;
-		newEvent.data.ptr = last;
-
-		if (epoll_ctl(efd, EPOLL_CTL_MOD, last->sock, &newEvent) == -1)
-			throw errno;
-#endif
-		last = nullptr;
-	}
-
-	INet* obj;
-
-	start:
+void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
+	while (true) {
 #ifndef _WIN32
-	epoll_event eEvent;
-
-	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
-		if (errno == EINTR)
-			obj = nullptr;
-		else
-			throw errno;
-
-	obj = (INet*)eEvent.data.ptr;
+		INet* obj = linuxLoop();
 #else
-	obj = WSALoop();
+		INet * obj = WSALoop();
 #endif
-	char test;
+		char test;
 
-	if (obj == nullptr)
-		return obj;
-	else if (obj->type == INet::Type::CONNECT && recv(obj->sock, &test, 1, MSG_PEEK) != 1) {
-		delete obj;
-		goto start;
-	}
-	else {
-		last = obj;
-		return obj;
+		if (obj == nullptr)
+			return;
+		else if (obj->type == INet::Type::CONNECT && recv(obj->sock, &test, 1, MSG_PEEK) != 1)
+			delete obj;
+		else {
+			this_obj = obj;
+			obj->process();
+#ifdef _WIN32
+			if (this_obj != nullptr)
+				obj->lock.unlock();
+#else
+			if (this_obj != nullptr) {
+				epoll_event newEvent;
+				newEvent.events = EPOLLIN | EPOLLONESHOT;
+				newEvent.data.ptr = last;
+
+				if (epoll_ctl(efd, EPOLL_CTL_MOD, obj->sock, &newEvent) == -1)
+					throw errno;
+			}
+#endif
+		}
 	}
 }

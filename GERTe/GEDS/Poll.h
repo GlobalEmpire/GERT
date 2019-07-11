@@ -5,6 +5,8 @@
 class Poll {
 #ifndef _WIN32
 	int efd;
+
+	inline INet* linuxLoop();
 #else
 	std::vector<void*> events;
 
@@ -19,5 +21,5 @@ public:
 
 	void add(INet*);
 	void remove(INet*);
-	INet* wait();
+	void wait();
 };

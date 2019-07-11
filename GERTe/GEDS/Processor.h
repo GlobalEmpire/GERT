@@ -6,8 +6,6 @@ class Processor {
 
 	unsigned int poolsize;
 	void * pool;
-
-	void run();
 public:
 	Processor(Poll *);
 	~Processor();
