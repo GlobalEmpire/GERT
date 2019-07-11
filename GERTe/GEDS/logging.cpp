@@ -11,7 +11,7 @@ FILE * logFile = nullptr;
 
 void startLog() {
 	logFile = fopen("geds.log", "a");
-	fputs("-----START LOG-----", logFile);
+	fputs("-----START LOG-----\n", logFile);
 }
 
 string inline timeOut() {
@@ -63,6 +63,6 @@ void debug(string msg) {
 }
 
 void stopLog() {
-	fputs("-----END FILE-----", logFile);
+	fputs("-----END FILE-----\n", logFile);
 	fclose(logFile);
 }

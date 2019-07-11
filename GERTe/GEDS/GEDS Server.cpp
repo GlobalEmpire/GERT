@@ -52,6 +52,7 @@ void shutdownProceedure(int param) { //SIGINT handler function
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
 		error("!!! Forcing termination of server. !!!"); //Warn user we are stopping
+		stopLog();
 		crash(ErrorCode::GENERAL_ERROR);
 	}
 };
@@ -64,6 +65,7 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 
 	dumpStack();
 	error("SEGMENTATION FAULT");
+	stopLog();
 	crash(ErrorCode::GENERAL_ERROR);
 }
 
@@ -74,6 +76,7 @@ void errHandler() { //Error catcher, provides minor error recovery facilities
 	savePeers();
 
 	error("Unknown error, system called terminate() with code " + to_string(errno) + "\n");
+	stopLog();
 	crash(ErrorCode::GENERAL_ERROR);
 }
 
