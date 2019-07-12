@@ -17,6 +17,7 @@ class IConsumer : public INet {
 
 protected:
 	IConsumer();							// Constructs the IConsumer, which must construct the underlying INet.
+	~IConsumer();							// Safely cleansup the IConsumer object.
 
 	bool consume(int, bool = false);		// Reads data off the socket, stores it, and returns if it has received all the data needed.
 	void clean();							// Cleans up the current buffer. A shortcut for derived objects.

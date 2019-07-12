@@ -11,6 +11,13 @@
 
 IConsumer::IConsumer() : INet{ INet::Type::CONNECT } {};		//Rationally, only CONNECT type INets can consume data
 
+IConsumer::~IConsumer() {
+	if (buf != nullptr)
+		delete[] buf;
+	if (lastbuf != nullptr)
+		delete[] lastbuf;
+}
+
 bool IConsumer::consume(int num, bool string) {
 	start:
 	if (string)
@@ -44,7 +51,7 @@ bool IConsumer::consume(int num, bool string) {
 
 				bufsize += lastbufsize;
 
-				delete[]buf;
+				delete[] buf;
 				delete[] lastbuf;
 				lastbuf = nullptr;
 			}
@@ -56,6 +63,8 @@ bool IConsumer::consume(int num, bool string) {
 }
 
 void IConsumer::clean() {
-	delete[] buf;
-	buf = nullptr;
+	if (buf != nullptr) {
+		delete[] buf;
+		buf = nullptr;
+	}
 }
