@@ -16,7 +16,7 @@ vector<UGateway*> noAddrList;
 
 extern Poll netPoll;
 
-void UGateway::changeState(const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
+void UGateway::changeState(const Gate::States newState, const char numextra, const char * extra) {
 	state = (char)newState;
 
 	string update = string{ (char)Gate::Commands::STATE };

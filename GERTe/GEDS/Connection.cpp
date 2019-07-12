@@ -67,27 +67,40 @@ Connection::~Connection() {
 }
 
 bool Connection::negotiate(std::string type) {
-	if (vers[0] == 0 && consume(2)) {
-		vers[0] = buf[0];
-		vers[1] = buf[1];
-		clean();
+	start:
+	if (vers[0] == 0)
+		if (consume(2)) {
+			vers[0] = buf[0];
+			vers[1] = buf[1];
+			clean();
 
-		log(type + " using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
+			log(type + " using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
 
-		if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
-			char err[3] = { 0, 0, 0 };
-			error(err);
-			warn(type + "'s version wasn't supported!");
-			delete this;
+			if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
+				char err[3] = { 0, 0, 0 };
+				error(err);
+				warn(type + "'s version wasn't supported!");
+				delete this;
+				return false;
+			}
+
+			if (vers[1] > ThisVersion.minor)
+				vers[1] = ThisVersion.minor;
+
+			goto start;
+		}
+	else {
+		if (vers[1] == 0) {
+			if (consume(1)) {
+				clean();
+				return true;
+			}
+
 			return false;
 		}
 
-		if (vers[1] > ThisVersion.minor)
-			vers[1] = ThisVersion.minor;
+		return true;
 	}
 
-	//If version is pre-1.1.0 then read an extra byte for compatibility
-	if (vers[1] == 0 && consume(1)) {
-		clean();
-	}
+	return false;
 }
