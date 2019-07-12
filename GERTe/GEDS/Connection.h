@@ -7,8 +7,9 @@ class Connection : public IConsumer
 protected:
 	char last = 0;
 
-	Connection(SOCKET, std::string);
+	Connection(SOCKET, std::string);		// Generic incoming connection constructor
 	Connection(SOCKET);
+	Connection();							// Connection constructor which allows the derived class to defer socket acquisition.
 
 	void error(char * err);
 

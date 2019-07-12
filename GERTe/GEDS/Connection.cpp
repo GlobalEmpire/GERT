@@ -56,7 +56,9 @@ Connection::Connection(SOCKET socket, std::string type) {
 
 Connection::Connection(SOCKET socket) {
 	sock = socket;
-}	
+}
+
+Connection::Connection() {}
 
 Connection::~Connection() {
 #ifdef WIN32

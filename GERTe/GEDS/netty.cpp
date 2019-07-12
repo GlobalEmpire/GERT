@@ -1,21 +1,11 @@
-#ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS
-#include <Ws2tcpip.h>
-#else
-#include <sys/socket.h> //Load C++ standard socket API
-#include <netinet/tcp.h>
+#ifndef _WIN32
 #include <unistd.h>
-#include <poll.h>
-#include <signal.h>
 #endif
-#include <sys/types.h>
 #include <thread>
-#include "query.h"
 #include "Gateway.h"
 #include "logging.h"
 #include "Peer.h"
 #include "Poll.h"
-#include "Versioning.h"
 #include "Error.h"
 #include "Processor.h"
 #include "Server.h"
@@ -37,8 +27,6 @@ extern vector<UGateway*> noAddrList;
 extern map<IP, Peer*> peers;
 extern std::map<Address, Gateway*> gateways;
 extern map<IP, Ports> peerList;
-
-constexpr unsigned int iplen = sizeof(sockaddr);
 
 void killConnections() {
 	for (std::pair<Address, Gateway*> pair : gateways) {
@@ -112,62 +100,9 @@ void buildWeb() {
 			continue;
 		}
 
-		SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
-		in_addr remoteIP = ip.addr;
-		sockaddr_in addrFormat;
-		addrFormat.sin_addr = remoteIP;
-		addrFormat.sin_port = ports.peer;
-		addrFormat.sin_family = AF_INET;
-
-#ifndef _WIN32
-		int opt = 3;
-		setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
-#else
-		int opt = 2;
-		setsockopt(newSock, IPPROTO_TCP, TCP_MAXRT, (char*)&opt, sizeof(opt)); //Correct excessive timeout period on Windows
-#endif
-
-		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);
-
-		if (result != 0) {
-			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
-			continue;
+		try {
+			Peer newPeer{ ip, ports.peer };
 		}
-
-		Peer * newConn = new Peer(newSock, ip);
-
-		newConn->transmit(ThisVersion.tostring());
-
-		char death[3];
-		timeval timeout = { 2, 0 };
-
-		setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
-		int result2 = recv(newSock, death, 2, 0);
-
-		if (result2 == -1) {
-			delete newConn;
-			error("Connection to " + ip.stringify() + " dropped during negotiation");
-			continue;
-		}
-
-		if (death[0] == 0) {
-			recv(newSock, death + 2, 1, 0);
-
-			if (death[2] == 0) {
-				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
-				delete newConn;
-				continue;
-			}
-			else if (death[2] == 1) {
-				error("Peer " + ip.stringify() + " rejected this IP!");
-				delete newConn;
-				continue;
-			}
-		}
-
-		newConn->state = 1;
-		log("Connected to " + ip.stringify());
-
-		netPoll.add(newConn);
+		catch (int e) {}
 	}
 }

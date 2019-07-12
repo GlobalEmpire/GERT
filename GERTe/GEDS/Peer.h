@@ -2,6 +2,8 @@
 #include "IP.h"
 #include "Ports.h"
 
+#undef REGISTERED
+
 namespace GEDS {
 	enum class Commands : char {
 		REGISTERED,
@@ -21,8 +23,9 @@ class Peer : public Connection {
 
 public:
 	Peer(SOCKET);
-	~Peer();
 	Peer(SOCKET, IP);
+	Peer(IP, unsigned short);					// Outgoing peer constructor
+	~Peer();
 	void close();
 	void transmit(std::string);
 	void process();
