@@ -7,6 +7,7 @@
 #endif
 
 #include "IConsumer.hpp"
+#include "Error.h"
 #include <cstring>
 
 IConsumer::IConsumer() : INet{ INet::Type::CONNECT } {};		//Rationally, only CONNECT type INets can consume data
@@ -32,6 +33,12 @@ bool IConsumer::consume(int num, bool string) {
 	}
 
 	int len = recv(sock, buf + bufsize, num - bufsize, 0);
+
+	if (len == -1) {
+		socketError("Error reading socket data: ");
+		return;
+	}
+
 	bufsize += len;
 
 	if (bufsize == num) {
