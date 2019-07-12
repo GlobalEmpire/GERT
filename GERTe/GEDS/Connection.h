@@ -16,7 +16,9 @@ public:
 	virtual ~Connection();
 
 	unsigned char state = 0;
-	char vers[2];
+	char vers[2] = { 0,0 };
 
 	virtual void close() = 0;
+
+	bool negotiate(std::string);			// Negotiates the new connection. Returns true is negotiated. Returns false if it needs more data or fails. Cleans up on failure.
 };

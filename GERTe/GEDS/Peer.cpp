@@ -39,10 +39,6 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 
 	peers[ip] = this;
 	log("Peer connected from " + ip.stringify());
-	transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
-
-	if (vers[1] == 0)
-		transmit("\0");
 
 	last = (char)GEDS::Commands::CLOSE;											// Needs something that never calls consume
 };
@@ -70,6 +66,19 @@ void Peer::transmit(string data) {
 }
 
 void Peer::process() {
+	if (state == 0) {
+		if (negotiate("Peer")) {
+			transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+
+			if (vers[1] == 0)
+				transmit("\0");
+
+			state = 1;
+		}
+
+		return;
+	}
+
 	if (last == (char)GEDS::Commands::CLOSE) {
 		consume(1);
 		last = buf[0];

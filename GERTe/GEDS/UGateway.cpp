@@ -16,14 +16,14 @@ vector<UGateway*> noAddrList;
 
 extern Poll netPoll;
 
-void changeState(UGateway * gate, const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
-	gate->state = (char)newState;
+void UGateway::changeState(const Gate::States newState, const char numextra = 0, const char * extra = nullptr) {
+	state = (char)newState;
 
 	string update = string{ (char)Gate::Commands::STATE };
 	update += (char)newState;
 	update += string{ extra, (size_t)numextra };
 
-	gate->transmit(update);
+	transmit(update);
 }
 
 void globalChange(const GEDS::Commands change, const char * parameter, const char len) {
@@ -54,10 +54,6 @@ bool removeNoAddr(UGateway* gate) {
 
 UGateway::UGateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 	noAddrList.push_back(this);
-	changeState(this, Gate::States::CONNECTED, 2, (char*)&ThisVersion);
-
-	if (vers[1] == 0)
-		transmit("\0");
 
 	last = (char)Gate::Commands::STATE;										// Needs something that never calls consume
 }
@@ -93,6 +89,17 @@ void UGateway::close() {
 }
 
 void UGateway::process(Gateway * derived) {
+	if (state == 0) {
+		if (negotiate("Gateway")) {
+			changeState(Gate::States::CONNECTED);
+
+			if (vers[1] == 0)
+				transmit("\0");
+		}
+
+		return;
+	}
+
 	if (last == (char)Gate::Commands::STATE) {
 		consume(1);
 		last = buf[0];
@@ -132,7 +139,7 @@ void UGateway::process(Gateway * derived) {
 				return;
 			}
 			if (assign(request, requestkey)) {
-				changeState(this, Gate::States::REGISTERED);
+				changeState(Gate::States::REGISTERED);
 				/*
 				 * Response to successful registration attempt
 				 * CMD STATE (0)

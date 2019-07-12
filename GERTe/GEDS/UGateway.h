@@ -33,6 +33,8 @@ namespace Gate {
 }
 
 class UGateway : public Connection { //The OG Gateway
+	void changeState(const Gate::States, const char = 0, const char* = nullptr);
+
 protected:
 	UGateway(UGateway&&) noexcept;
 
