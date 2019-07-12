@@ -23,7 +23,6 @@ class Peer : public Connection {
 
 public:
 	Peer(SOCKET);
-	Peer(SOCKET, IP);
 	Peer(IP, unsigned short);					// Outgoing peer constructor
 	~Peer();
 	void close();

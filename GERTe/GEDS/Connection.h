@@ -8,8 +8,9 @@ protected:
 	char last = 0;
 
 	Connection(SOCKET, std::string);		// Generic incoming connection constructor
-	Connection(SOCKET);
 	Connection();							// Connection constructor which allows the derived class to defer socket acquisition.
+
+	void setopts();							// Sets the connection's socket options. This is done in the constructor, but certain derived classes may require it anyways.
 
 	void error(char * err);
 

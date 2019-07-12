@@ -20,9 +20,7 @@ void Connection::error(char * err) {
 	send(sock, err, 3, 0);
 }
 
-Connection::Connection(SOCKET socket, std::string type) {
-	sock = socket;
-
+void Connection::setopts() {
 #ifndef _WIN32
 #define PTR void*
 	timeval opt = { 1, 0 };
@@ -31,13 +29,13 @@ Connection::Connection(SOCKET socket, std::string type) {
 	int opt = 2000;
 #endif
 
-// Ensure the socket is in blocking mode
+	// Ensure the socket is in blocking mode
 #ifdef WIN32
 	WSAEventSelect(sock, NULL, 0); //Clears all events associated with the new socket
 	u_long nonblock = 1;
 	int resulterr = ioctlsocket(sock, FIONBIO, &nonblock);
 #else
-	fcntl(sock, F_SETFL, O_NONBLOCK);						
+	fcntl(sock, F_SETFL, O_NONBLOCK);
 #endif
 
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (PTR)& opt, sizeof(opt));
@@ -55,8 +53,10 @@ Connection::Connection(SOCKET socket, std::string type) {
 #undef PTR
 }
 
-Connection::Connection(SOCKET socket) {
+Connection::Connection(SOCKET socket, std::string type) {
 	sock = socket;
+
+	setopts();
 }
 
 Connection::Connection() {}

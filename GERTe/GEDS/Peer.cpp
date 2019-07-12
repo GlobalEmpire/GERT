@@ -58,7 +58,7 @@ Peer::~Peer() { //Peer destructor
 }
 
 Peer::Peer(IP target, unsigned short port) : ip(target) {				// Outgoing peer constructor
-	SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
+	sock = socket(AF_INET, SOCK_STREAM, 0);
 	in_addr remoteIP = ip.addr;
 	sockaddr_in addrFormat;
 	addrFormat.sin_addr = remoteIP;
@@ -68,62 +68,57 @@ Peer::Peer(IP target, unsigned short port) : ip(target) {				// Outgoing peer co
 	// Correct excessive timeout period
 #ifndef _WIN32
 	int opt = 3;
-	setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)& opt, sizeof(opt));
+	setsockopt(sock, IPPROTO_TCP, TCP_SYNCNT, (void*)& opt, sizeof(opt));
 #else
 	int opt = 2;
-	setsockopt(newSock, IPPROTO_TCP, TCP_MAXRT, (char*)& opt, sizeof(opt));
+	setsockopt(sock, IPPROTO_TCP, TCP_MAXRT, (char*)& opt, sizeof(opt));
 #endif
 
-	int result = connect(newSock, (sockaddr*)& addrFormat, iplen);
+	int result = connect(sock, (sockaddr*)& addrFormat, iplen);
 
 	if (result != 0) {
 		warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
 		throw 1;
 	}
 
-	Peer* newConn = new Peer(newSock, ip);
+	peers[ip] = this;
 
-	newConn->transmit(ThisVersion.tostring());
+	transmit(ThisVersion.tostring());
 
 	char death[3];
 	timeval timeout = { 2, 0 };
 
-	setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)& timeout, sizeof(timeval));
-	int result2 = recv(newSock, death, 2, 0);
+	setsockopt(sock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)& timeout, sizeof(timeval));
+	int result2 = recv(sock, death, 2, 0);
 
 	if (result2 == -1) {
-		delete newConn;
 		::error("Connection to " + ip.stringify() + " dropped during negotiation");
 		throw 1;
 	}
 
 	if (death[0] == 0) {
 		char cause;
-		recv(newSock, &cause, 1, 0);
+		recv(sock, &cause, 1, 0);
 
-		if (cause == 0) {
+		if (cause == 0)
 			warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
-			delete newConn;
-			throw 1;
-		}
-		else if (cause == 1) {
+		else if (cause == 1)
 			::error("Peer " + ip.stringify() + " rejected this IP!");
-			delete newConn;
-			throw 1;
-		}
+		else
+			::error("Peer " + ip.stringify() + " rejected this connection with an unknown error");
+
+		throw 1;
 	}
 
 	vers[0] = death[0];
 	vers[1] = death[1];
 
-	newConn->state = 1;
+	state = 1;
 	log("Connected to " + ip.stringify());
 
-	netPoll.add(newConn);
-}
+	setopts();
 
-Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) {
-	peers[ip] = this;
+	netPoll.add(this);
 }
 
 void Peer::close() {
