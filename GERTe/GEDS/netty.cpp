@@ -20,8 +20,8 @@ Poll netPoll;
 Processor* proc;
 
 extern volatile bool running;
-extern char * gatewayPort;
-extern char * peerPort;
+extern unsigned short gatewayPort;
+extern unsigned short peerPort;
 extern char * LOCAL_IP;
 extern vector<UGateway*> noAddrList;
 extern map<IP, Peer*> peers;
@@ -56,8 +56,8 @@ void startup() {
 	}
 #endif
 
-	gateServer = new Server{ (unsigned short)std::stoi(gatewayPort), Server::Type::GATEWAY };
-	peerServer = new Server{ (unsigned short)std::stoi(peerPort), Server::Type::PEER };
+	gateServer = new Server{ gatewayPort, Server::Type::GATEWAY };
+	peerServer = new Server{ peerPort, Server::Type::PEER };
 
 	netPoll.add(gateServer);
 	netPoll.add(peerServer);
@@ -103,6 +103,6 @@ void buildWeb() {
 		try {
 			Peer newPeer{ ip, ports.peer };
 		}
-		catch (int e) {}
+		catch ([[maybe_unused]] int e) {}
 	}
 }

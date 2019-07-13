@@ -34,14 +34,14 @@ volatile bool running = false; //SIGINT tracker
 bool debugMode = false; //Set debug mode to false by default
 
 char * LOCAL_IP = nullptr; //Set local address to predictable null value for testing
-char * peerPort = "59474"; //Set default peer port
-char * gatewayPort = "43780"; //Set default gateway port
+unsigned short peerPort = 59474;
+unsigned short gatewayPort = 43780;
 
 #ifdef _WIN32
 HANDLE thisThread = INVALID_HANDLE_VALUE;
 #endif
 
-void shutdownProceedure(int param) { //SIGINT handler function
+void shutdownProceedure([[maybe_unused]] int param) { //SIGINT handler function
 	if (running) { //If we actually started running
 		warn("User requested shutdown. Flipping the switch!");	//Notify the user because reasons
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
@@ -57,7 +57,7 @@ void shutdownProceedure(int param) { //SIGINT handler function
 	}
 };
 
-void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
+void OHCRAPOHCRAP([[maybe_unused]] int param) { //Uhm, we've caused a CPU error
 	running = false;
 
 	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
@@ -102,11 +102,11 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 		} else if (curArg  == "-p") { //Process the local GEDS port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
-			peerPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
+			peerPort = (unsigned short)std::stoi(argv[++i]); //Local GEDS port is set to the next argument. Also skips the next argument
 		} else if (curArg == "-g") { //Process the gateway port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
-			gatewayPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
+			gatewayPort = (unsigned short)std::stoi(argv[++i]); //Local GEDS port is set to the next argument. Also skips the next argument
 		} else if (curArg == "-h") //Process the help flag
 				printHelp(); //Prints help, user requested it
 	}
@@ -121,7 +121,7 @@ int main( int argc, char* argv[] ) {
 	cout << "Copyright 2017-2019" << endl;						//Print simple copyright information
 
 	processArgs(argc, argv); //Process command line argument
-	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
+	debug((string)"Processed arguments. Gateway port: " + std::to_string(gatewayPort) + " Peer port: " + std::to_string(peerPort) + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
 
 	startLog(); //Create log handles
 

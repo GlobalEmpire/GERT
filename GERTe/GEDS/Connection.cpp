@@ -33,7 +33,7 @@ void Connection::setopts() {
 #ifdef WIN32
 	WSAEventSelect(sock, NULL, 0); //Clears all events associated with the new socket
 	u_long nonblock = 1;
-	int resulterr = ioctlsocket(sock, FIONBIO, &nonblock);
+	ioctlsocket(sock, FIONBIO, &nonblock);
 #else
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 #endif
@@ -69,7 +69,7 @@ Connection::~Connection() {
 #endif
 }
 
-bool Connection::negotiate(std::string type) {
+bool Connection::negotiate(std::string derived) {
 	start:
 	if (vers[0] == 0)
 		if (consume(2)) {
@@ -77,12 +77,12 @@ bool Connection::negotiate(std::string type) {
 			vers[1] = buf[1];
 			clean();
 
-			log(type + " using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
+			log(derived + " using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
 
 			if (vers[0] != ThisVersion.major) { //Determine if major number is not supported
 				char err[3] = { 0, 0, 0 };
 				error(err);
-				warn(type + "'s version wasn't supported!");
+				warn(derived + "'s version wasn't supported!");
 				delete this;
 				return false;
 			}

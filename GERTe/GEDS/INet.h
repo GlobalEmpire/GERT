@@ -21,7 +21,7 @@ public:
 		CONNECT
 	};
 
-	SOCKET sock = -1;						// Associated socket
+	SOCKET sock = ~0u;						// Associated socket
 	Type type;								// The type of the INet object
 
 #ifdef _WIN32
