@@ -2,9 +2,9 @@
 #include <cstring>
 
 NetString::NetString(Connection * conn, int offset) {
-	length = conn->bufsize;
+	length = (unsigned char)conn->buf[offset];
 	str = new char[length];
-	memcpy(str, conn->buf, length);
+	memcpy(str, conn->buf + offset + 1, length);
 }
 
 NetString::~NetString() {
@@ -12,5 +12,5 @@ NetString::~NetString() {
 }
 
 std::string NetString::string() const {
-	return std::string{this->length} + std::string{this->str, (size_t)this->length};
+	return std::string{(char)length} + std::string{this->str, (size_t)this->length};
 }

@@ -6,6 +6,6 @@ public:
 	~NetString();
 
 	std::string string() const;
-	char length;
+	unsigned char length;
 	char * str;
 };
