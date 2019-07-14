@@ -4,6 +4,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #endif
 
 #include "IConsumer.hpp"
@@ -74,4 +75,16 @@ void IConsumer::clean() {
 		delete[] buf;
 		buf = nullptr;
 	}
+}
+
+bool IConsumer::querySocket() {
+	unsigned long data = 0;
+#ifdef _WIN32
+	if (ioctlsocket(sock, FIONREAD, &data) == SOCKET_ERROR)
+		return false;
+#else
+	if (ioctl(sock, SIOCINQ, &data) == -1)
+		return false;
+#endif
+	return data > 0;
 }

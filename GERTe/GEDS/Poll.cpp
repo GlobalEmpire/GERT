@@ -3,6 +3,8 @@
 #include "Error.h"
 
 #ifndef _WIN32
+#define INVALID_SOCKET ~0
+
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -12,9 +14,11 @@
 #include <mutex>
 #endif
 
+#define HAS_DATA(obj) obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->querySocket()
+
 extern volatile bool running;
 
-thread_local SOCKET this_sock = ~0;
+thread_local SOCKET this_sock = INVALID_SOCKET;
 
 #ifndef _WIN32
 sigset_t mask;
@@ -126,8 +130,8 @@ void Poll::remove(SOCKET target) {
 #endif
 	}
 
-	if (this_sock != ~0 && this_sock == target) {
-		this_sock = ~0;
+	if (this_sock != INVALID_SOCKET && this_sock == target) {
+		this_sock = INVALID_SOCKET;
 	}
 #ifndef _WIN32
 	if (epoll_ctl(efd, EPOLL_CTL_DEL, target, nullptr) == -1 && errno != EBADF)
@@ -142,29 +146,31 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 #else
 		INet * obj = WSALoop();
 #endif
-		char test;
-
 		if (obj == nullptr)
 			return;
-		else if (obj->type == INet::Type::CONNECT && recv(obj->sock, &test, 1, MSG_PEEK) != 1)
+		else if (HAS_DATA(obj))
 			delete obj;
 		else {
 			this_sock = obj->sock;
+
+			process:
 			obj->process();
+
+			if (this_sock != INVALID_SOCKET) {
+				if (HAS_DATA(obj))
+					goto process;
 #ifdef _WIN32
-			if (this_sock != ~0)
 				obj->lock.unlock();
 #else
-			if (this_sock != ~0) {
 				epoll_event newEvent;
 				newEvent.events = EPOLLIN | EPOLLONESHOT;
 				newEvent.data.ptr = obj;
 
 				if (epoll_ctl(efd, EPOLL_CTL_MOD, obj->sock, &newEvent) == -1)
 					throw errno;
-			}
 #endif
-			this_sock = ~0;
+			}
+			this_sock = INVALID_SOCKET;
 		}
 	}
 }

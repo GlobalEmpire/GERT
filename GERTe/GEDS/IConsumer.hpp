@@ -7,6 +7,8 @@
 	Derived objects can call consume with the known amount of data, along with a boolean to signify a NetString appended.
 	If Consume returns true, buf has all the needed data. Otherwise, the derived object needs to await another event.
 	Furthermore, to allow the data to contain nulls, the total size of the buffer will be stored at bufsize.
+
+	IConsumer can report if the socket has data via the querySocket mechanism.
 	
 	Note: buf must be freed when done being used by derived objects.
 */
@@ -25,4 +27,6 @@ protected:
 public:
 	int bufsize = 0;						// Contains the size of the current buffer.
 	char* buf = nullptr;					// Contains the current buffer or nullptr if there is none.
+
+	bool querySocket();
 };
