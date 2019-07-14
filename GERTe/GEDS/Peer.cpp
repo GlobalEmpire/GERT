@@ -31,9 +31,9 @@ constexpr unsigned int iplen = sizeof(sockaddr);
 
 Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
-	socklen_t iplen = sizeof(sockaddr);
-	getpeername(newSocket, (sockaddr*)&remoteip, &iplen);
-	IP ip{ remoteip.sin_addr };
+	int temp = iplen;
+	getpeername(newSocket, (sockaddr*)&remoteip, &temp);
+	ip = IP{ remoteip.sin_addr };
 
 	if (peerList.count(ip) == 0) {
 		char err[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
@@ -176,7 +176,7 @@ void Peer::process() {
 			Address target{ this, 0 };
 			clean();
 
-			RGateway* newGate = new RGateway{ target, this };
+			new RGateway{ target, this };
 
 			last = (char)GEDS::Commands::CLOSE;
 		}

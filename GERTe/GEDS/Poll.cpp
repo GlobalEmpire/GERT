@@ -26,7 +26,7 @@ inline INet* Poll::WSALoop() {
 		if (events.size() == 0)
 			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
 		else {
-			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
+			int result = WSAWaitForMultipleEvents((DWORD)events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
 
 			if (result == WSA_WAIT_FAILED) {
 				int err = WSAGetLastError();

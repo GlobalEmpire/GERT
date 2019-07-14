@@ -146,14 +146,14 @@ void UGateway::process(Gateway * derived) {
 				 * STATE REGISTERED (2)
 				 */
 				string addr = request.tostring();
-				globalChange(GEDS::Commands::REGISTERED, addr.data(), addr.length());
+				globalChange(GEDS::Commands::REGISTERED, addr.data(), (char)addr.length());
 				/*
 				 * Broadcast to all peers registration
 				 * CMD REGISTERED (0)
 				 * Address (4 bytes)
 				 */
 
-				Gateway* assigned = new Gateway{ request, this };
+				new Gateway{ request, this };
 			}
 			else
 				failed(this, Gate::Errors::BAD_KEY);

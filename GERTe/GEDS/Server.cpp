@@ -75,7 +75,7 @@ void Server::process() {
 		proc->update();
 #endif
 	}
-	catch (int e) {
+	catch ([[maybe_unused]]int e) {
 #ifdef _WIN32
 		closesocket(newSock);
 #else

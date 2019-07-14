@@ -12,7 +12,7 @@
 extern volatile bool running;
 
 #ifdef _WIN32
-void apc(ULONG_PTR s) {}
+void apc([[maybe_unused]]ULONG_PTR s) {}
 #endif
 
 void inline interrupt(std::thread& thread) {
@@ -31,7 +31,7 @@ Processor::Processor(Poll * poll) : poll(poll) {
 
 	std::thread* threadp = new std::thread[poolsize];
 
-	for (int i = 0; i < poolsize; i++)
+	for (unsigned int i = 0; i < poolsize; i++)
 		threadp[i] = std::thread{ &Poll::wait, poll };
 
 	pool = threadp;
@@ -40,7 +40,7 @@ Processor::Processor(Poll * poll) : poll(poll) {
 Processor::~Processor() {
 	std::thread* threadp = (std::thread*)pool;
 
-	for (int i = 0; i < poolsize; i++) {
+	for (unsigned int i = 0; i < poolsize; i++) {
 		interrupt(threadp[i]);
 		threadp[i].join();
 	}
@@ -50,6 +50,6 @@ Processor::~Processor() {
 void Processor::update() {
 	std::thread* threadp = (std::thread*)pool;
 
-	for (int i = 0; i < poolsize; i++)
+	for (unsigned int i = 0; i < poolsize; i++)
 		interrupt(threadp[i]);
 }
