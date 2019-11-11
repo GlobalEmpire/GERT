@@ -141,7 +141,12 @@ end
 
 handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
 	if string.find(dest, ":") and GERTe then
-		GERTe.transmitTo(dest, origin, data)
+		if string.sub(dest, 1, string.find(dest, ":")) == gAddress then
+			dest = string.sub(dest, 1, string.find(dest, ":"))
+			transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
+		else
+			GERTe.transmitTo(dest, origin, data)
+		end
 	elseif connections[dest] and connections[dest][origin] and connections[dest][origin][ID] then
 		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
 	end

@@ -124,7 +124,7 @@ handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
 	if ID < 0 then
 		return computer.pushSignal("GERTData", origin, ID, data)
 	end
-	if connections[dest][origin][ID] then
+	if connections[dest][origin][ID] or dest == -1 then
 		storeData(origin, ID, data, order)
 	else
 		transInfo(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
@@ -284,6 +284,9 @@ local function closeSock(self)
 	handler.CloseConnection((modem or tunnel).address, 4378, self.ID, self.destination, self.origination)
 end
 function GERTi.openSocket(gAddress, doEvent, outID)
+	if type(doEvent) ~= "boolean" then
+		outID = doEvent
+	end
 	local port, add
 	if outID == nil then
 		if connections[gAddress] and connections[gAddress][iAdd] then
@@ -316,6 +319,11 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		read = readData,
 		close = closeSock}
 	return socket
+end
+function GERTi.broadcast(data)
+	if modem and (type(data) ~= "table" or type(data) ~= "function") then
+		modem.broadcast(4378, data, -1, iAdd, -1)
+	end
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
