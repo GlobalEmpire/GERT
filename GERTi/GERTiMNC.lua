@@ -1,4 +1,4 @@
--- GERT v1.1 Release
+-- GERT v1.2 Build 2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -11,7 +11,6 @@ local tunnel = nil
 
 local nodes = {}
 local connections = {}
-local paths = {}
 
 local addressP1 = 0
 local addressP2 = 1
@@ -41,7 +40,6 @@ end
 
 local directory = os.getenv("_")
 directory = filesystem.path(directory)
--- functions to store the children and then sort the table
 
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
 local function addTempHandler(timeout, code, cb, cbf)
@@ -105,25 +103,26 @@ local function storeChild(rAddress, port, tier)
 	return childGA
 end
 
-local function storeConnection(origin, ID, dest)
-	if not connections[dest] then
-		connections[dest] = {}
+local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
+	local connectDex
+	if lieAdd then
+		connectDex = origin.."|"..lieAdd.."|"..ID
+	else
+		connectDex = origin.."|"..dest.."|"..ID
 	end
-	if not connections[dest][origin] then
-		connections[dest][origin] = {}
+	connections[connectDex] = {}
+	connections[connectDex]["origin"]=origin
+	connections[connectDex]["dest"]=dest
+	connections[connectDex]["ID"]=ID
+	connections[connectDex]["nextHop"]=nextHop
+	if nextHop ~= iAdd then
+		connections[connectDex]["data"]={}
+		connections[connectDex]["order"]=1
+		connections[connectDex]["port"]=port
 	end
-	connections[dest][origin][ID] = {}
-end
-local function storePath(origin, dest, nextHop, port)
-if paths[origin] == nil then
-		paths[origin] = {}
-	end
-	paths[origin][dest] = {}
-	paths[origin][dest]["nextHop"] = nextHop
-	paths[origin][dest]["port"] = port
 end
 
-local function transmitInformation(sendTo, port, ...)
+local function transInfo(sendTo, port, ...)
 	if (port ~= 0) and (modem) then
 		return modem.send(sendTo, port, ...)
 	elseif (tunnel) then
@@ -132,70 +131,82 @@ local function transmitInformation(sendTo, port, ...)
 end
 
 local handler = {}
-handler.CloseConnection = function(sendingModem, port, connectionID, destination, origin)
-	if destination ~= iAddress then
-		transmitInformation(paths[origin][destination]["nextHop"], paths[origin][destination]["port"], "CloseConnection", ID, destination, origin)
+handler.CloseConnection = function(sendingModem, port, connectDex)
+	if connections[connectDex]["nextHop"] ~= iAdd then
+		if string.find(connectDex, ":") then
+			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
+		end
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connectDex)
 	end
-	connections[destination][ID] = nil
+	connections[connectDex] = nil
 end
 
-handler.Data = function (sendingModem, port, data, dest, origin, ID, order)
-	if string.find(dest, ":") and GERTe then
-		if string.sub(dest, 1, string.find(dest, ":")) == gAddress then
-			dest = string.sub(dest, 1, string.find(dest, ":"))
-			transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
-		else
-			GERTe.transmitTo(dest, origin, data)
-		end
-	elseif connections[dest] and connections[dest][origin] and connections[dest][origin][ID] then
-		transmitInformation(paths[origin][dest]["nextHop"], paths[origin][dest]["port"], "Data", data, dest, origin, ID, order)
+handler.Data = function (sendingModem, port, data, connectDex, order, origin)
+	if string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
+		local pipeDex = string.find(connectDex, "|")
+		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), data)
+	elseif string.find(connectDex, ":") then
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order)
+	elseif connections[connectDex] then
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connectDex, order)
 	end
 end
 
 handler.NewNode = function (sendingModem, port)
-	transmitInformation(sendingModem, port, "RETURNSTART", 0.0, 0)
+	transInfo(sendingModem, port, "RETURNSTART", 0.0, 0)
 end
 -- Used in handler["OPENROUTE"]
-local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID)
+local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
-    local function sendOKResponse(isDestination)
-		transmitInformation(bHop, recPort, "RouteOpen", dest, origin)
-		if isDestination then
-			storeConnection(origin, ID, dest)
-			storePath(origin, dest, nextHop, transPort)
-		else
-			storePath(origin, dest, nextHop, transPort)
-		end
+    local function sendOKResponse()
+		transInfo(bHop, recPort, "RouteOpen", dest, origin)
+		storeConnection(origin, ID, dest, nextHop, port, lieAdd)
 	end
+	
     if not string.find(dest, ":") then
-		transmitInformation(nextHop, trans, "OpenRoute", dest, hopTwo, origin, ID)
-		if event.pull(3, "modem_message", nil, nil, nil, nil, "RouteOpen", nil, dest, origin) then
-			sendOKResponse(false)
-		end
+		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
+		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+			if (dest == pktDest) and (origin == pktOrig) then
+				sendOKResponse()
+				return true
+			end
+		end, function () end)
+	elseif string.sub(dest, 1, string.find(dest, ":"))== gAddress then
+		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
+		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+			if (dest == pktDest) and (origin == pktOrig) then
+				sendOKResponse()
+				return true
+			end
+		end, function () end)
 	elseif GERTe then
-    	sendOKResponse(true)
+    	sendOKResponse()
 	end
 end
 
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
-	if string.find(dest, ":") then
+	local lieAdd
+	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))~= gAddress then
 		return routeOpener(dest, origin, sendingModem, modem.address, modem.address, port, port, ID)
+	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))== gAddress then
+		lieAdd = dest
+		dest = string.sub(dest, 1, string.find(dest, ":"))
 	end
 	
 	if nodes[dest]["parents"][0.0] then
-		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID)
+		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
 	end
 	
 	for key, value in pairs(nodes[dest]["parents"]) do
 		if nodes[key]["parents"][0.0] then
-			return routeOpener(dest, origin, sendingModem, value["add"], dest, port, value["port"], ID)
+			return routeOpener(dest, origin, sendingModem, value["add"], dest, port, value["port"], ID, lieAdd)
 		end
 	end
 	
 	for key, value in pairs(nodes[dest]["parents"]) do
 		for key2, value2 in pairs(nodes[key]["parents"]) do
 			if nodes[key2]["parents"][0.0] then
-				return routeOpener(dest, origin, sendingModem, value2["add"], value["add"], port, value2["port"], ID)
+				return routeOpener(dest, origin, sendingModem, value2["add"], value["add"], port, value2["port"], ID, lieAdd)
 			end
 		end
 	end
@@ -204,7 +215,7 @@ end
 handler.RegisterNode = function (sendingModem, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, port, childTier)
-	transmitInformation(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
+	transInfo(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do
 		if value["tier"] >= childTier then
 			nodes[childGA]["children"][key] = value
