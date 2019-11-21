@@ -115,11 +115,7 @@ local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
 	connections[connectDex]["dest"]=dest
 	connections[connectDex]["ID"]=ID
 	connections[connectDex]["nextHop"]=nextHop
-	if nextHop ~= iAdd then
-		connections[connectDex]["data"]={}
-		connections[connectDex]["order"]=1
-		connections[connectDex]["port"]=port
-	end
+	connections[connectDex]["port"]=port
 end
 
 local function transInfo(sendTo, port, ...)
