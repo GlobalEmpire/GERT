@@ -1,4 +1,4 @@
--- GERT v1.2 Build 3
+-- GERT v1.2 Build 4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -130,7 +130,7 @@ handler.NewNode = function (sendingModem, port)
 	transInfo(sendingModem, port, "RETURNSTART", iAdd, tier)
 end
 
-local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
+local function routeOpener(dest, origin, bHop, nextHop, intermediary, recPort, transPort, ID)
 	local function sendOKResponse(isDestination)
 		transInfo(bHop, recPort, "RouteOpen", dest, origin)
 		if isDestination then
@@ -140,7 +140,7 @@ local function routeOpener(dest, origin, bHop, nextHop, recPort, transPort, ID)
 	end
 	if iAdd ~= dest then
 		local response
-		transInfo(nextHop, transPort, "OpenRoute", dest, "a", origin, ID)
+		transInfo(nextHop, transPort, "OpenRoute", dest, intermediary, origin, ID)
 		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (dest == pktDest) and (origin == pktOrig) then
 				response = code
@@ -164,7 +164,9 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	if not nodes[intermediary] then
 		return routeOpener(dest, origin, sendingModem, firstN["add"], port, firstN["port"], ID)
 	end
-	routeOpener(dest, origin, sendingModem, nodes[intermediary]["add"], port, nodes[intermediary]["port"], ID)
+	local nextHop = string.sub(intermediary, 1, string.find(intermediary, "|")-1)
+	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
+	return routeOpener(dest, origin, sendingModem, nextHop, intermediary, port, nodes[nextHop]["port"], ID)
 end
 
 handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)

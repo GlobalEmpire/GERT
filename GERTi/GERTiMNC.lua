@@ -1,4 +1,4 @@
--- GERT v1.2 Build 2
+-- GERT v1.2 Build 4
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -98,8 +98,6 @@ local function storeChild(rAddress, port, tier)
 	nodes[childGA]["add"] = rAddress
 	nodes[childGA]["tier"] = tonumber(tier)
 	nodes[childGA]["port"] = tonumber(port)
-	nodes[childGA]["parents"] = {}
-	nodes[childGA]["children"]={}
 	return childGA
 end
 
@@ -189,23 +187,28 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 		dest = string.sub(dest, 1, string.find(dest, ":"))
 	end
 	
-	if nodes[dest]["parents"][0.0] then
+	if nodes[dest][0.0] then
 		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
 	end
 	
-	for key, value in pairs(nodes[dest]["parents"]) do
-		if nodes[key]["parents"][0.0] then
-			return routeOpener(dest, origin, sendingModem, value["add"], dest, port, value["port"], ID, lieAdd)
-		end
-	end
-	
-	for key, value in pairs(nodes[dest]["parents"]) do
-		for key2, value2 in pairs(nodes[key]["parents"]) do
-			if nodes[key2]["parents"][0.0] then
-				return routeOpener(dest, origin, sendingModem, value2["add"], value["add"], port, value2["port"], ID, lieAdd)
+	local interTier = 1000
+	local nodeDex = dest
+	local intermediary = ""
+	while interTier > 0 do
+		for i=1, nodes[nodeDex]["tier"] do
+			if nodes[nodeDex][i] then
+				for z=i, nodes[nodeDex]["tier"] do
+					intermediary = intermediary..nodes[nodeDex][i][z].."|"
+					interTier = nodes[nodeDex][i]
+					break
+				end
+				break
 			end
 		end
 	end
+	local nextHop = string.sub(intermediary, 1, string.find(intermediary, "|")-1)
+	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
+	return routeOpener(dest, origin, sendingModem, nextHop, intermediary, port, nodes[nextHop]["port"], ID, lieAdd)
 end
 
 handler.RegisterNode = function (sendingModem, port, originatorAddress, childTier, childTable)
@@ -213,26 +216,10 @@ handler.RegisterNode = function (sendingModem, port, originatorAddress, childTie
 	childGA = storeChild(originatorAddress, port, childTier)
 	transInfo(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do
-		if value["tier"] >= childTier then
-			nodes[childGA]["children"][key] = value
-			if nodes[key]["tier"] > childTier then
-				nodes[key]["parents"][childGA]={}
-				nodes[key]["parents"][childGA]["add"] = nodes[childGA]["add"]
-				nodes[key]["parents"][childGA]["port"] = nodes[childGA]["port"]
-				nodes[key]["parents"][childGA]["tier"] = nodes[childGA]["tier"]
-			else
-				nodes[key]["children"][childGA]={}
-				nodes[key]["children"][childGA]["add"] = nodes[childGA]["add"]
-				nodes[key]["children"][childGA]["port"] = nodes[childGA]["port"]
-				nodes[key]["children"][childGA]["tier"] = nodes[childGA]["tier"]
-			end
-		elseif key ~= 0.0 then
-			nodes[childGA]["parents"][key] = value
-			nodes[key]["children"][childGA]={}
-			nodes[key]["children"][childGA]["add"] = nodes[childGA]["add"]
-			nodes[key]["children"][childGA]["port"] = nodes[childGA]["port"]
-			nodes[key]["children"][childGA]["tier"] = nodes[childGA]["tier"]
+		if not nodes[childGA][value["tier"]] then
+			nodes[childGA][value["tier"]] = {}
 		end
+		nodes[childGA][value["tier"]][key] = key
 	end
 end
 
