@@ -1,4 +1,4 @@
--- GERT v1.0 - Release
+-- GERT v1.2 - Release
 local comp = require "component"
 local os = require "os"
 local filesystem = require "filesystem"

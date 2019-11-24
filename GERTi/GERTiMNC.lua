@@ -1,4 +1,4 @@
--- GERT v1.2 Build 4
+-- GERT v1.2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -154,18 +154,10 @@ local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort
 	print("Opening Route")
     local function sendOKResponse()
 		transInfo(bHop, recPort, "RouteOpen", dest, origin)
-		storeConnection(origin, ID, dest, nextHop, port, lieAdd)
+		storeConnection(origin, ID, dest, nextHop, transPort, lieAdd)
 	end
 	
-    if not string.find(dest, ":") then
-		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
-		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
-			if (dest == pktDest) and (origin == pktOrig) then
-				sendOKResponse()
-				return true
-			end
-		end, function () end)
-	elseif string.sub(dest, 1, string.find(dest, ":"))== gAddress then
+	if lieAdd or (not string.find(tostring(dest), ":")) then
 		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
 		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
 			if (dest == pktDest) and (origin == pktOrig) then
@@ -180,35 +172,37 @@ end
 
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	local lieAdd
-	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))~= gAddress then
-		return routeOpener(dest, origin, sendingModem, modem.address, modem.address, port, port, ID)
-	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))== gAddress then
-		lieAdd = dest
+	dest = tostring(dest)
+	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))~= tostring(gAddress) then
+		return routeOpener(tonumber(dest), origin, sendingModem, modem.address, modem.address, port, port, ID)
+	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))== tostring(gAddress) then
+		lieAdd = tonumber(dest)
 		dest = string.sub(dest, 1, string.find(dest, ":"))
 	end
-	
+	dest = tonumber(dest)
 	if nodes[dest][0.0] then
 		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
 	end
 	
 	local interTier = 1000
 	local nodeDex = dest
-	local intermediary = ""
-	while interTier > 0 do
+	local inter = ""
+	while interTier > 1 do
 		for i=1, nodes[nodeDex]["tier"] do
 			if nodes[nodeDex][i] then
-				for z=i, nodes[nodeDex]["tier"] do
-					intermediary = intermediary..nodes[nodeDex][i][z].."|"
-					interTier = nodes[nodeDex][i]
+				for key,value in pairs(nodes[nodeDex][i]) do
+					inter = value.."|"..inter
+					interTier = i
+					nodeDex = value
 					break
 				end
 				break
 			end
 		end
 	end
-	local nextHop = string.sub(intermediary, 1, string.find(intermediary, "|")-1)
-	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-	return routeOpener(dest, origin, sendingModem, nextHop, intermediary, port, nodes[nextHop]["port"], ID, lieAdd)
+	local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1))
+	inter = string.sub(inter, string.find(inter, "|")+1)
+	return routeOpener(dest, origin, sendingModem, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd)
 end
 
 handler.RegisterNode = function (sendingModem, port, originatorAddress, childTier, childTable)

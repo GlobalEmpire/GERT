@@ -1,4 +1,4 @@
--- GERT v1.2 Build 4
+-- GERT v1.2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -26,7 +26,7 @@ local iAdd = nil
 local tier = 3
 -- nodes[GERTi]{"add", "port", "tier"}, "add" is modem
 local nodes = {}
-local firstN = {["tier"]=4}
+local firstN = {}
 
 -- connections[connectDex][data/order] Connections are established at any point along a route
 local connections = {}
@@ -63,7 +63,7 @@ end
 
 local function storeNodes(gAddress, sendingModem, port, nTier)
 	nodes[gAddress] = {add = sendingModem, port = tonumber(port), tier = nTier}
-	if nTier < firstN["tier"] then
+	if (not firstN["tier"]) or nTier < firstN["tier"] then
 		tier = nTier+1
 		firstN = nodes[gAddress]
 		firstN["gAdd"] = gAddress
@@ -120,9 +120,11 @@ handler.Data = function (sendingModem, port, data, connectDex, order, origin)
 		return computer.pushSignal("GERTData", origin, -1, data)
 	end
 	if connections[connectDex] then
-		storeData(connectDex, data, order)
-	else
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connectDex, order)
+		if connections[connectDex]["dest"] == iAdd then
+			storeData(connectDex, data, order)
+		else
+			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connectDex, order)
+		end
 	end
 end
 
@@ -136,7 +138,7 @@ local function routeOpener(dest, origin, bHop, nextHop, intermediary, recPort, t
 		if isDestination then
 			computer.pushSignal("GERTConnectionID", origin, ID)
 		end
-		storeConnection(origin, ID, dest, nextHop, port)
+		storeConnection(origin, ID, dest, nextHop, transPort)
 	end
 	if iAdd ~= dest then
 		local response
@@ -156,17 +158,17 @@ local function routeOpener(dest, origin, bHop, nextHop, intermediary, recPort, t
 end
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	if dest == iAdd then
-		return routeOpener(iAdd, origin, sendingModem, nil, port, nil, ID)
+		return routeOpener(iAdd, origin, sendingModem, nil, nil, port, nil, ID)
 	end
 	if nodes[dest] then
-		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], port, nodes[dest]["port"], ID)
+		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nil, port, nodes[dest]["port"], ID)
 	end
 	if not nodes[intermediary] then
-		return routeOpener(dest, origin, sendingModem, firstN["add"], port, firstN["port"], ID)
+		return routeOpener(dest, origin, sendingModem, firstN["add"], nil, port, firstN["port"], ID)
 	end
-	local nextHop = string.sub(intermediary, 1, string.find(intermediary, "|")-1)
+	local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-	return routeOpener(dest, origin, sendingModem, nextHop, intermediary, port, nodes[nextHop]["port"], ID)
+	return routeOpener(dest, origin, sendingModem, nodes[nextHop]["add"], intermediary, port, nodes[nextHop]["port"], ID)
 end
 
 handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)
@@ -279,9 +281,9 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	if nodes[gAddress] then
 		port = nodes[gAddress]["port"]
 		add = nodes[gAddress]["add"]
-		routeOpener(gAddress, iAdd, "A", nodes[gAddress]["add"], nodes[gAddress]["port"], nodes[gAddress]["port"], outID)
+		routeOpener(gAddress, iAdd, "A", nodes[gAddress]["add"], nil, nodes[gAddress]["port"], nodes[gAddress]["port"], outID)
 	else
-		if not routeOpener(gAddress, iAdd, "A", firstN["add"], firstN["port"], firstN["port"], outID) then
+		if not routeOpener(gAddress, iAdd, nil, firstN["add"], nil, firstN["port"], firstN["port"], outID) then
 			return nil
 		end
 	end
