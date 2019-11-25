@@ -153,7 +153,7 @@ end
 local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
     local function sendOKResponse()
-		transInfo(bHop, recPort, "RouteOpen", dest, origin)
+		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin)
 		storeConnection(origin, ID, dest, nextHop, transPort, lieAdd)
 	end
 	
@@ -173,11 +173,11 @@ end
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	local lieAdd
 	dest = tostring(dest)
-	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))~= tostring(gAddress) then
+	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) then
 		return routeOpener(tonumber(dest), origin, sendingModem, modem.address, modem.address, port, port, ID)
-	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":"))== tostring(gAddress) then
-		lieAdd = tonumber(dest)
-		dest = string.sub(dest, 1, string.find(dest, ":"))
+	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then
+		lieAdd = dest
+		dest = string.sub(dest, string.find(dest, ":")+1)
 	end
 	dest = tonumber(dest)
 	if nodes[dest][0.0] then
@@ -248,7 +248,7 @@ local function readGMessage()
 		end
 		errC, message = pcall(GERTe.parse)
 	end
-	if errC then
+	if errC ~= true then
 		print("GERTe has closed the connection")
 		event.cancel(timerID)
 		GERTe = nil
