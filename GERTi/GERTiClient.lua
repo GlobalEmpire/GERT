@@ -333,6 +333,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.2 Build 3", "1.2.3"
+	return "v1.2", "1.2"
 end
 return GERTi
