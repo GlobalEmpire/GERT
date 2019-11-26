@@ -79,7 +79,7 @@ Connection::~Connection() {
 #ifdef WIN32
 	closesocket(sock);
 #else
-	close(sock);
+	::close(sock);
 #endif
 }
 

@@ -1,11 +1,11 @@
--- Tested with GERTi v1.1
+-- Tested with GERTi v1.2
 -- This provides a very simple chat program between 3 GERTi Clients to demonstrate network functionality. If communication between only two computers is desired, please comment out lines 8, 11, 24-25, 31, and 35. 
 -- The GERTi addresses must be configured manually as this is a very simple program. The UI is terrible, but a better chat program can be found at https://github.com/GlobalEmpire/OC-Programs/tree/master/Programs/OpenChat
 local event = require("event")
 local GERTi = require("GERTiClient")
 local term = require("term")
-local socket1 = GERTi.openSocket(0.2, true, 1)
-local socket2 = GERTi.openSocket(0.3, true, 1)
+local socket1 = GERTi.openSocket(0.2, 1)
+local socket2 = GERTi.openSocket(0.3, 1)
 local function incomingConnection()
 	socket1:read()
 	socket2:read()

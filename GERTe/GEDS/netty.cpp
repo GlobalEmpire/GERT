@@ -224,7 +224,7 @@ void buildWeb() {
 
 #ifndef _WIN32
 		int opt = 3;
-		setsockopt(*newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
+		setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
 #endif
 
 		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);

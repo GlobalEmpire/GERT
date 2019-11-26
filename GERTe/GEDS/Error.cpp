@@ -36,7 +36,9 @@ void inline cleanup(HLOCAL buffer) {
 		formaterror();
 }
 #else
-void(*socketError)(std::string) = generalError; //Rerouted to minimize code size and overhead
+void socketError(std::string prefix) {
+	printError(errno, prefix);
+}
 #endif
 
 void generalError(std::string prefix) {
