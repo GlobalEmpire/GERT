@@ -9,8 +9,6 @@ typedef unsigned short USHORT;
 typedef unsigned long long SOCKET;
 #else
 typedef int SOCKET;
-#else
-typedef unsigned long long SOCKET;
 #endif
 
 void runServer();

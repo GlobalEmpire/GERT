@@ -60,7 +60,6 @@ void removeTracker(SOCKET fd, Poll* context) {
 		i++;
 	}
 }
-#endif
 
 Poll::Poll() {
 #ifndef _WIN32

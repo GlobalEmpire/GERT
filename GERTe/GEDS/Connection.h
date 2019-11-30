@@ -8,10 +8,6 @@ static unsigned long nonZero = 1;
 typedef int SOCKET;
 #endif
 
-#ifdef _WIN32
-static unsigned long nonZero = 1;
-#endif
-
 class Connection {
 protected:
 	Connection(SOCKET, std::string);

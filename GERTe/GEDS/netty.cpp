@@ -199,7 +199,6 @@ void runServer() { //Listen for new connections
 			close(newSock);
 #endif
 		}
-		catch (int e) {}
 	}
 }
 
