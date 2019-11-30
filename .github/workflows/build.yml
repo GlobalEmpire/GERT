@@ -1,0 +1,32 @@
+name: GEDS Build Check
+
+on: [pull_request]
+
+jobs:
+
+  build-linux:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Make Debug
+      working-directory: GERTe
+      run: make debug
+    - name: Make Release
+      working-directory: GERTe
+      run: make
+      
+  build-windows:
+    
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Make Debug
+        working-directory: GERTe
+        run: cl /GF /fp:fast /Gw /Gy /Zf /Zi /MTd /std:c++latest /FeGEDSvAUTOd.exe GEDS/*.cpp
+      - name: Make Release
+        working-directory: GERTe
+        run: cl /O2 /GL /Gw /Gy /MP /MT /fp:fast /std:c++latest /FeGEDSvAUTO.exe GEDS/*.cpp
