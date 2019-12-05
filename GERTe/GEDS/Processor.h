@@ -1,11 +1,15 @@
 #include "Connection.h"
 #include "Poll.h"
 
+namespace std {
+	struct thread;
+}
+
 class Processor {
 	Poll * poll;
 
 	unsigned int poolsize;
-	void * pool;
+	std::thread * pool;
 public:
 	Processor(Poll *);
 	~Processor();

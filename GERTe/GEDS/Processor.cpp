@@ -6,10 +6,7 @@
 
 #include "Processor.h"
 #include "Poll.h"
-#include <type_traits>
 #include <thread>
-
-extern volatile bool running;
 
 #ifdef _WIN32
 void apc([[maybe_unused]]ULONG_PTR s) {}
@@ -29,27 +26,21 @@ Processor::Processor(Poll * poll) : poll(poll) {
 	if (poolsize == 0)
 		poolsize = 1;
 
-	std::thread* threadp = new std::thread[poolsize];
+	pool = new std::thread[poolsize];
 
 	for (unsigned int i = 0; i < poolsize; i++)
-		threadp[i] = std::thread{ &Poll::wait, poll };
-
-	pool = threadp;
+		pool[i] = std::thread{ &Poll::wait, poll };
 }
 
 Processor::~Processor() {
-	std::thread* threadp = (std::thread*)pool;
-
 	for (unsigned int i = 0; i < poolsize; i++) {
-		interrupt(threadp[i]);
-		threadp[i].join();
+		interrupt(pool[i]);
+		pool[i].join();
 	}
-	delete threadp;
+	delete pool;
 }
 
 void Processor::update() {
-	std::thread* threadp = (std::thread*)pool;
-
 	for (unsigned int i = 0; i < poolsize; i++)
-		interrupt(threadp[i]);
+		interrupt(pool[i]);
 }

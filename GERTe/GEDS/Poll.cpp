@@ -21,6 +21,7 @@ extern volatile bool running;
 thread_local SOCKET this_sock = INVALID_SOCKET;
 
 #ifndef _WIN32
+bool init = false;
 sigset_t mask;
 #endif
 
@@ -57,12 +58,11 @@ inline INet* Poll::WSALoop() {
 }
 #else
 inline INet* Poll::linuxLoop() {
-	INet* obj;
 	epoll_event eEvent;
 
 	if (epoll_pwait(efd, &eEvent, 1, -1, &mask) == -1)
 		if (errno == EINTR)
-			obj = nullptr;
+			return nullptr;
 		else
 			throw errno;
 
@@ -74,8 +74,12 @@ Poll::Poll() {
 #ifndef _WIN32
 	efd = epoll_create(1);
 
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGUSR1);
+	if (!init) {
+		sigemptyset(&mask);
+		sigaddset(&mask, SIGUSR1);
+
+		init = true;
+	}
 #endif
 }
 
@@ -95,15 +99,14 @@ void Poll::add(INet * ptr) { //Adds the file descriptor to the pollset and track
 
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, ptr->sock, &newEvent) == -1)
 		throw errno;
-
-	tracker.push_back(ptr);
 #else
 	WSAEVENT e = WSACreateEvent();
 	WSAEventSelect(ptr->sock, e, FD_READ | FD_ACCEPT | FD_CLOSE);
 
-	tracker.push_back(ptr);
 	events.push_back(e);
 #endif
+
+	tracker.push_back(ptr);
 }
 
 void Poll::remove(SOCKET target) {
@@ -148,7 +151,7 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 #endif
 		if (obj == nullptr)
 			return;
-		else if (HAS_DATA(obj))
+		else if (!(HAS_DATA(obj)))
 			delete obj;
 		else {
 			this_sock = obj->sock;
