@@ -157,10 +157,10 @@ int main( int argc, char* argv[] ) {
 		crash(ErrorCode::KEY_LOAD_ERROR);
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process
-	startup(); //Startup server sockets
+	startup(gatewayPort, peerPort); //Startup server sockets
 
 	debug("Building peer web"); //Use debug to notify user where we are in the loading process
-	buildWeb(); //Connect to online peers and update connection database
+	buildWeb(LOCAL_IP); //Connect to online peers and update connection database
 
 	running = true; //We've officially started running! SIGINT is now not evil!
 

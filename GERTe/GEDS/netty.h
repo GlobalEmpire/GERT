@@ -13,9 +13,9 @@ typedef int SOCKET;
 
 void runServer();
 
-void startup();
+void startup(unsigned short, unsigned short);
 void cleanup();
 void killConnections();
 void processGateways();
 void processPeers();
-void buildWeb();
+void buildWeb(char *);

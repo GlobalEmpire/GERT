@@ -83,7 +83,7 @@ bool IConsumer::querySocket() {
 	if (ioctlsocket(sock, FIONREAD, &data) == SOCKET_ERROR)
 		return false;
 #else
-	if (ioctl(sock, SIOCINQ, &data) == -1)
+	if (ioctl(sock, FIONREAD, &data) == -1)
 		return false;
 #endif
 	return data > 0;

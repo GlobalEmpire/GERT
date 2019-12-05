@@ -20,9 +20,6 @@ Poll netPoll;
 Processor* proc;
 
 extern volatile bool running;
-extern unsigned short gatewayPort;
-extern unsigned short peerPort;
-extern char * LOCAL_IP;
 extern vector<UGateway*> noAddrList;
 extern map<IP, Peer*> peers;
 extern std::map<Address, Gateway*> gateways;
@@ -44,7 +41,7 @@ void killConnections() {
 }
 
 //PUBLIC
-void startup() {
+void startup(unsigned short gatewayPort, unsigned short peerPort) {
 	//Server construction
 #ifdef _WIN32 //If compiled for Windows
 	WSADATA socketConfig; //Construct WSA configuration destination
@@ -88,7 +85,7 @@ void runServer() { //Listen for new connections
 #endif
 }
 
-void buildWeb() {
+void buildWeb(char * LOCAL_IP) {
 	for (map<IP, Ports>::iterator iter = peerList.begin(); iter != peerList.end(); iter++) {
 		IP ip = iter->first;
 		Ports ports = iter->second;

@@ -31,7 +31,7 @@ constexpr unsigned int iplen = sizeof(sockaddr);
 
 Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
 	sockaddr_in remoteip;
-	int temp = iplen;
+	socklen_t temp = iplen;
 	getpeername(newSocket, (sockaddr*)&remoteip, &temp);
 	ip = IP{ remoteip.sin_addr };
 
