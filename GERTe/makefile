@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-c
-LFLAGS=-lpthread
+LFLAGS=-pthread
 VERS=1.1
 
 default: build clean
