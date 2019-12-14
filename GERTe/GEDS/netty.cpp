@@ -70,12 +70,12 @@ void cleanup() {
 
 //PUBLIC
 void runServer() { //Listen for new connections
-	debug("Starting message processor");
-	proc = new Processor{ &netPoll };
-
 	debug("Starting connection processor");
 	gateServer->start();
 	peerServer->start();
+
+	debug("Starting message processor");
+	proc = new Processor{ &netPoll };
 
 	debug("Main thread going to sleep");
 #ifdef _WIN32
