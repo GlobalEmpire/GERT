@@ -37,7 +37,7 @@ bool IConsumer::consume(int num, bool string) {
 	int len = recv(sock, buf + bufsize, num - bufsize, 0);
 
 	if (len == -1) {
-		error(socketError("Error reading socket data: "));
+		error(socketError("Error reading socket data: "), false);
 		return false;
 	}
 

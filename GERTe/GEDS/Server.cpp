@@ -28,8 +28,14 @@ Server::Server(unsigned short port, Server::Type type) : type{ type }, INet{ INe
 
 	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	if (::bind(sock, (sockaddr*)& info, sizeof(sockaddr_in)) != 0 && errno == EADDRINUSE) {
-		error("Port " + std::to_string(port) + " is in use");
+	int res = ::bind(sock, (sockaddr*)&info, sizeof(sockaddr_in));
+
+	if (res != 0 && errno == EADDRINUSE) {
+		if (errno == EADDRINUSE)
+			error("Port " + std::to_string(port) + " is in use");
+		else
+			error(socketError("Error while starting the listen server: "), false);
+
 		crash(ErrorCode::LIBRARY_ERROR);
 	}
 }
@@ -50,7 +56,7 @@ void Server::process() {
 	SOCKET newSock = accept(sock, NULL, NULL);
 
 	if (newSock == -1) {
-		error(socketError("Error accepting a new connection: "));
+		error(socketError("Error accepting a new connection: "), false);
 		return;
 	}
 
@@ -82,6 +88,6 @@ void Server::process() {
 		close(newSock);
 #endif
 
-		error(socketError("Error accepting new connection: "));
+		error(socketError("Error accepting new connection: "), false);
 	}
 }
