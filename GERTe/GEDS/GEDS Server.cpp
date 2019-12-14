@@ -116,7 +116,8 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 
 int main( int argc, char* argv[] ) {
 
-	cout << "GEDS Server v" << ThisVersion.stringify() << endl; //Print version information
+	cout << "GEDS Server v1.1.1" << endl; //Print version information
+	cout << "GERTe v" << ThisVersion.stringify() << endl;
 	cout << "Written by Tyler Kuhn (TYKUHN2)" << endl;			//Print author information
 	cout << "Copyright 2017-2019" << endl;						//Print simple copyright information
 

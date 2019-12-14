@@ -40,7 +40,7 @@ std::string inline printError(int code, std::string msg) { //Inlined to minimize
 
 	return msg;
 #else
-	return msg + std::to_string(code);
+	return msg + std::to_string(code) + "\n";
 #endif
 }
 
