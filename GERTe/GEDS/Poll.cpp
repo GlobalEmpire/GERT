@@ -141,14 +141,14 @@ void Poll::remove(SOCKET target) {
 }
 
 void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Event_Data for a single event
-	while (true) {
+	while (running) {
 #ifndef _WIN32
 		INet* obj = linuxLoop();
 #else
 		INet * obj = WSALoop();
 #endif
 		if (obj == nullptr)
-			return;
+			continue;
 		else if (obj->type == INet::Type::CONNECT && !((IConsumer*)obj)->querySocket())
 			delete obj;
 		else {
