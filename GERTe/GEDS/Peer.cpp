@@ -16,6 +16,7 @@ typedef int socklen_t;
 #include "NetString.h"
 #include "Versioning.h"
 #include "RGateway.h"
+#include "Error.h"
 #include <map>
 
 using namespace std;
@@ -77,7 +78,7 @@ Peer::Peer(IP target, unsigned short port) : ip(target) {				// Outgoing peer co
 	int result = connect(sock, (sockaddr*)& addrFormat, iplen);
 
 	if (result != 0) {
-		warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
+		warn(socketError("Failed to connect to " + ip.stringify() + ": "), false);
 		throw 1;
 	}
 

@@ -48,7 +48,7 @@ void startup(unsigned short gatewayPort, unsigned short peerPort) {
 	int res = WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
 
 	if (res != 0) {
-		knownError(res, "Cannot start networking: ");
+		error(knownError(res, "Cannot start networking: "));
 		crash(ErrorCode::LIBRARY_ERROR);
 	}
 #endif

@@ -4,69 +4,56 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <WinSock2.h>
+
+#define GET_SOCK_ERROR WSAGetLastError()
+#define GET_GEN_ERROR GetLastError()
 #else
 #include <errno.h>
+
+#define GET_SOCK_ERROR errno
+#define GET_GEN_ERROR errno
 #endif
-
-thread_local bool recursionCheck = false;
-
-void inline printError(int, std::string); //Fixes circular dependency
 
 #ifdef _WIN32
-void inline formaterror() {
-	if (recursionCheck) {
-		error("Whoops! Looping in error handling function. Passing the code to terminate.");
-		errno = GetLastError();
-		terminate();
-	}
-
-	recursionCheck = true;
-	printError(GetLastError(), "Error when parsing a previous error: ");
-	recursionCheck = false;
-}
-
-void inline cleanup(HLOCAL buffer) {
-	HLOCAL result = LocalFree(buffer);
-	
-	if (result != NULL)
-		formaterror();
+[[noreturn]]
+void formaterror() {
+	error("Whoops! Error in error handling. Passing code to terminate");
+	errno = GetLastError();
+	terminate();
 }
 #endif
 
-void socketError(std::string prefix) {
-#ifdef _WIN32
-	printError(WSAGetLastError(), prefix);
-#else
-	printError(errno, prefix);
-#endif
-}
-
-void generalError(std::string prefix) {
-#ifdef _WIN32
-	printError(GetLastError(), prefix);
-#else
-	printError(errno, prefix);
-#endif
-}
-
-void knownError(int code, std::string prefix) {
-	printError(code, prefix);
-}
-
-void inline printError(int code, std::string prefix) { //Inlined to minimize overhead
+std::string inline printError(int code, std::string msg) { //Inlined to minimize overhead
 #ifdef _WIN32
 	LPSTR err = NULL;
 	int result = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, 0, (LPSTR)&err, 0, NULL);
 
 	if (result == 0)
 		formaterror();
-	else
-		error(prefix + err, false);
 
-	cleanup(err);
+	msg = msg + err;
+
+	HLOCAL freeres = LocalFree(err);
+
+	if (freeres != NULL)
+		formaterror();
+
+	return msg;
 #else
-	error(prefix + std::to_string(code));
+	return msg + std::to_string(code);
 #endif
+}
+
+std::string socketError(std::string prefix) {
+	return printError(GET_SOCK_ERROR, prefix);
+}
+
+std::string generalError(std::string prefix) {
+	return printError(GET_GEN_ERROR, prefix);
+}
+
+std::string knownError(int code, std::string prefix) {
+	return printError(code, prefix);
 }
 
 [[noreturn]]

@@ -7,8 +7,8 @@ enum class ErrorCode {
 	GENERAL_ERROR
 };
 
-void socketError(std::string);
-void generalError(std::string);
-void knownError(int, std::string);
+std::string socketError(std::string);
+std::string generalError(std::string);
+std::string knownError(int, std::string);
 
 void crash(ErrorCode);

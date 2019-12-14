@@ -36,7 +36,7 @@ inline INet* Poll::WSALoop() {
 			if (result == WSA_WAIT_FAILED) {
 				int err = WSAGetLastError();
 				if (err != WSA_INVALID_HANDLE)
-					knownError(err, "Socket poll error: ");
+					error(knownError(err, "Socket poll error: "));
 			}
 			else if (result != WSA_WAIT_IO_COMPLETION) {
 				int offset = result - WSA_WAIT_EVENT_0;

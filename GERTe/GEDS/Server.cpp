@@ -50,7 +50,7 @@ void Server::process() {
 	SOCKET newSock = accept(sock, NULL, NULL);
 
 	if (newSock == -1) {
-		socketError("Error accepting a new connection: ");
+		error(socketError("Error accepting a new connection: "));
 		return;
 	}
 
@@ -82,6 +82,6 @@ void Server::process() {
 		close(newSock);
 #endif
 
-		socketError("Error accepting new connection: ");
+		error(socketError("Error accepting new connection: "));
 	}
 }
