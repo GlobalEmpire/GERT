@@ -30,7 +30,7 @@ Server::Server(unsigned short port, Server::Type type) : type{ type }, INet{ INe
 
 	int res = ::bind(sock, (sockaddr*)&info, sizeof(sockaddr_in));
 
-	if (res != 0 && errno == EADDRINUSE) {
+	if (res != 0) {
 		if (errno == EADDRINUSE)
 			error("Port " + std::to_string(port) + " is in use");
 		else
@@ -49,7 +49,12 @@ Server::~Server() {
 }
 
 void Server::start() { 
-	listen(sock, SOMAXCONN);
+	int res = listen(sock, SOMAXCONN);
+
+	if (res != 0) {
+		error(socketError("Error while starting the listen server: "), false);
+		crash(ErrorCode::LIBRARY_ERROR);
+	}
 }
 
 void Server::process() {
