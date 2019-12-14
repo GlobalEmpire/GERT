@@ -14,8 +14,6 @@
 #include <mutex>
 #endif
 
-#define HAS_DATA(obj) obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->querySocket()
-
 extern volatile bool running;
 
 thread_local SOCKET this_sock = INVALID_SOCKET;
@@ -151,7 +149,7 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 #endif
 		if (obj == nullptr)
 			return;
-		else if (!(HAS_DATA(obj)))
+		else if (obj->type == INet::Type::CONNECT && !((IConsumer*)obj)->querySocket())
 			delete obj;
 		else {
 			this_sock = obj->sock;
@@ -160,7 +158,7 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 			obj->process();
 
 			if (this_sock != INVALID_SOCKET) {
-				if (HAS_DATA(obj))
+				if (obj->type != INet::Type::CONNECT && ((IConsumer*)obj)->querySocket())
 					goto process;
 #ifdef _WIN32
 				obj->lock.unlock();

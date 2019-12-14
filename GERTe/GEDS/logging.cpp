@@ -25,14 +25,15 @@ string inline timeOut() {
 	return string{ time };
 }
 
-void inline doPrint(const string msg, const char type, bool newline) {
-	char* buf = new char[15 + msg.length()];
+void doPrint(const string msg, const char type, bool newline) {
+	std::string time = timeOut();
 
+	char* buf = new char[8 + time.length() + msg.length()];
 
 	if (newline)
-		sprintf(buf, "[%c][%s] %s\n", type, timeOut().c_str(), msg.c_str());
+		sprintf(buf, "[%c][%s] %s\n", type, time.c_str(), msg.c_str());
 	else
-		sprintf(buf, "[%c][%s] %s", type, timeOut().c_str(), msg.c_str());
+		sprintf(buf, "[%c][%s] %s", type, time.c_str(), msg.c_str());
 
 	if (type == 'E')
 		cerr << buf;
