@@ -25,10 +25,14 @@ string inline timeOut() {
 	return string{ time };
 }
 
-void inline doPrint(const string msg, const char type) {
+void inline doPrint(const string msg, const char type, bool newline) {
 	char* buf = new char[15 + msg.length()];
 
-	sprintf(buf, "[%c][%s] %s\n", type, timeOut().c_str(), msg.c_str());
+
+	if (newline)
+		sprintf(buf, "[%c][%s] %s\n", type, timeOut().c_str(), msg.c_str());
+	else
+		sprintf(buf, "[%c][%s] %s", type, timeOut().c_str(), msg.c_str());
 
 	if (type == 'E')
 		cerr << buf;
@@ -37,29 +41,25 @@ void inline doPrint(const string msg, const char type) {
 
 	if (logFile != nullptr)
 		fputs(buf, logFile);
+
+	delete[] buf;
 }
 
-void log(string msg) {
-	doPrint(msg, 'I');
+void log(string msg, bool newline) {
+	doPrint(msg, 'I', newline);
 }
 
-void warn(string msg) {
-	doPrint(msg, 'W');
+void warn(string msg, bool newline) {
+	doPrint(msg, 'W', newline);
 }
 
-void error(string msg) {
-	doPrint(msg, 'E');
+void error(string msg, bool newline) {
+	doPrint(msg, 'E', newline);
 }
 
-void error2(string msg) {
-	string log = "[E][" + timeOut() + "] " + msg;
-	cerr << log;
-	fputs(log.c_str(), logFile);
-}
-
-void debug(string msg) {
+void debug(string msg, bool newline) {
 	if (debugMode)
-		doPrint(msg, 'D');
+		doPrint(msg, 'D', newline);
 }
 
 void stopLog() {

@@ -61,7 +61,7 @@ void inline printError(int code, std::string prefix) { //Inlined to minimize ove
 	if (result == 0)
 		formaterror();
 	else
-		error2(prefix + err);
+		error(prefix + err, false);
 
 	cleanup(err);
 #else

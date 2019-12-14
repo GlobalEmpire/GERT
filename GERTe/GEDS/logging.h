@@ -1,10 +1,9 @@
 #pragma once
 #include <string>
 
-void log(std::string);
-void warn(std::string);
-void error(std::string);
-void error2(std::string);
-void debug(std::string);
+void log(std::string, bool = true);
+void warn(std::string, bool = true);
+void error(std::string, bool = true);
+void debug(std::string, bool = true);
 void startLog();
 void stopLog();
