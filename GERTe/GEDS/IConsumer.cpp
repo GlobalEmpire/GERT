@@ -99,6 +99,6 @@ bool IConsumer::isClosed() {
 
 	return events.lNetworkEvents & FD_CLOSE;
 #else
-	querySocket(); //Due to how epoll works, this is sufficient on Linux
+	return querySocket(); //Due to how epoll works, this is sufficient on Linux
 #endif
 }

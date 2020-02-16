@@ -163,7 +163,9 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 			if (this_sock != INVALID_SOCKET) {
 				if (obj->type != INet::Type::CONNECT && ((IConsumer*)obj)->querySocket())
 					goto process;
-#ifndef _WIN32
+#ifdef _WIN32
+				obj->lock.unlock();
+#else
 				epoll_event newEvent;
 				newEvent.events = EPOLLIN | EPOLLONESHOT;
 				newEvent.data.ptr = obj;
@@ -171,7 +173,6 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 				if (epoll_ctl(efd, EPOLL_CTL_MOD, obj->sock, &newEvent) == -1)
 					throw errno;
 #endif
-				obj->lock.unlock();
 			}
 
 			this_sock = INVALID_SOCKET;
