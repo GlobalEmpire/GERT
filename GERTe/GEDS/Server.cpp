@@ -83,6 +83,8 @@ void Server::process() {
 		netPoll.remove(sock);
 		netPoll.add(this);
 
+		lock.unlock();
+
 		proc->update();
 #endif
 	}

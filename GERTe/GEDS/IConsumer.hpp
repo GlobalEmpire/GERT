@@ -29,4 +29,5 @@ public:
 	char* buf = nullptr;					// Contains the current buffer or nullptr if there is none.
 
 	bool querySocket();
+	bool isClosed();
 };

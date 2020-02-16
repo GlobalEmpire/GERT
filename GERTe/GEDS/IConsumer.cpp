@@ -89,3 +89,16 @@ bool IConsumer::querySocket() {
 #endif
 	return data > 0;
 }
+
+bool IConsumer::isClosed() {
+#ifdef _WIN32
+	WSANETWORKEVENTS events;
+	events.lNetworkEvents = 0;
+
+	WSAEnumNetworkEvents(sock, NULL, &events);
+
+	return events.lNetworkEvents & FD_CLOSE;
+#else
+	querySocket(); //Due to how epoll works, this is sufficient on Linux
+#endif
+}

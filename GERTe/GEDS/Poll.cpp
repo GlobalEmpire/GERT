@@ -37,10 +37,12 @@ inline INet* Poll::WSALoop() {
 					error(knownError(err, "Socket poll error: "), false);
 			}
 			else if (result != WSA_WAIT_IO_COMPLETION) {
-				int offset = result - WSA_WAIT_EVENT_0;
+				result -= WSA_WAIT_EVENT_0;
 
-				if (offset < events.size()) {
-					INet* obj = tracker[offset];
+				if (result < events.size()) {
+					INet* obj = tracker[result];
+
+					WSAResetEvent(events[result]);
 
 					if (obj->lock.try_lock()) {
 						return obj;
@@ -149,20 +151,20 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 #endif
 		if (obj == nullptr)
 			continue;
-		else if (obj->type == INet::Type::CONNECT && !((IConsumer*)obj)->querySocket())
+		else if (obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->isClosed()) {
 			delete obj;
 		else {
+		}
+		else if ((obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->querySocket()) || obj->type == INet::Type::LISTEN) {
 			this_sock = obj->sock;
 
-			process:
+		process:
 			obj->process();
 
 			if (this_sock != INVALID_SOCKET) {
 				if (obj->type != INet::Type::CONNECT && ((IConsumer*)obj)->querySocket())
 					goto process;
-#ifdef _WIN32
-				obj->lock.unlock();
-#else
+#ifndef _WIN32
 				epoll_event newEvent;
 				newEvent.events = EPOLLIN | EPOLLONESHOT;
 				newEvent.data.ptr = obj;
@@ -170,7 +172,9 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 				if (epoll_ctl(efd, EPOLL_CTL_MOD, obj->sock, &newEvent) == -1)
 					throw errno;
 #endif
+				obj->lock.unlock();
 			}
+
 			this_sock = INVALID_SOCKET;
 		}
 	}
