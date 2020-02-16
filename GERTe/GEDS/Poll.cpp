@@ -153,7 +153,6 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 			continue;
 		else if (obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->isClosed()) {
 			delete obj;
-		else {
 		}
 		else if ((obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->querySocket()) || obj->type == INet::Type::LISTEN) {
 			this_sock = obj->sock;
