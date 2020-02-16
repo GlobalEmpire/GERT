@@ -66,7 +66,9 @@ inline INet* Poll::linuxLoop() {
 		else
 			throw errno;
 
-	return (INet*)eEvent.data.ptr;
+	INet* obj = (INet*)eEvent.data.ptr;
+	obj->epoll_events = eEvent.events;
+	return obj;
 }
 #endif
 
@@ -93,7 +95,7 @@ void Poll::add(INet * ptr) { //Adds the file descriptor to the pollset and track
 #ifndef _WIN32
 	epoll_event newEvent;
 
-	newEvent.events = EPOLLIN | EPOLLONESHOT;
+	newEvent.events = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
 
 	newEvent.data.ptr = ptr;
 

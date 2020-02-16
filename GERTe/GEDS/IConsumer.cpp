@@ -5,6 +5,7 @@
 #else
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/epoll.h>
 #endif
 
 #include "IConsumer.hpp"
@@ -99,6 +100,6 @@ bool IConsumer::isClosed() {
 
 	return events.lNetworkEvents & FD_CLOSE;
 #else
-	return querySocket(); //Due to how epoll works, this is sufficient on Linux
+	return epoll_events & EPOLLRDHUP;
 #endif
 }

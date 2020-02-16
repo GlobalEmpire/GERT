@@ -28,6 +28,8 @@ public:
 	std::mutex lock;						// Polls on Windows lock INet objects to ensure only a single thread uses it.
 
 	INet(const INet&) noexcept;				// Mutex containing objects need a special move constructor
+#else
+	unsigned int epoll_events;
 #endif
 
 	INet(INet::Type);						// Constructor for generic INet objects to force proper initalization
