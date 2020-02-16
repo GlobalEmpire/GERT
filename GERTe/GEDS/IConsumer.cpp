@@ -27,7 +27,7 @@ bool IConsumer::consume(int num, bool string) {
 		if (lastbuf == nullptr)
 			num += 1;
 		else
-			num = lastbuf[num];
+			num = lastbuf[num - 1];
 
 	if (buf == nullptr) {
 		buf = new char[num];
@@ -60,7 +60,7 @@ bool IConsumer::consume(int num, bool string) {
 
 				bufsize += lastbufsize;
 
-				delete[] buf;
+				delete[] temp;
 				delete[] lastbuf;
 				lastbuf = nullptr;
 			}

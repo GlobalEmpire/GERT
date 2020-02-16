@@ -71,7 +71,7 @@ Connection::~Connection() {
 
 bool Connection::negotiate(std::string derived) {
 	start:
-	if (vers[0] == 0)
+	if (vers[0] == 0) {
 		if (consume(2)) {
 			vers[0] = buf[0];
 			vers[1] = buf[1];
@@ -92,6 +92,7 @@ bool Connection::negotiate(std::string derived) {
 
 			goto start;
 		}
+	}
 	else {
 		if (vers[1] == 0) {
 			if (consume(1)) {
