@@ -26,17 +26,14 @@ extern std::map<Address, Gateway*> gateways;
 extern map<IP, Ports> peerList;
 
 void killConnections() {
-	for (std::pair<Address, Gateway*> pair : gateways) {
-		pair.second->close();
-		delete pair.second;
+	for (int i = 0; i < gateways.size(); i++) {
+		gateways.begin()->second->close();
 	}
-	for (std::pair<IP, Peer*> pair : peers) {
-		pair.second->close();
-		delete pair.second;
+	for (int i = 0; i < peers.size(); i++) {
+		peers.begin()->second->close();
 	}
-	for (UGateway* gate : noAddrList) {
-		gate->close();
-		delete gate;
+	for (int i = 0; i < noAddrList.size(); i++) {
+		noAddrList[0]->close();
 	}
 }
 
