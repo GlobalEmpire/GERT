@@ -98,7 +98,7 @@ void buildWeb(char * LOCAL_IP) {
 		}
 
 		try {
-			Peer newPeer{ ip, ports.peer };
+			new Peer{ ip, ports.peer };
 		}
 		catch ([[maybe_unused]] int e) {}
 	}
