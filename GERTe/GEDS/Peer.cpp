@@ -119,6 +119,8 @@ Peer::Peer(IP target, unsigned short port) : ip(target) {				// Outgoing peer co
 
 	setopts();
 
+	last = (char)GEDS::Commands::CLOSE;
+
 	netPoll.add(this);
 }
 
@@ -243,16 +245,17 @@ void Peer::process() {
 			Address target{ this, 0 };
 			clean();
 
+			string cmd;
+
 			if (Gateway::lookup(target)) {
-				string cmd = { (char)GEDS::Commands::REGISTERED };
-				cmd += target.tostring();
-				Gateway::sendTo(target, cmd);
+				cmd = { (char)GEDS::Commands::REGISTERED };
 			}
 			else {
-				string cmd = { (char)GEDS::Commands::UNREGISTERED };
-				cmd += target.tostring();
-				transmit(cmd);
+				cmd = { (char)GEDS::Commands::UNREGISTERED };
 			}
+
+			cmd += target.tostring();
+			transmit(cmd);
 
 			last = (char)GEDS::Commands::CLOSE;
 		}
