@@ -53,8 +53,6 @@ Peer::~Peer() { //Peer destructor
 	RGateway::clean(this);
 	peers.erase(ip);
 
-	netPoll.remove(sock);
-
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
