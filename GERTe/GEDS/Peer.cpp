@@ -53,6 +53,8 @@ Peer::~Peer() { //Peer destructor
 	RGateway::clean(this);
 	peers.erase(ip);
 
+	netPoll.remove(sock);
+
 	log("Peer " + ip.stringify() + " disconnected");
 }
 
@@ -236,6 +238,9 @@ void Peer::process() {
 		return;
 	case GEDS::Commands::CLOSE:
 		transmit(string({ (char)GEDS::Commands::CLOSE }));
+
+		lock.unlock();
+
 		delete this;
 		return;
 	case GEDS::Commands::QUERY:

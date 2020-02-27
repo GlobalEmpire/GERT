@@ -154,6 +154,9 @@ void Poll::wait() { //Awaits for an event on a file descriptor. Returns the Even
 		if (obj == nullptr)
 			continue;
 		else if (obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->isClosed()) {
+#ifdef _WIN32
+			obj->lock.unlock();
+#endif
 			delete obj;
 		}
 		else if ((obj->type == INet::Type::CONNECT && ((IConsumer*)obj)->querySocket()) || obj->type == INet::Type::LISTEN) {

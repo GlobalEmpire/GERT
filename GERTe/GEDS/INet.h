@@ -33,7 +33,7 @@ public:
 #endif
 
 	INet(INet::Type);						// Constructor for generic INet objects to force proper initalization
-	virtual ~INet();						// Virtual destructor to allow appropriate cleanup regardless of context
+	virtual ~INet() = default;				// Virtual destructor to allow appropriate cleanup regardless of context
 
 	virtual void process() = 0;				// Process network event
 };
