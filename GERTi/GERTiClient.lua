@@ -308,7 +308,7 @@ function GERTi.broadcast(data)
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
-		transInfo(nodes[dest]["add"], nodes[dest]["port"], "Data", data, dest, iAdd, -1)
+		transInfo(nodes[dest]["add"], nodes[dest]["port"], "Data", data, -1)
 	end
 end
 function GERTi.getConnections()
