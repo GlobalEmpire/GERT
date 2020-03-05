@@ -1,6 +1,9 @@
 name: GEDS Build Check
 
-on: [pull_request]
+on:
+  push:
+    paths:
+    - 'GERTe/GEDS/**'
 
 jobs:
 
