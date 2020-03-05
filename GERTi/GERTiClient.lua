@@ -308,7 +308,7 @@ function GERTi.broadcast(data)
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" or type(data) ~= "function") then
-		transInfo(nodes[dest]["add"], nodes[dest]["port"], "Data", data, -1)
+		transInfo(nodes[dest]["add"], nodes[dest]["port"], "Data", data, -1, 0, iAdd)
 	end
 end
 function GERTi.getConnections()
@@ -333,6 +333,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.2", "1.2"
+	return "v1.2.1", "1.2.1"
 end
 return GERTi
