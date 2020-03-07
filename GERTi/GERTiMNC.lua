@@ -103,6 +103,7 @@ end
 
 local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
 	local connectDex
+	ID = math.floor(ID)
 	if lieAdd then
 		connectDex = origin.."|"..lieAdd.."|"..ID
 	else
