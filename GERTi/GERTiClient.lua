@@ -70,6 +70,7 @@ local function storeNodes(gAddress, sendingModem, port, nTier)
 	end
 end
 local function storeConnection(origin, ID, GAdd, nextHop, port)
+	ID = math.floor(ID)
 	local connectDex = origin.."|"..GAdd.."|"..ID
 	connections[connectDex] = {}
 	connections[connectDex]["origin"]=origin
@@ -278,6 +279,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	if not outID then
 		outID = #connections + 1
 	end
+	outID = math.floor(outID)
 	if nodes[gAddress] then
 		port = nodes[gAddress]["port"]
 		add = nodes[gAddress]["add"]
