@@ -1,0 +1,2 @@
+This is a version of the MNC that can be run as a RC Daemon. It must be placed in /etc/rc.d to work with the default RC configuration. If GERTe integration is desired, the GERTconfig.cfg file must go in /etc/GERTconfig.cfg.
+For autoload functionality on boot, install the GERTiRCMNC.lua file in /etc/rc.d, then type 'rc GERTiRCMNC enable' in the OpenOS Shell.
