@@ -1,11 +1,11 @@
--- GERT v1.2
+-- GERT v1.3 Build 1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local serialize = require("serialization")
-local modem = nil
-local tunnel = nil
+local modem
+local tunnel
 
 if (component.isAvailable("modem")) then
 	modem = component.modem
@@ -30,25 +30,8 @@ local firstN = {}
 
 -- connections[connectDex][data/order] Connections are established at any point along a route
 local connections = {}
-
-local function addTempHandler(timeout, code, cb, cbf)
-	local disable = false
-	local function cbi(...)
-		if disable then return end
-		local evn, rc, sd, pt, dt, code2 = ...
-		if code ~= code2 then return end
-		if cb(...) then
-			disable = true
-			return false
-		end
-	end
-	event.listen("modem_message", cbi)
-	event.timer(timeout, function ()
-		event.ignore("modem_message", cbi)
-		if disable then return end
-		cbf()
-	end)
-end
+local cPend = {}
+local rPend = {}
 local function waitWithCancel(timeout, cancelCheck)
 	local now = computer.uptime()
 	local deadline = now + timeout
@@ -132,29 +115,25 @@ end
 handler.NewNode = function (sendingModem, port)
 	transInfo(sendingModem, port, "RETURNSTART", iAdd, tier)
 end
-
-local function routeOpener(dest, origin, bHop, nextHop, intermediary, recPort, transPort, ID)
-	local function sendOKResponse(isDestination)
+local function sendOK(isDestination)
 		transInfo(bHop, recPort, "RouteOpen", dest, origin)
 		if isDestination then
 			computer.pushSignal("GERTConnectionID", origin, ID)
 		end
 		storeConnection(origin, ID, dest, nextHop, transPort)
-	end
+end
+local function routeOpener(dest, origin, bHop, nextHop, intermediary, recPort, transPort, ID)
 	if iAdd ~= dest then
-		local response
 		transInfo(nextHop, transPort, "OpenRoute", dest, intermediary, origin, ID)
-		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
-			if (dest == pktDest) and (origin == pktOrig) then
-				response = code
-				sendOKResponse(false)
-				return true -- This terminates the wait
-			end
-		end, function () end)
-		waitWithCancel(3, function () return response end)
-		return response
+		cPend[dest] = {}
+		cPend[dest][origin]=true
+		waitWithCancel(3, function () return (not cPend[dest][origin]) end)
+		return (not cPend[dest][origin])
+		if not cPend[dest][origin] then
+			sendOK(false)
+		end
 	else
-		sendOKResponse(true)
+		sendOK(true)
 	end
 end
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
@@ -171,15 +150,19 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 	return routeOpener(dest, origin, sendingModem, nodes[nextHop]["add"], intermediary, port, nodes[nextHop]["port"], ID)
 end
-
+handler.RegisterComplete = function(sender, port, target, newG)
+	if target == addr then
+		iAdd = tonumber(newG)
+	elseif rPend[target] then
+		transInfo(rPend[targetMA]["add"], rPend[targetMA]["port"], "RegisterComplete", target, newG)
+		rPend[target] = nil
+	end
+end
 handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)
 	transInfo(firstN["add"], firstN["port"], "RegisterNode", origination, nTier, serialTable)
-	addTempHandler(3, "RegisterComplete", function (eventName, recv, sender, port, distance, code, targetMA, iResponse)
-		if targetMA == origination then
-			transInfo(sendingModem, sendingPort, "RegisterComplete", targetMA, iResponse)
-			return true
-		end
-	end, function () end)
+	rPend[origin] = {}
+	rPend[origin]["add"] = sender
+	rPend[origin]["port"] = sPort
 end
 
 handler.RemoveNeighbor = function (sendingModem, port, origination)
@@ -192,7 +175,11 @@ end
 handler.RETURNSTART = function (sendingModem, port, gAddress, nTier)
 	storeNodes(tonumber(gAddress), sendingModem, port, nTier)
 end
-
+handler.RouteOpen = function (sModem, sPort, origin, pktDest, pktOrig)
+	if cPend[pktDest] and cPend[pktDest][pktOrig] then
+		cPend[pktDest][pktOrig] = nil
+	end
+end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
 	if handler[code] then
 		handler[code](sendingModem, port, ...)
@@ -215,15 +202,8 @@ if serialTable ~= "{}" then
 	local mncUnavailable = true
 	local addr = (modem or tunnel).address
 	transInfo(firstN["add"], firstN["port"], "RegisterNode", addr, tier, serialTable)
-	addTempHandler(3, "RegisterComplete", function (_, _, _, _, _, code, targetMA, iResponse)
-		if targetMA == addr then
-			iAdd = tonumber(iResponse)
-			mncUnavailable = false
-			return true
-		end
-	end, function () end)
 	waitWithCancel(5, function () return iAdd end)
-	if mncUnavailable then
+	if not iAdd then
 		print("Unable to contact the MNC. Functionality will be impaired.")
 	end
 end
