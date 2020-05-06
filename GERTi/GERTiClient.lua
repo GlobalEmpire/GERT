@@ -1,4 +1,4 @@
--- GERT v1.3 Build 1
+-- GERT v1.3 Build 3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -22,7 +22,7 @@ if not (modem or tunnel) then
 	os.exit(1)
 end
 
-local iAdd = nil
+local iAdd
 local tier = 3
 -- nodes[GERTi]{"add", "port", "tier"}, "add" is modem
 local nodes = {}
@@ -38,10 +38,9 @@ local function waitWithCancel(timeout, cancelCheck)
 	while now < deadline do
 		event.pull(deadline - now, "modem_message")
 		local response = cancelCheck()
-		if response then return response end
+		if response then return end
 		now = computer.uptime()
 	end
-	return cancelCheck()
 end
 
 local function storeNodes(gAddress, sendingModem, port, nTier)
@@ -119,16 +118,18 @@ handler.NewNode = function (sendingModem, port, gAddress, nTier)
 		transInfo(sendingModem, port, "NewNode", iAdd, tier)
 	end
 end
-local function sendOK(isDestination, bHop, recPort, dest, origin, ID) --Fix
-		transInfo(bHop, recPort, "RouteOpen", dest, origin)
-		if isDestination then
-			computer.pushSignal("GERTConnectionID", origin, ID)
-		end
-		storeConnection(origin, ID, dest, nextHop, transPort)
+local function sendOK(bHop, recPort, dest, origin, ID)
+	if dest==iAdd then
+		computer.pushSignal("GERTConnectionID", origin, ID)
+	end
+	storeConnection(origin, ID, dest, nextHop, transPort)
+	if origin ~= iAdd then
+		transInfo(bHop, recPort, "RouteOpen", dest, origin, ID)
+	end
 end
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	if dest == iAdd then
-		sendOk(true, sendingModem, port, dest, origin, ID)
+		return sendOK(sendingModem, port, dest, origin, ID)
 	end
 	if nodes[dest] then
 		transInfo(nodes[dest]["add"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, ID)
@@ -139,13 +140,7 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 	intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 	transInfo(nodes[nextHop]["add"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
-	cPend[dest] = {}
-		cPend[dest][origin]=true
-		waitWithCancel(3, function () return (not cPend[dest][origin]) end)
-		return (not cPend[dest][origin])
-		if not cPend[dest][origin] then
-			sendOK(false)
-		end
+	cPend[dest..origin]={["bHop"]=sendingModem, ["port"]=port}
 end
 handler.RegisterComplete = function(sender, port, target, newG)
 	if target == addr then
@@ -170,8 +165,9 @@ handler.RemoveNeighbor = function (sendingModem, port, origination)
 end
 
 handler.RouteOpen = function (sModem, sPort, origin, pktDest, pktOrig)
-	if cPend[pktDest] and cPend[pktDest][pktOrig] then
-		cPend[pktDest][pktOrig] = nil
+	if cPend[pktDest..pktOrig] then
+		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["port"], dest, origin, ID)
+		cPend[pktDest..pktOrig] = nil
 	end
 end
 local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
@@ -257,25 +253,26 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	if nodes[gAddress] then
 		port = nodes[gAddress]["port"]
 		add = nodes[gAddress]["add"]
-		routeOpener(gAddress, iAdd, "A", nodes[gAddress]["add"], nil, nodes[gAddress]["port"], nodes[gAddress]["port"], outID)
+		handler.OpenRoute(nil, nil, gAddress, nil, iAdd, outID)
 	else
-		if not routeOpener(gAddress, iAdd, nil, firstN["add"], nil, firstN["port"], firstN["port"], outID) then
-			return nil
-		end
+		handler.OpenRoute(nil, nil, gAddress, firstN["add"], iAdd, outID)
 	end
-	
-	local socket = {origination = iAdd,
-		destination = gAddress,
-		outPort = port or firstN["port"],
-		nextHop = add or firstN["add"],
-		ID = outID,
-		order = 1,
-		outDex=iAdd.."|"..gAddress.."|"..outID,
-		inDex = gAddress.."|"..iAdd.."|"..outID,
-		write = writeData,
-		read = readData,
-		close = closeSock}
-	return socket
+	waitWithCancel(3, function () return (not cPend[dest..origin]) end)
+	if not connections[origin.."|"..gAddress.."|"..outID] then
+		local socket = {origination = iAdd,
+			destination = gAddress,
+			outPort = port or firstN["port"],
+			nextHop = add or firstN["add"],
+			ID = outID,
+			order = 1,
+			outDex=iAdd.."|"..gAddress.."|"..outID,
+			inDex = gAddress.."|"..iAdd.."|"..outID,
+			write = writeData,
+			read = readData,
+			close = closeSock}
+		return socket
+	else
+		return false
 end
 function GERTi.broadcast(data)
 	if modem and (type(data) ~= "table" or type(data) ~= "function") then
