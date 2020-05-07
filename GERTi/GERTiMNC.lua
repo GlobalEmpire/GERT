@@ -1,4 +1,4 @@
--- GERT v1.3 - Build 3
+-- GERT v1.3 - Build 4
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -126,7 +126,7 @@ end
 
 handler.NewNode = function (sendingModem, port, gAddres, nTier)
 	if not gAddress then
-		transInfo(sendingModem, port, "RETURNSTART", 0.0, 0)
+		transInfo(sendingModem, port, "NewNode", 0.0, 0)
 	end
 end
 -- Used in handler["OPENROUTE"]

@@ -1,4 +1,4 @@
--- GERT v1.3 Build 3
+-- GERT v1.3 Build 4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -143,15 +143,15 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	cPend[dest..origin]={["bHop"]=sendingModem, ["port"]=port}
 end
 handler.RegisterComplete = function(sender, port, target, newG)
-	if target == addr then
+	if target == modem.address or target == tunnel.address then
 		iAdd = tonumber(newG)
 	elseif rPend[target] then
 		transInfo(rPend[targetMA]["add"], rPend[targetMA]["port"], "RegisterComplete", target, newG)
 		rPend[target] = nil
 	end
 end
-handler.RegisterNode = function (sendingModem, sendingPort, origination, nTier, serialTable)
-	transInfo(firstN["add"], firstN["port"], "RegisterNode", origination, nTier, serialTable)
+handler.RegisterNode = function (sendingModem, sendingPort, origin, nTier, serialTable)
+	transInfo(firstN["add"], firstN["port"], "RegisterNode", origin, nTier, serialTable)
 	rPend[origin] = {}
 	rPend[origin]["add"] = sender
 	rPend[origin]["port"] = sPort
@@ -273,6 +273,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		return socket
 	else
 		return false
+	end
 end
 function GERTi.broadcast(data)
 	if modem and (type(data) ~= "table" or type(data) ~= "function") then
