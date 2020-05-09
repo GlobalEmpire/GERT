@@ -1,4 +1,4 @@
--- GERT v1.3 - Build 4
+-- GERT v1.3 - Build 5
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -245,7 +245,7 @@ end
 function loadAddress()
 	if filesystem.exists(directory) then
 		print("Address file located; loading now.")
-		local f = io.open(directory "r")
+		local f = io.open(directory, "r")
 		local newGAddress = f:read("*l")
 		local newRAddress = f:read("*l")
 		local highest = 0
