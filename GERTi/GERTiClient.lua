@@ -1,4 +1,4 @@
--- GERT v1.3 Build 5
+-- GERT v1.3 Build 6
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -128,7 +128,7 @@ local function sendOK(bHop, recPort, dest, origin, ID)
 end
 handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
 	if dest == iAdd then
-		storeConnection(origin, ID, dest, (modem or tunnel).address, port)
+		storeConnection(origin, ID, dest)
 		sendOK(sendingModem, port, dest, origin, ID)
 	elseif nodes[dest] then
 		transInfo(nodes[dest]["add"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, ID)
@@ -166,7 +166,11 @@ end
 handler.RouteOpen = function (sModem, sPort, pktDest, pktOrig, ID)
 	if cPend[pktDest..pktOrig] then
 		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
-		storeConnection(pktOrig, ID, pktDest, sModem, sPort)
+		if pktDest == iAdd then
+			storeConnection(pktOrig, ID, pktDest)
+		else
+			storeConnection(pktOrig, ID, pktDest, sModem, sPort)
+		end
 		cPend[pktDest..pktOrig] = nil
 	end
 end
