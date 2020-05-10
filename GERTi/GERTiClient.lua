@@ -1,4 +1,4 @@
--- GERT v1.3 Build 7
+-- GERT v1.3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -132,8 +132,8 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 		sendOK(sendingModem, port, dest, origin, ID)
 	elseif nodes[dest] then
 		transInfo(nodes[dest]["add"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, ID)
-	elseif not nodes[intermediary] then
-		transInfo(firstN["add"], firstN["port"], OpenRoute, dest, nil, origin, ID)
+	elseif not intermediary then
+		transInfo(firstN["add"], firstN["port"], "OpenRoute", dest, nil, origin, ID)
 	else
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
@@ -142,7 +142,7 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	cPend[dest..origin]={["bHop"]=sendingModem, ["port"]=port}
 end
 handler.RegisterComplete = function(sender, port, target, newG)
-	if target == modem.address or target == tunnel.address then
+	if (modem and target == modem.address) or (tunnel and target == tunnel.address) then
 		iAdd = tonumber(newG)
 	elseif rPend[target] then
 		transInfo(rPend[target]["add"], rPend[target]["port"], "RegisterComplete", target, newG)
@@ -177,13 +177,13 @@ local function receivePacket(eventName, receivingModem, sendingModem, port, dist
 end
 
 ------------------------------------------
+event.listen("modem_message", receivePacket)
 if tunnel then
 	tunnel.send("NewNode")
 end
 if modem then
 	modem.broadcast(4378, "NewNode")
 end
-event.listen("modem_message", receivePacket)
 os.sleep(2)
 
 -- forward neighbor table up the line
@@ -255,7 +255,7 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 		add = nodes[gAddress]["add"]
 		handler.OpenRoute((modem or tunnel).address, 4378, gAddress, nil, iAdd, outID)
 	else
-		handler.OpenRoute((modem or tunnel).address, 4378, gAddress, firstN["add"], iAdd, outID)
+		handler.OpenRoute((modem or tunnel).address, 4378, gAddress, nil, iAdd, outID)
 	end
 	waitWithCancel(3, function () return (not cPend[gAddress..iAdd]) end)
 	if not cPend[gAddress..iAdd] then
@@ -307,6 +307,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.3", "1.3 Build 4"
+	return "v1.3", "1.3 Release"
 end
 return GERTi

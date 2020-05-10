@@ -1,4 +1,4 @@
--- GERT v1.3 - Build 7
+-- GERT v1.3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -105,7 +105,8 @@ end
 local handler = {}
 handler.CloseConnection = function(sendingModem, port, connectDex)
 	if connections[connectDex]["nextHop"] == (modem or tunnel).address then
-		return connections[connectDex] = nil
+		connections[connectDex] = nil
+		return
 	else
 		if string.find(connectDex, ":") then
 			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
@@ -135,13 +136,13 @@ end
 local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
     local function sendOKResponse()
-		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin)
+		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
 		storeConnection(origin, ID, dest, nextHop, transPort, lieAdd)
 	end
 	
 	if lieAdd or (not string.find(tostring(dest), ":")) then
-		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
-		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+		transInfo(nextHop, transPort, "OpenRoute", dest, hop2, origin, ID)
+		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig, ID)
 			if (dest == pktDest) and (origin == pktOrig) then
 				sendOKResponse()
 				return true
