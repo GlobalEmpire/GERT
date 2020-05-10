@@ -1,4 +1,4 @@
--- GERT v1.3 - Build 5
+-- GERT v1.3 - Build 7
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -104,13 +104,15 @@ end
 
 local handler = {}
 handler.CloseConnection = function(sendingModem, port, connectDex)
-	if connections[connectDex]["nextHop"] ~= iAdd then
+	if connections[connectDex]["nextHop"] == (modem or tunnel).address then
+		return connections[connectDex] = nil
+	else
 		if string.find(connectDex, ":") then
 			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
 		end
 		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		connections[connectDex] = nil
 	end
-	connections[connectDex] = nil
 end
 
 handler.Data = function (sendingModem, port, data, connectDex, order, origin)
@@ -223,7 +225,6 @@ local function readGMessage()
 		end
 		if not found then
 			handler["OpenRoute"](modem.address, 4378, target, _, message["source"], 0)
-			storeConnection(message["source"], 0, target)
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
 		errC, message = pcall(GERTe.parse)

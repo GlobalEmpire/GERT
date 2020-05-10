@@ -1,4 +1,4 @@
--- GERT v1.3 Build 6
+-- GERT v1.3 Build 7
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -58,7 +58,7 @@ local function storeConnection(origin, ID, GAdd, nextHop, port)
 	connections[connectDex]["origin"]=origin
 	connections[connectDex]["dest"]=GAdd
 	connections[connectDex]["ID"]=ID
-	if nextHop then
+	if GAdd ~= iAdd then
 		connections[connectDex]["nextHop"]=nextHop
 		connections[connectDex]["port"]=port
 	else
@@ -90,7 +90,7 @@ end
 
 local handler = {}
 handler.CloseConnection = function(sendingModem, port, connectDex)
-	if connections[connectDex]["nextHop"]~= (modem or tunnel).address then
+	if connections[connectDex]["nextHop"] then
 		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connectDex)
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
@@ -166,11 +166,7 @@ end
 handler.RouteOpen = function (sModem, sPort, pktDest, pktOrig, ID)
 	if cPend[pktDest..pktOrig] then
 		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
-		if pktDest == iAdd then
-			storeConnection(pktOrig, ID, pktDest)
-		else
-			storeConnection(pktOrig, ID, pktDest, sModem, sPort)
-		end
+		storeConnection(pktOrig, ID, pktDest, sModem, sPort)
 		cPend[pktDest..pktOrig] = nil
 	end
 end
