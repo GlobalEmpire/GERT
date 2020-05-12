@@ -218,13 +218,10 @@ local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
 	local errC, message = pcall(GERTe.parse)
 	while not errC and message do
-		local found = false
 		local target = string.sub(message["target"], string.find(message["target"], ":")+1)
-		if connections[target] ~= nil then
-			found = true
+		if connections[message["source"]..target..0] ~= nil then
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
-		end
-		if not found then
+		else
 			handler["OpenRoute"](modem.address, 4378, target, _, message["source"], 0)
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
