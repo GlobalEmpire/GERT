@@ -15,11 +15,11 @@ NetString NetString::extract(Connection* conn) {
 		rawlen[1] = data[0];
 	}
 
-	char len = rawlen[1]
-	char* str = new char[len]
+	char len = rawlen[1];
+	char* str = new char[len];
 
-	memcpy(str, data+1, len[1]);
-	delete len;
+	memcpy(str, data+1, len);
+	delete rawlen;
 	delete data;
 
 	return {
