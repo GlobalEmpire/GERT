@@ -1,7 +1,7 @@
 #include "NetString.h"
 #include <cstring>
 
-NetString::NetString(char len, char* str) : len(len), str(str) {}
+NetString::NetString(char len, char* str) : length(len), str(str) {}
 
 NetString::~NetString() {
 	delete this->str;
