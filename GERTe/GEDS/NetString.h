@@ -2,6 +2,7 @@
 
 class NetString {
 public:
+	NetString(char, char*);
 	~NetString();
 
 	NetString static extract(Connection*);

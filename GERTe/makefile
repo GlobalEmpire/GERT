@@ -5,7 +5,7 @@ VERS=1.1
 
 default: build clean
 
-debug: CFLAGS += -g
+debug: CFLAGS += -g -rdynamic
 debug: VERS := $(VERS)d
 debug: default
 
