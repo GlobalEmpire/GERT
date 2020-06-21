@@ -23,6 +23,7 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 #include <iostream>
 #include "Versioning.h"
 #include "Processor.h"
+#include "Sentry.h"
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes
@@ -55,6 +56,8 @@ void shutdownProceedure(int param) { //SIGINT handler function
 	} else { //We weren't actually running?
 		error("Server wasn't in running state when SIGINT was raised."); //Warn user of potential error
 		error("!!! Forcing termination of server. !!!"); //Warn user we are stopping
+		Sentry::warn("SIGINT before RUNNING");
+		Sentry::stop();
 		exit(UNKNOWN_MINOR); //Exit with correct exit code
 	}
 };
@@ -69,6 +72,7 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 		debug("Peers uncorrupted, peer file updated."); //Report to user using debug facility
 	}
 	dumpStack();
+	Sentry::crash("SIGSEGV");
 	cout << "Well, this is the end\n"; //Print a little poem to the user
 	cout << "I've read too much, and written so far\n"; //Reference to memory error
 	cout << "But here I am, faulting to death\n";
@@ -89,6 +93,7 @@ void errHandler() { //Error catcher, provides minor error recovery facilities
 		debug("Peers uncorrupted, peer file updated."); //Report to user using debug facility
 	}
 	cout << "Unknown error, system called terminate() with code " << to_string(errno) << "\n"; //Report fault to user
+	Sentry::error("Terminate " + to_string(errno));
 	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
 }
 
@@ -99,6 +104,7 @@ inline void printHelp() { //Prints help on parameters
 	cout << "-g port       Specifies the port for Gateways to connect to (default 43780)\n";
 	cout << "-h            Displays this message\n";
 	cout << "-d            Prints out extra debug information\n";
+	cout << "-r            Automatically report crashes to Sentry\n";
 	exit(0);
 }
 
@@ -107,20 +113,26 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 		string curArg = argv[i]; //Convert it to a string for easier access
 		if (curArg == "-d") { //Process the -d Debug messages flag
 			debugMode = true;
-		} else if (curArg == "-a") { //Process the local address flag (REQUIRED)
+		}
+		else if (curArg == "-a") { //Process the local address flag (REQUIRED)
 			if (argc == i) //Address flag is missing the actual address
 				printHelp(); //Print help, user might not know how to use the flag
 			LOCAL_IP = argv[++i]; //Local address set to next argument. Also skips the next argument
-		} else if (curArg  == "-p") { //Process the local GEDS port flag
+		}
+		else if (curArg == "-p") { //Process the local GEDS port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
 			peerPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
-		} else if (curArg == "-g") { //Process the gateway port flag
+		}
+		else if (curArg == "-g") { //Process the gateway port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
 			gatewayPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
-		} else if (curArg == "-h") //Process the help flag
-				printHelp(); //Prints help, user requested it
+		}
+		else if (curArg == "-h") //Process the help flag
+			printHelp(); //Prints help, user requested it
+		else if (curArg == "-r")
+			online_reporter = true;
 	}
 	if (LOCAL_IP == nullptr) //If the local address was not set
 		printHelp(); //User forgot to include local address, print help in case they don't know they have to
@@ -151,6 +163,10 @@ int main( int argc, char* argv[] ) {
 	sigaction(SIGSEGV, &mem, nullptr);
 	sigaction(SIGINT, &intr, nullptr);
 #endif
+
+	Sentry::init();
+	Sentry::crash("Test");
+	exit(0);
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
 	int result = loadPeers(); //Load the peer database
@@ -198,6 +214,8 @@ int main( int argc, char* argv[] ) {
 
 	debug("Saving resolutions"); //Notify user where we are in the shutdown process
 	saveResolutions(); //Save the keys database to file
+
+	Sentry::stop();
 
 	stopLog(); //Release log handles
 
