@@ -1,0 +1,3 @@
+[submodule "GERTe/sentry"]
+	path = GERTe/sentry
+	url = https://github.com/getsentry/sentry-native
