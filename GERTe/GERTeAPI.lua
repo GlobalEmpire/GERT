@@ -1,4 +1,4 @@
--- GERT v1.2 - Release
+-- GERT v1.3 - Release
 local comp = require "component"
 local os = require "os"
 local filesystem = require "filesystem"
@@ -16,8 +16,7 @@ local card = comp.proxy(comp.list("internet")())
 local socket
 local connected
 
-local directory = os.getenv("_")
-directory = filesystem.path(directory)
+local directory = "/etc/"
 local version = "\1\1"
 local readableVersion = "1.1.0"
 

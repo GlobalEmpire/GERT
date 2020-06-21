@@ -1,4 +1,4 @@
--- GERT v1.2
+-- GERT v1.3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -11,36 +11,13 @@ local tunnel = nil
 
 local nodes = {}
 local connections = {}
-
 local addressP1 = 0
 local addressP2 = 1
 local gAddress = nil
 local gKey = nil
 local timerID = nil
 local savedAddresses = {}
-
-if (component.isAvailable("modem")) then
-	modem = component.modem
-	modem.open(4378)
-	if (component.modem.isWireless()) then
-		modem.setStrength(500)
-	end
-end
-if (component.isAvailable("tunnel")) then
-	tunnel = component.tunnel
-end
-if not (modem or tunnel) then
-	io.stderr:write("This program requires a network or linked card to run.")
-	os.exit(1)
-end
-
-if filesystem.exists("/lib/GERTeAPI.lua") then
-	GERTe = require("GERTeAPI")
-end
-
-local directory = os.getenv("_")
-directory = filesystem.path(directory)
-
+local directory = "/etc/GERTaddresses.gert"
 -- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
 local function addTempHandler(timeout, code, cb, cbf)
 	local function cbi(...)
@@ -79,7 +56,7 @@ local function storeChild(rAddress, port, tier)
 	if not childGA then
 		childGA = addressP1.."."..addressP2
 		savedAddresses[rAddress] = childGA
-		local f = io.open(directory.."GERTaddresses.gert", "a")
+		local f = io.open(directory, "a")
 		f:write(addressP1.."."..addressP2.."\n")
 		f:write(rAddress.."\n")
 		f:close()
@@ -103,6 +80,7 @@ end
 
 local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
 	local connectDex
+	ID = math.floor(ID)
 	if lieAdd then
 		connectDex = origin.."|"..lieAdd.."|"..ID
 	else
@@ -126,13 +104,16 @@ end
 
 local handler = {}
 handler.CloseConnection = function(sendingModem, port, connectDex)
-	if connections[connectDex]["nextHop"] ~= iAdd then
+	if connections[connectDex]["nextHop"] == (modem or tunnel).address then
+		connections[connectDex] = nil
+		return
+	else
 		if string.find(connectDex, ":") then
 			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
 		end
 		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		connections[connectDex] = nil
 	end
-	connections[connectDex] = nil
 end
 
 handler.Data = function (sendingModem, port, data, connectDex, order, origin)
@@ -146,20 +127,22 @@ handler.Data = function (sendingModem, port, data, connectDex, order, origin)
 	end
 end
 
-handler.NewNode = function (sendingModem, port)
-	transInfo(sendingModem, port, "RETURNSTART", 0.0, 0)
+handler.NewNode = function (sendingModem, port, gAddres, nTier)
+	if not gAddress then
+		transInfo(sendingModem, port, "NewNode", 0.0, 0)
+	end
 end
 -- Used in handler["OPENROUTE"]
 local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
     local function sendOKResponse()
-		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin)
+		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
 		storeConnection(origin, ID, dest, nextHop, transPort, lieAdd)
 	end
 	
 	if lieAdd or (not string.find(tostring(dest), ":")) then
-		transInfo(nextHop, transPort, "OpenRoute", dest, hopTwo, origin, ID)
-		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig)
+		transInfo(nextHop, transPort, "OpenRoute", dest, hop2, origin, ID)
+		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig, ID)
 			if (dest == pktDest) and (origin == pktOrig) then
 				sendOKResponse()
 				return true
@@ -235,15 +218,11 @@ local function readGMessage()
 	-- keep calling GERTe.parse until it returns nil
 	local errC, message = pcall(GERTe.parse)
 	while not errC and message do
-		local found = false
 		local target = string.sub(message["target"], string.find(message["target"], ":")+1)
-		if connections[target] ~= nil then
-			found = true
+		if connections[message["source"]..target..0] ~= nil then
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
-		end
-		if not found then
+		else
 			handler["OpenRoute"](modem.address, 4378, target, _, message["source"], 0)
-			storeConnection(message["source"], 0, target)
 			handler["Data"](_, _, message["data"], target, message["source"], 0)
 		end
 		errC, message = pcall(GERTe.parse)
@@ -261,41 +240,76 @@ local function safedown()
 		GERTe.shutdown()
 	end
 end
------------------------- Startup procedure
-event.listen("modem_message", receivePacket)
 
-if GERTe then
-	local file = io.open(directory.."GERTconfig.cfg", "r")
-	gAddress = file:read()
-	gKey = file:read()
-	GERTe.startup()
-	local success, errCode = GERTe.register(gAddress, gKey)
-	if not success then
-		io.stderr:write("Error in connecting to GEDS! Error code: "..errCode)
-	end
-	timerID = event.timer(0.1, readGMessage, math.huge)
-	event.listen("shutdown", safedown)
-end
-
-if filesystem.exists(directory.."GERTaddresses.gert") then
-	print("Address file located; loading now.")
-	local f = io.open(directory.."GERTaddresses.gert", "r")
-	local newGAddress = f:read("*l")
-	local newRAddress = f:read("*l")
-	local highest = 0
-	while newGAddress ~= nil do
-		newGAddress = tonumber(newGAddress)
-		savedAddresses[newRAddress]=newGAddress
-		if newGAddress > highest then
-			highest = newGAddress
+function loadAddress()
+	if filesystem.exists(directory) then
+		print("Address file located; loading now.")
+		local f = io.open(directory, "r")
+		local newGAddress = f:read("*l")
+		local newRAddress = f:read("*l")
+		local highest = 0
+		while newGAddress ~= nil do
+			newGAddress = tonumber(newGAddress)
+			savedAddresses[newRAddress]=newGAddress
+			if newGAddress >= highest then
+				highest = newGAddress
+			end
+			newGAddress = f:read("*l")
+			newRAddress = f:read("*l")
 		end
-		newGAddress = f:read("*l")
-		newRAddress = f:read("*l")
+		f:close()
+		highest = tostring(highest)
+		local dividerDex = string.find(highest, "%.")
+		addressP1 = string.sub(highest, 1, dividerDex-1)
+		addressP2 = string.sub(highest, dividerDex+1)+1
 	end
-	f:close()
-	highest = tostring(highest)
-	local dividerDex = string.find(highest, "%.")
-	addressP1 = string.sub(highest, 1, dividerDex-1)
-	addressP2 = string.sub(highest, dividerDex+1)+1
 end
-print("Setup Complete!")
+
+function realStart()
+	if component.isAvailable("modem") then
+		modem = component.modem
+		modem.open(4378)
+		if modem.isWireless() then
+			modem.setStrength(500)
+		end
+	end
+	
+	if component.isAvailable("tunnel") then
+		tunnel = component.tunnel
+	end
+	
+	if not (modem or tunnel) then
+		io.stderr:write("This program requires a network or linked card to run.")
+		os.exit(1)
+	end
+	
+	if filesystem.exists("/lib/GERTeAPI.lua") then
+		GERTe = require("GERTeAPI")
+	end
+	------------------------ Startup procedure
+	event.listen("modem_message", receivePacket)
+
+	if GERTe then
+		local file = io.open("/etc/GERTconfig.cfg", "r")
+		gAddress = file:read()
+		gKey = file:read()
+		GERTe.startup()
+		local success, errCode = GERTe.register(gAddress, gKey)
+		if not success then
+			io.stderr:write("Error in connecting to GEDS! Error code: "..errCode)
+		end
+		timerID = event.timer(0.1, readGMessage, math.huge)
+		event.listen("shutdown", safedown)
+	end
+	loadAddress()
+	print("Setup Complete!")
+end
+
+function start()
+	event.timer(5, realStart, 1)
+end
+
+function stop()
+	event.ignore("modem_message", receivePacket)
+	safedown()
+end
