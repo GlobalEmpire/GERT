@@ -1,13 +1,17 @@
 CC=g++
-CFLAGS=-c
-LFLAGS=-pthread
+CFLAGS=-c -Isentry/include
+LFLAGS=-pthread -lsentry -Lout
 VERS=1.1
 
-default: build clean
+default: sentry build clean
 
 debug: CFLAGS += -g
 debug: VERS := $(VERS)d
 debug: default
+
+sentry:
+	cmake -S sentry -B out
+	cmake --build out
 
 compile:
 	$(CC) $(CFLAGS) GEDS/*.cpp
