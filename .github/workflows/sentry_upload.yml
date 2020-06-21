@@ -1,0 +1,38 @@
+name: Sentry Debug Symbols Upload
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+
+  build-linux:
+
+    runs-on: ubuntu-latest
+    if: contains(secrets, SENTRY_AUTH_TOKEN)
+    
+    steps:
+    - uses: actions/checkout@v1
+    - uses: mathrix-education/setup-sentry-cli@0.1.1
+    - name: Make Debug
+      working-directory: GERTe
+      run: make debug
+    - name: Upload Debug Symbols to Sentry
+      working-directory: GERTe
+      run: sentry-cli --include-sources -o tyknet -p geds GEDSv1.1d
+      
+  build-windows:
+    
+    runs-on: windows-latest
+    if: contains(secrets, SENTRY_AUTH_TOKEN)
+    
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: mathrix-education/setup-sentry-cli@0.1.1
+      - name: Make Debug
+        working-directory: GERTe
+        run: cl /GF /fp:fast /Gw /Gy /Zf /Zi /MTd /std:c++latest /FeGEDSvAUTOd.exe GEDS/*.cpp
+      - name: Upload Debug Symbols to Sentry
+        working-directory: GERTe
+        run: sentry-cli --include-sources -o tyknet -p geds *.pdb
