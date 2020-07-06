@@ -165,8 +165,6 @@ int main( int argc, char* argv[] ) {
 #endif
 
 	Sentry::init();
-	Sentry::crash("Test");
-	exit(0);
 
 	debug("Loading peers"); //Use debug to notify user where we are in the loading process
 	int result = loadPeers(); //Load the peer database
