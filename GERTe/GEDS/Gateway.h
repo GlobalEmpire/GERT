@@ -15,5 +15,7 @@ public:
 	static bool sendTo(Address, std::string);
 
 	void process();
+
+	void closeTunnel(uint16_t);
 };
 

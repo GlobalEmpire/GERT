@@ -13,6 +13,7 @@ typedef int socklen_t;
 #include "gatewayManager.h"
 #include "peerManager.h"
 #include "Versioning.h"
+#include "Random.h"
 
 using namespace std;
 
@@ -31,7 +32,30 @@ enum Commands : char {
 	LINK,
 	UNLINK,
 	CLOSEPEER,
-	QUERY
+	QUERY,
+	TUNNEL_START,
+	TUNNEL_OPEN,
+	TUNNEL_DATA,
+	TUNNEL_END
+};
+
+enum class GateCommands : char {
+	STATE,
+	REGISTER,
+	DATA,
+	CLOSE,
+	TUNNEL_START,
+	TUNNEL_DATA,
+	TUNNEL_END
+};
+
+enum class GateStates : char {
+	FAILURE,
+	CONNECTED,
+	REGISTERED,
+	CLOSED,
+	SENT,
+	TUNNEL_STARTED
 };
 
 Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer Constructor
@@ -156,6 +180,120 @@ void Peer::process() {
 			cmd += target.tostring();
 			this->transmit(cmd);
 		}
+		return;
+	}
+	case TUNNEL_START: {
+		char* tunRaw = read(2);
+		uint16_t remoteTun = ntohs((uint16_t)(tunRaw + 1));
+
+		uint16_t tunNum = random();
+
+		while (UGateway::tunnels.count(tunNum) != 0)
+			tunNum = random();
+
+		GERTc target = GERTc::extract(this);
+		GERTc source = GERTc::extract(this);
+
+		Tunnel tun{
+			target,
+			source,
+			remoteTun
+		};
+
+		union {
+			uint16_t num;
+			char bytes[2];
+		} netTun;
+
+		netTun.num = ntohs(tunNum);
+		string newCmd = string({ (char)GateCommands::TUNNEL_START, netTun.bytes[0], netTun.bytes[1] }) + target.tostring() + source.tostring();
+		string response = string({ TUNNEL_OPEN, tunRaw[1], tunRaw[2], netTun.bytes[0], netTun.bytes[1] });
+
+		if (Gateway::sendTo(target.external, newCmd)) {
+			UGateway::tunnels[tunNum] = tun;
+			transmit(response);
+		}
+		else {
+			string errCmd({ TUNNEL_END, tunRaw[1], tunRaw[2] });
+			transmit(errCmd);
+
+			errCmd = { UNREGISTERED };
+			errCmd += target.tostring();
+			transmit(errCmd);
+		}
+
+		delete[] tunRaw;
+		return;
+	}
+	case TUNNEL_OPEN: {
+		char* tunRaw = read(4);
+		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t remoteTun = ntohs((uint16_t)(tunRaw + 3));
+
+		if (UGateway::tunnels.count(ourTun) == 0) {
+			string errCmd({ TUNNEL_END, tunRaw[3], tunRaw[4] });
+			transmit(errCmd);
+		}
+		else {
+			UGateway::tunnels[ourTun].remoteId = remoteTun;
+			string newCmd({ (char)GateCommands::STATE, (char)GateStates::TUNNEL_STARTED, tunRaw[1], tunRaw[2] });
+
+			if (!Gateway::sendTo(UGateway::tunnels[ourTun].local.external, newCmd)) {
+				UGateway::tunnels.erase(ourTun);
+
+				string errCmd({ TUNNEL_END, tunRaw[3], tunRaw[4] });
+				transmit(errCmd);
+			}
+		}
+
+		delete[] tunRaw;
+		return;
+	}
+	case TUNNEL_DATA: {
+		char* tunRaw = read(2);
+		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+
+		if (UGateway::tunnels.count(ourTun)) {
+			NetString data = NetString::extract(this);
+			string cmd = { (char)GateCommands::TUNNEL_DATA, tunRaw[1], tunRaw[2] };
+			cmd += data.string();
+
+			Address target = UGateway::tunnels[ourTun].local.external;
+
+			if (!Gateway::sendTo(target, cmd)) {
+				union {
+					uint16_t num;
+					char bytes[2];
+				} netTun;
+
+				netTun.num = ntohs(UGateway::tunnels[ourTun].remoteId);
+
+				string errCmd({ TUNNEL_END, netTun.bytes[0], netTun.bytes[1] });
+				transmit(errCmd);
+				errCmd = { UNREGISTERED };
+				errCmd += target.tostring();
+				this->transmit(errCmd);
+			}
+		}
+		else {
+			// Well shit. We don't have the ID we need to close the tunnel.
+		}
+
+		delete[] tunRaw;
+		return;
+	}
+	case TUNNEL_END: {
+		char* tunRaw = read(2);
+		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+
+		map<uint16_t, Tunnel>::iterator iter = UGateway::tunnels.find(ourTun);
+		string newCmd({ (char)GateCommands::TUNNEL_END, tunRaw[1], tunRaw[2] });
+		if (iter != UGateway::tunnels.end()) {
+			Gateway::sendTo(iter->second.local.external, newCmd);
+			UGateway::tunnels.erase(iter);
+		}
+
+		delete[] tunRaw;
 		return;
 	}
 	}

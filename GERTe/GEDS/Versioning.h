@@ -1,10 +1,11 @@
 #pragma once
-
 #include <string>
+
+constexpr int tunnelVersion = 2;
 
 const struct {
 	unsigned char major = 1;
-	unsigned char minor = 1;
+	unsigned char minor = 2;
 	unsigned char patch = 0;
 
 	std::string stringify() const { 

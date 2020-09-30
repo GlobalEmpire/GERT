@@ -9,16 +9,22 @@
 #include "query.h"
 #include "Versioning.h"
 #include "Gateway.h"
+#include "Random.h"
 using namespace std;
 
 extern Poll gatePoll;
+
+map<uint16_t, Tunnel> UGateway::tunnels;
 
 namespace Gate {
 	enum class Commands : char {
 		STATE,
 		REGISTER,
 		DATA,
-		CLOSE
+		CLOSE,
+		TUNNEL_START,
+		TUNNEL_DATA,
+		TUNNEL_END
 	};
 
 	enum class States : char {
@@ -26,7 +32,8 @@ namespace Gate {
 		CONNECTED,
 		REGISTERED,
 		CLOSED,
-		SENT
+		SENT,
+		TUNNEL_STARTED
 	};
 
 	enum class Errors : char {
@@ -35,7 +42,8 @@ namespace Gate {
 		REGISTERED,
 		NOT_REGISTERED,
 		NO_ROUTE,
-		ADDRESS_TAKEN
+		ADDRESS_TAKEN,
+		UNSUPPORTED
 	};
 }
 
@@ -49,7 +57,11 @@ namespace GEDS {
 		LINK,
 		UNLINK,
 		CLOSE,
-		QUERY
+		QUERY,
+		TUNNEL_START,
+		TUNNEL_OPEN,
+		TUNNEL_DATA,
+		TUNNEL_END
 	};
 }
 
@@ -254,6 +266,140 @@ void UGateway::process(Gateway * derived) {
 			 */
 		}
 		delete this;
+		return;
+	}
+	case Gate::Commands::TUNNEL_START: {
+		GERTc target = GERTc::extract(this);
+		Address source = Address::extract(this);
+
+		if (state == (char)Gate::States::CONNECTED) {
+			failed(this, Gate::Errors::NOT_REGISTERED);
+			/*
+			 * Response to data before registration
+			 * CMD STATE (0)
+			 * STATE FAILURE (0)
+			 * REASON NOT_REGISTERED (3)
+			 */
+			break;
+		}
+
+		uint16_t tunNum = random();
+
+		while (tunnels.count(tunNum) != 0)
+			tunNum = random();
+
+		Tunnel tun{
+			GERTc{},
+			target,
+			0
+		};
+
+		tun.local.external = derived->addr;
+		tun.local.internal = source;
+
+		union {
+			uint16_t num;
+			char bytes[2];
+		} netTun;
+
+		netTun.num = ntohs(tunNum);
+		string newCmd = string({ (char)Gate::Commands::TUNNEL_START, netTun.bytes[0], netTun.bytes[1] }) + target.tostring() + derived->addr.tostring() + source.tostring();
+
+		if (RGateway* remote = RGateway::lookup(target.external)) { //Target is remote
+			Peer* relay = remote->relay;
+			if (relay->vers[0] == 1 && relay->vers[1] < 2) {
+				failed(this, Gate::Errors::UNSUPPORTED);
+				/*
+				* Response to TUNNEL_START if remote peer doesn't support it.
+				* CMD STATE (0)
+				* STATE FAILURE (0)
+				* REASON NOT_REGISTERED (6)
+				*/
+				return;
+			}
+
+			newCmd[0] = (char)GEDS::Commands::TUNNEL_START;
+			relay->transmit(newCmd);
+		}
+		else if (Gateway* remote = Gateway::lookup(target.external)) {
+			if (remote->vers[0] == 1 && remote->vers[1] < 2) {
+				failed(this, Gate::Errors::UNSUPPORTED);
+				/*
+				* Response to TUNNEL_START if remote peer doesn't support it.
+				* CMD STATE (0)
+				* STATE FAILURE (0)
+				* REASON NOT_REGISTERED (6)
+				*/
+				return;
+			}
+
+			tunnels[tunNum] = tun;
+			
+			remote->transmit(string({ newCmd }));
+			transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::TUNNEL_STARTED, netTun.bytes[0], netTun.bytes[1] }));
+			return;
+		} else {
+			failed(this, Gate::Errors::NO_ROUTE);
+			/*
+				* Response to failed data send request.
+				* CMD STATE (0)
+				* STATE FAILURE (0)
+				* REASON NO_ROUTE (4)
+				*/
+			return;
+		}
+		return;
+	}
+	case Gate::Commands::TUNNEL_DATA: {
+		char* tunRaw = read(2);
+		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+
+		if (UGateway::tunnels.count(ourTun)) {
+			NetString data = NetString::extract(this);
+			string cmd = { (char)Gate::Commands::TUNNEL_DATA, tunRaw[1], tunRaw[2] };
+			cmd += data.string();
+
+			Address target = UGateway::tunnels[ourTun].local.external;
+			if (target == derived->addr)
+				target = UGateway::tunnels[ourTun].remote.external;
+
+			if (!Gateway::sendTo(target, cmd)) {
+				Tunnel tun = tunnels[ourTun];
+
+				union {
+					uint16_t num;
+					char bytes[2];
+				} netTun;
+
+				netTun.num = ntohs(tun.remoteId);
+
+				cmd = { (char)GEDS::Commands::TUNNEL_DATA, netTun.bytes[0], netTun.bytes[1] };
+				cmd += data.string();
+
+				if (!RGateway::sendTo(target, cmd)) {
+					string errCmd({ (char)Gate::Commands::TUNNEL_END, tunRaw[1], tunRaw[2] });
+					transmit(errCmd);
+
+					tunnels.erase(ourTun);
+				}
+			}
+		}
+		else {
+			string errCmd({ (char)Gate::Commands::TUNNEL_END, tunRaw[1], tunRaw[2] });
+			transmit(errCmd);
+		}
+
+		delete[] tunRaw;
+		return;
+	}
+	case Gate::Commands::TUNNEL_END: {
+		char* tunRaw = read(2);
+		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+
+		derived->closeTunnel(ourTun);
+
+		delete[] tunRaw;
+		return;
 	}
 	}
 }

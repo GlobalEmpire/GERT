@@ -5,10 +5,8 @@
 
 class RGateway {
 	friend void killAssociated(Peer*);
-
-	Peer * relay;
-
 public:
+	Peer* relay;
 	Address addr;
 
 	RGateway(Address, Peer*);
