@@ -184,12 +184,12 @@ void Peer::process() {
 	}
 	case TUNNEL_START: {
 		char* tunRaw = read(2);
-		uint16_t remoteTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t remoteTun = ntohs(*(uint16_t*)(tunRaw + 1));
 
-		uint16_t tunNum = random();
+		uint16_t tunNum = genInt();
 
 		while (UGateway::tunnels.count(tunNum) != 0)
-			tunNum = random();
+			tunNum = genInt();
 
 		GERTc target = GERTc::extract(this);
 		GERTc source = GERTc::extract(this);
@@ -227,8 +227,8 @@ void Peer::process() {
 	}
 	case TUNNEL_OPEN: {
 		char* tunRaw = read(4);
-		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
-		uint16_t remoteTun = ntohs((uint16_t)(tunRaw + 3));
+		uint16_t ourTun = ntohs(*(uint16_t*)(tunRaw + 1));
+		uint16_t remoteTun = ntohs(*(uint16_t*)(tunRaw + 3));
 
 		if (UGateway::tunnels.count(ourTun) == 0) {
 			string errCmd({ TUNNEL_END, tunRaw[3], tunRaw[4] });
@@ -251,7 +251,7 @@ void Peer::process() {
 	}
 	case TUNNEL_DATA: {
 		char* tunRaw = read(2);
-		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t ourTun = ntohs(*(uint16_t*)(tunRaw + 1));
 
 		if (UGateway::tunnels.count(ourTun)) {
 			NetString data = NetString::extract(this);
@@ -284,7 +284,7 @@ void Peer::process() {
 	}
 	case TUNNEL_END: {
 		char* tunRaw = read(2);
-		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t ourTun = ntohs(*(uint16_t*)(tunRaw + 1));
 
 		map<uint16_t, Tunnel>::iterator iter = UGateway::tunnels.find(ourTun);
 		string newCmd({ (char)GateCommands::TUNNEL_END, tunRaw[1], tunRaw[2] });

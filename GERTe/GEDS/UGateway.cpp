@@ -283,10 +283,10 @@ void UGateway::process(Gateway * derived) {
 			break;
 		}
 
-		uint16_t tunNum = random();
+		uint16_t tunNum = genInt();
 
 		while (tunnels.count(tunNum) != 0)
-			tunNum = random();
+			tunNum = genInt();
 
 		Tunnel tun{
 			GERTc{},
@@ -352,7 +352,7 @@ void UGateway::process(Gateway * derived) {
 	}
 	case Gate::Commands::TUNNEL_DATA: {
 		char* tunRaw = read(2);
-		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t ourTun = ntohs(*(uint16_t*)(tunRaw + 1));
 
 		if (UGateway::tunnels.count(ourTun)) {
 			NetString data = NetString::extract(this);
@@ -394,7 +394,7 @@ void UGateway::process(Gateway * derived) {
 	}
 	case Gate::Commands::TUNNEL_END: {
 		char* tunRaw = read(2);
-		uint16_t ourTun = ntohs((uint16_t)(tunRaw + 1));
+		uint16_t ourTun = ntohs(*(uint16_t*)(tunRaw + 1));
 
 		derived->closeTunnel(ourTun);
 

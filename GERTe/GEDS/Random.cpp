@@ -3,6 +3,6 @@
 
 std::mt19937 engine;
 
-uint16_t random() {
+uint16_t genInt() {
 	return engine();
 }
