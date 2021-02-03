@@ -1,5 +1,5 @@
-#include "Peer.h"
-#include "gatewayManager.h"
+#include "../Peer/Peer.h"
+#include "../Gateway/gatewayManager.h"
 #include "logging.h"
 #include <thread>
 using namespace std;

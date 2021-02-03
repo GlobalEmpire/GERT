@@ -1,5 +1,5 @@
 #pragma once
-#include "Address.h"
+#include "../Gateway/Address.h"
 
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;

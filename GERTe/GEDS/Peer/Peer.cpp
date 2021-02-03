@@ -4,15 +4,15 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #endif
 
-#include "routeManager.h"
-#include "logging.h"
+#include "../Gateway/routeManager.h"
+#include "../Util/logging.h"
 #include <fcntl.h>
-#include "Poll.h"
-#include "GERTc.h"
-#include "NetString.h"
-#include "gatewayManager.h"
+#include "../Threading/Poll.h"
+#include "../Gateway/GERTc.h"
+#include "../Networking/NetString.h"
+#include "../Gateway/gatewayManager.h"
 #include "peerManager.h"
-#include "Versioning.h"
+#include "../Util/Versioning.h"
 
 using namespace std;
 

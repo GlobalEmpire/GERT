@@ -10,9 +10,9 @@
 
 #include "Connection.h"
 #include "netty.h"
-#include "logging.h"
-#include "Versioning.h"
-#include "Error.h"
+#include "../Util/logging.h"
+#include "../Util/Versioning.h"
+#include "../Util/Error.h"
 
 void Connection::error(char * err) {
 	send(sock, err, 3, 0);

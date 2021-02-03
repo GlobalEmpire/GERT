@@ -1,4 +1,4 @@
-#include "Connection.h"
+#include "../Networking/Connection.h"
 #include "Poll.h"
 
 class Processor {

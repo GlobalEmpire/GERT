@@ -2,8 +2,8 @@
 #include <thread>
 #include <chrono>
 #include "peerManager.h"
-#include "routeManager.h"
-#include "netty.h"
+#include "../Gateway/routeManager.h"
+#include "../Networking/netty.h"
 using namespace std;
 
 void query(Address target) {

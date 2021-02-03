@@ -1,13 +1,13 @@
 #include "gatewayManager.h"
-#include "logging.h"
+#include "../Util/logging.h"
 #include <fcntl.h>
-#include "Poll.h"
+#include "../Threading/Poll.h"
 #include "routeManager.h"
-#include "peerManager.h"
+#include "../Peer/peerManager.h"
 #include "GERTc.h"
-#include "NetString.h"
+#include "../Networking/NetString.h"
 #include "query.h"
-#include "Versioning.h"
+#include "../Util/Versioning.h"
 #include "Gateway.h"
 using namespace std;
 

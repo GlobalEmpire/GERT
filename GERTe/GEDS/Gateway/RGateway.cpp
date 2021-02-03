@@ -1,6 +1,6 @@
 #include "RGateway.h"
-#include "logging.h"
-#include "query.h"
+#include "../Util/logging.h"
+#include "../Peer/query.h"
 #include <map>
 
 std::map<Address, RGateway*> remotes;

@@ -1,6 +1,6 @@
 #pragma once
-#include "IP.h"
-#include "Ports.h"
+#include "../Networking/IP.h"
+#include "../Networking/Ports.h"
 
 class Peer : public Connection {
 	friend int emergencyScan();

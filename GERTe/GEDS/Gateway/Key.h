@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Address.h"
 
 class Key {

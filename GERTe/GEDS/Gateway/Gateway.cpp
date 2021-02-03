@@ -1,9 +1,9 @@
 #include "Gateway.h"
 #include "gatewayManager.h"
 #include "routeManager.h"
-#include "logging.h"
+#include "../Util/logging.h"
 #include <utility>
-#include "Poll.h"
+#include "../Threading/Poll.h"
 
 extern std::map<Address, Gateway*> gateways;
 extern Poll gatePoll;

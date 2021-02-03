@@ -1,9 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS //Windows grumble grumble
 
 #include "fileMngr.h"
-#include "Key.h"
-#include "logging.h"
-#include "peerManager.h"
+#include "../Gateway/Key.h"
+#include "../Util/logging.h"
+#include "../Peer/peerManager.h"
 
 typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
 

@@ -14,15 +14,15 @@ typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
 typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 
 #include <signal.h> //Include signal processing API for error catching
-#include "netty.h" //Include netcode header for entering server process
-#include "overwatch.h" //Include overwatch header for error checking and "recovery"
-#include "fileMngr.h" //Include file manager library for loading and saving databases
-#include "Trace.h"
-#include "logging.h"
+#include "Networking/netty.h" //Include netcode header for entering server process
+#include "Util/overwatch.h" //Include overwatch header for error checking and "recovery"
+#include "Files/fileMngr.h" //Include file manager library for loading and saving databases
+#include "Util/Trace.h"
+#include "Util/logging.h"
 #include <exception> //Load exception library for terminate() hook
 #include <iostream>
-#include "Versioning.h"
-#include "Processor.h"
+#include "Util/Versioning.h"
+#include "Threading/Processor.h"
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes

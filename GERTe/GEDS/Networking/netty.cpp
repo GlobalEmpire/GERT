@@ -9,15 +9,15 @@
 #endif
 #include <sys/types.h>
 #include <thread>
-#include "peerManager.h"
-#include "routeManager.h"
-#include "gatewayManager.h"
+#include "../Peer/peerManager.h"
+#include "../Gateway/routeManager.h"
+#include "../Gateway/gatewayManager.h"
 #include "query.h"
-#include "logging.h"
-#include "Poll.h"
-#include "Versioning.h"
-#include "Error.h"
-#include "Processor.h"
+#include "../Util/logging.h"
+#include "../Threading/Poll.h"
+#include "../Util/Versioning.h"
+#include "../Util/Error.h"
+#include "../Threading/Processor.h"
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets

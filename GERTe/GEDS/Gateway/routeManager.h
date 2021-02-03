@@ -1,5 +1,5 @@
 #pragma once
-#include "RGateway.h"
+#include "../Gateway/RGateway.h"
 #include <map>
 
 typedef std::map<Address, RGateway*>::iterator routePtr;

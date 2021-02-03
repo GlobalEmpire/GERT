@@ -1,5 +1,5 @@
 #pragma once
-#include "netty.h"
+#include "../Networking/netty.h"
 #include <vector>
 
 struct Event_Data {
