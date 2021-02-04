@@ -4,11 +4,9 @@
 #include "../Threading/Poll.h"
 #include "routeManager.h"
 #include "../Peer/peerManager.h"
-#include "GERTc.h"
 #include "../Networking/NetString.h"
 #include "query.h"
 #include "../Util/Versioning.h"
-#include "Gateway.h"
 using namespace std;
 
 extern Poll gatePoll;
@@ -96,7 +94,7 @@ Gateway::Gateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 	changeState(this, Gate::States::CONNECTED, 2, (char*)&ThisVersion);
 
 	if (vers[1] == 0)
-		transmit("\0");
+		transmit(string{1, 0} );
 }
 
 Gateway::~Gateway() {
@@ -110,7 +108,7 @@ Gateway::~Gateway() {
 	gatePoll.remove(sock);
 }
 
-void Gateway::transmit(string data) {
+void Gateway::transmit(const string& data) {
 	send(sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
@@ -129,10 +127,9 @@ void Gateway::close() {
 }
 
 void Gateway::process() {
-	char * data = read(1);
-	Gate::Commands command = (Gate::Commands)data[1];
-
-	delete data;
+	char * cmdBuf = read(1);
+	auto command = (Gate::Commands)cmdBuf[1];
+	delete cmdBuf;
 
 	switch (command) {
 	case Gate::Commands::REGISTER: {

@@ -1,8 +1,6 @@
 #include "Address.h"
 #include "../Peer/Peer.h"
 
-//THIS IS NOT EVEN MY FINAL FORM!!!
-
 class RGateway {
 	friend void killAssociated(Peer*);
 
