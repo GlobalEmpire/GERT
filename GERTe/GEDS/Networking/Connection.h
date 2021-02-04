@@ -24,5 +24,6 @@ public:
 	virtual void process() = 0;
 	virtual void close() = 0;
 
-	char * read(int=1) const;
+	char* read(int=1) const;
+	void write(const std::string&) const;
 };

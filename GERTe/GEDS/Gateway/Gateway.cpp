@@ -61,7 +61,7 @@ void changeState(Gateway * gate, const Gate::States newState, const char numextr
 	update += (char)newState;
 	update += string{ extra, (size_t)numextra };
 
-	gate->transmit(update);
+	gate->write(update);
 }
 
 void globalChange(const GEDS::Commands change, const char * parameter, const char len) {
@@ -76,7 +76,7 @@ void failed(Gateway * gate, const Gate::Errors error) {
 	response += (char)Gate::States::FAILURE;
 	response += (char)error;
 
-	gate->transmit(response);
+	gate->write(response);
 }
 
 noAddrIter find(Gateway* gate) {
@@ -94,7 +94,7 @@ Gateway::Gateway(SOCKET newSock) : Connection(newSock, "Gateway") {
 	changeState(this, Gate::States::CONNECTED, 2, (char*)&ThisVersion);
 
 	if (vers[1] == 0)
-		transmit(string{1, 0} );
+        write(string{1, 0} );
 }
 
 Gateway::~Gateway() {
@@ -108,10 +108,6 @@ Gateway::~Gateway() {
 	gatePoll.remove(sock);
 }
 
-void Gateway::transmit(const string& data) {
-	send(sock, data.c_str(), (ULONG)data.length(), 0);
-}
-
 bool Gateway::assign(Address requested, Key key) {
 	if (key.check(requested)) { //Determine if the key is for the address
 		log("Association from " + requested.stringify()); //Notify user that the address has registered
@@ -121,8 +117,8 @@ bool Gateway::assign(Address requested, Key key) {
 }
 
 void Gateway::close() {
-	transmit(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
-	transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
+	write(string({ (char)Gate::Commands::CLOSE })); //SEND CLOSE REQUEST
+    write(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED })); //SEND STATE UPDATE TO CLOSED (0, 3)
 	//Used to free memory, ENSURE REFERENCES ARE PATCHED
 }
 
@@ -211,7 +207,7 @@ void Gateway::process() {
 				*/
 			return;
 		}
-		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
+        write(string({ (char)Gate::Commands::STATE, (char)Gate::States::SENT }));
 		/*
 		 * Response to successful data send request.
 		 * CMD STATE (0)
@@ -220,7 +216,7 @@ void Gateway::process() {
 		return;
 	}
 	case Gate::Commands::STATE: {
-		transmit(string({ (char)Gate::Commands::STATE, (char)this->state }));
+        write(string({ (char)Gate::Commands::STATE, (char)this->state }));
 		/*
 		 * Response to state request
 		 * CMD STATE (0)
@@ -230,7 +226,7 @@ void Gateway::process() {
 		return;
 	}
 	case Gate::Commands::CLOSE: {
-		transmit(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
+        write(string({ (char)Gate::Commands::STATE, (char)Gate::States::CLOSED }));
 		/*
 		 * Response to close request.
 		 * CMD STATE (0)
@@ -260,7 +256,7 @@ Gateway* Gateway::lookup(Address req) {
 
 bool Gateway::sendTo(Address addr, const std::string& data) {
     if (gateways.count(addr) != 0) { //If that Gateway is in the database
-        gateways[addr]->transmit(data);
+        gateways[addr]->write(data);
         return true; //Notify the protocol library that we succeeded in sending
     }
     return RGateway::sendTo(addr, data); //Attempt to send to Gateway with address via routing. Notify protocol library of result.

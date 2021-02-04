@@ -229,7 +229,7 @@ void buildWeb() {
 
 		Peer * newConn = new Peer(newSock, ip);
 
-		newConn->transmit(ThisVersion.tostring());
+		newConn->write(ThisVersion.tostring());
 
 		char death[3];
 		timeval timeout = { 2, 0 };

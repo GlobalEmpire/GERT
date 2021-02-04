@@ -83,6 +83,10 @@ Connection::~Connection() {
 #endif
 }
 
+void Connection::write(const std::string& data) const {
+    send(sock, data.c_str(), (ULONG)data.length(), 0);
+}
+
 /*if (resulterr == -1) {
 	char temp[128];
 	int wsaerr = WSAGetLastError();

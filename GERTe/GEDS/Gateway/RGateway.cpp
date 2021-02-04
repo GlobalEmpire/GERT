@@ -47,10 +47,10 @@ bool RGateway::sendTo(Address tgt, std::string data) {
 	if (gate == nullptr)
 		return false;
 
-	gate->relay->transmit(data);
+	gate->relay->write(data);
 	return true;
 }
 
 void RGateway::transmit(std::string data) {
-	relay->transmit(data);
+	relay->write(data);
 }

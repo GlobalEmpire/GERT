@@ -13,7 +13,6 @@ class Gateway : public Connection {
 public:
 	virtual ~Gateway();
 
-	void transmit(const std::string&);
 	static bool assign(Address, Key);
 	void close();
 	void process();

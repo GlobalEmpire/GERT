@@ -38,7 +38,7 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 	sockaddr_in remoteip;
 	socklen_t iplen = sizeof(sockaddr);
 	getpeername(newSocket, (sockaddr*)&remoteip, &iplen);
-	IP ip{ remoteip.sin_addr };
+	ip = IP{ remoteip.sin_addr };
 
 	if (peerList.count(ip) == 0) {
 		char err[3] = { 0, 0, 1 }; //STATUS ERROR NOT_AUTHORIZED
@@ -48,10 +48,10 @@ Peer::Peer(SOCKET newSocket) : Connection(newSocket, "Peer") { //Incoming Peer C
 
 	peers[ip] = this;
 	log("Peer connected from " + ip.stringify());
-	transmit(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
+    write(string({ (char)ThisVersion.major, (char)ThisVersion.minor }));
 
 	if (vers[1] == 0)
-		transmit("\0");
+        write("\0");
 };
 
 Peer::~Peer() { //Peer destructor
@@ -68,12 +68,8 @@ Peer::Peer(SOCKET socket, IP source) : Connection(socket), ip(source) { //Outgoi
 }
 
 void Peer::close() {
-	transmit(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
+    write(string{ Commands::CLOSEPEER }); //SEND CLOSE REQUEST
 	delete this;
-}
-
-void Peer::transmit(string data) {
-	send(this->sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
 void Peer::process() {
@@ -88,10 +84,9 @@ void Peer::process() {
 		return;
 	}
 
-	char * data = read(1);
-	Commands command = (Commands)data[1];
-
-	delete data;
+	char * cmdBuf = read(1);
+	auto command = (Commands)cmdBuf[1];
+	delete cmdBuf;
 
 	switch (command) {
 	case ROUTE: {
@@ -103,13 +98,13 @@ void Peer::process() {
 		if (!Gateway::sendTo(target.external, cmd)) {
 			string errCmd = { UNREGISTERED };
 			errCmd += target.tostring();
-			this->transmit(errCmd);
+			write(errCmd);
 		}
 		return;
 	}
 	case REGISTERED: {
 		Address target = Address::extract(this);
-		RGateway * newGate = new RGateway{ target, this };
+		new RGateway{ target, this };
 		return;
 	}
 	case UNREGISTERED: {
@@ -140,7 +135,7 @@ void Peer::process() {
 		return;
 	}
 	case CLOSEPEER: {
-		this->transmit(string({ CLOSEPEER }));
+		write(string({ CLOSEPEER }));
 		delete this;
 		return;
 	}
@@ -154,7 +149,7 @@ void Peer::process() {
 		else {
 			string cmd = { UNREGISTERED };
 			cmd += target.tostring();
-			this->transmit(cmd);
+            write(cmd);
 		}
 		return;
 	}
@@ -172,8 +167,8 @@ void Peer::deny(IP target) {
 	log("Removed peer " + target.stringify());
 }
 
-void Peer::broadcast(std::string msg) {
-	for (map<IP, Peer*>::iterator iter = peers.begin(); iter != peers.end(); iter++) {
-		iter->second->transmit(msg);
+void Peer::broadcast(const std::string& msg) {
+	for (auto & peer : peers) {
+		peer.second->write(msg);
 	}
 }
