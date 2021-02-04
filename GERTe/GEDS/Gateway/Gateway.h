@@ -1,19 +1,23 @@
 #pragma once
-#include "UGateway.h"
-#include "Address.h"
+#include "../Networking/Connection.h"
+#include "Key.h"
+#include "GERTc.h"
 
-//THIS IS NOT EVEN MY FINAL FORM!!!
+class Gateway : public Connection {
+	Gateway(SOCKET);
 
-class Gateway : public UGateway {
+	friend void runServer();
+
+	GERTc addr;
+
 public:
-	Address addr;
+	virtual ~Gateway();
 
-	Gateway(Address, UGateway*);
-	~Gateway();
-
-	static Gateway * lookup(Address);
-	static bool sendTo(Address, std::string);
-
+	void transmit(std::string);
+	bool assign(Address, Key);
+	void close();
 	void process();
-};
 
+    static Gateway * lookup(Address);
+    static bool sendTo(Address, const std::string&);
+};

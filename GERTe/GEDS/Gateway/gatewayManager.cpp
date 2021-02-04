@@ -4,7 +4,7 @@
 using namespace std;
 
 extern map<Address, Gateway*> gateways; //Create Gateway database
-extern vector<UGateway*> noAddrList; //Create list for unregistered gateways
+extern vector<Gateway*> noAddrList; //Create list for unregistered gateways
 
 //For Gateway iterators
 bool gatewayIter::isEnd() { return ptr == gateways.end(); } //Add logic to isEnd()     Is last element
@@ -17,5 +17,5 @@ void gatewayIter::erase() { ptr = gateways.erase(ptr); }
 bool noAddrIter::isEnd() { return ptr >= noAddrList.end(); }
 noAddrIter noAddrIter::operator++ (int a) { return (ptr++, *this); }
 noAddrIter::noAddrIter() : ptr(noAddrList.begin()) {};
-UGateway* noAddrIter::operator* () { return *ptr; }
+Gateway* noAddrIter::operator* () { return *ptr; }
 void noAddrIter::erase() { ptr = noAddrList.erase(ptr); } //Add logic to erase()     Remove this element

@@ -7,7 +7,7 @@ add_executable(GEDS "GEDS Server.cpp"
         Threading/Poll.cpp Threading/Processor.cpp
         Peer/Peer.cpp Peer/peerManager.cpp Peer/query.cpp
         Networking/Connection.cpp Networking/NetString.cpp Networking/netty.cpp
-        Gateway/Address.cpp Gateway/Gateway.cpp Gateway/gatewayManager.cpp Gateway/Key.cpp Gateway/RGateway.cpp Gateway/routeManager.cpp Gateway/UGateway.cpp
+        Gateway/Address.cpp Gateway/gatewayManager.cpp Gateway/Key.cpp Gateway/RGateway.cpp Gateway/routeManager.cpp Gateway/Gateway.cpp
         Files/fileMngr.cpp
         )
 

@@ -1,10 +1,10 @@
 #pragma once
-#include "Gateway.h"
 #include <map>
 #include <vector>
+#include "Gateway.h"
 
 typedef std::map<Address, Gateway*>::iterator gatewayPtr;
-typedef std::vector<UGateway*>::iterator noAddrPtr;
+typedef std::vector<Gateway*>::iterator noAddrPtr;
 
 class gatewayIter {
 	gatewayPtr ptr;
@@ -22,6 +22,6 @@ class noAddrIter {
 		bool isEnd();
 		noAddrIter operator++(int);
 		noAddrIter();
-		UGateway* operator*();
+		Gateway* operator*();
 		void erase();
 };
