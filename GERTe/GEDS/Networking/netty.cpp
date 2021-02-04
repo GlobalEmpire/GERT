@@ -1,6 +1,4 @@
-#ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS
-#else
+#ifndef _WIN32
 #include <sys/socket.h> //Load C++ standard socket API
 #include <netinet/tcp.h>
 #include <unistd.h>
@@ -49,7 +47,6 @@ void killConnections() {
 	}
 }
 
-//PUBLIC
 void processGateways() {
 	gatePoll.claim();
 
@@ -60,7 +57,7 @@ void processGateways() {
 			return;
 
 		SOCKET sock = data.fd;
-		Gateway * gate = (Gateway*)data.ptr;
+		auto * gate = (Gateway*)data.ptr;
 
 		char test[1];
 		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
@@ -95,7 +92,6 @@ void processPeers() {
 	}
 }
 
-//PUBLIC
 void startup() {
 	//Server construction
 #ifdef _WIN32 //If compiled for Windows
@@ -138,7 +134,6 @@ void startup() {
 	serverPoll.add(gedsServer);
 }
 
-//PUBLIC
 void cleanup() {
 #ifdef _WIN32
 	closesocket(gedsServer);
@@ -151,7 +146,6 @@ void cleanup() {
 	killConnections();
 }
 
-//PUBLIC
 void runServer() { //Listen for new connections
 	serverPoll.claim();
 
@@ -162,7 +156,7 @@ void runServer() { //Listen for new connections
 			return;
 		}
 
-		SOCKET newSock = accept(data.fd, NULL, NULL);
+		SOCKET newSock = accept(data.fd, nullptr, nullptr);
 
 		if (newSock == -1) {
 			socketError("Error accepting a new connection: ");
@@ -176,7 +170,7 @@ void runServer() { //Listen for new connections
 
 		try {
 			if (data.fd == gateServer) {
-				Gateway * gate = new Gateway(newSock);
+				auto * gate = new Gateway(newSock);
 				gatePoll.add(newSock, gate);
 
 #ifdef _WIN32
@@ -203,9 +197,9 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
-	for (map<IP, Ports>::iterator iter = peerList.begin(); iter != peerList.end(); iter++) {
-		IP ip = iter->first;
-		Ports ports = iter->second;
+	for (auto & iter : peerList) {
+		IP ip = iter.first;
+		Ports ports = iter.second;
 
 		if (ip.stringify() == LOCAL_IP)
 			continue;

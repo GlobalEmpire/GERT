@@ -10,10 +10,7 @@
 	This code falls under the license located at
 	https://github.com/GlobalEmpire/GERT/blob/master/License.md
  */
-typedef unsigned char UCHAR; //Creates UCHAR shortcut for Unsigned Character
-typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
-
-#include <signal.h> //Include signal processing API for error catching
+#include <csignal> //Include signal processing API for error catching
 #include "Networking/netty.h" //Include netcode header for entering server process
 #include "Files/fileMngr.h" //Include file manager library for loading and saving databases
 #include "Util/Trace.h"
@@ -158,10 +155,10 @@ int main( int argc, char* argv[] ) {
 	running = true; //We've officially started running! SIGINT is now not evil!
 
 	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
-	Processor * gateways = new Processor{ &gatePoll };
+	auto * gateways = new Processor{ &gatePoll };
 
 	debug("Starting peer message processor");
-	Processor * peers = new Processor{ &peerPoll };
+	auto * peers = new Processor{ &peerPoll };
 
 	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
 	runServer(); //Process incoming connections (not messages)
