@@ -14,18 +14,18 @@
 #include "../Util/Versioning.h"
 #include "../Util/Error.h"
 
-void Connection::error(char * err) {
+void Connection::error(char * err) const {
 	send(sock, err, 3, 0);
 }
 
-char * Connection::read(int num) {
+char * Connection::read(int num) const {
 	char * buf = new char[num+1];
 	int len = recv(this->sock, buf+1, num, 0);
 	buf[0] = (char)len;
 	return buf;
 }
 
-Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
+Connection::Connection(SOCKET socket, const std::string& type) : sock(socket) {
 #ifdef _WIN32
 #define PTR char*
 #else
@@ -33,9 +33,9 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 #endif
 
 #ifdef WIN32
-	WSAEventSelect(socket, NULL, 0); //Clears all events associated with the new socket
+	WSAEventSelect(socket, nullptr, 0); //Clears all events associated with the new socket
 	u_long nonblock = 0;
-	int resulterr = ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
+	ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
 #endif
 
 #ifndef _WIN32
@@ -48,7 +48,7 @@ Connection::Connection(SOCKET socket, std::string type) : sock(socket) {
 
 #undef PTR
 
-	int result = recv(socket, vers, 2, 0);
+	int result = recv(socket, (char*)vers, 2, 0);
 
 	if (result != 2) {
 		socketError("Error reading version information: ");

@@ -164,7 +164,7 @@ void Gateway::process() {
 			 * STATE REGISTERED (2)
 			 */
 			string addrStr = request.tostring();
-			globalChange(GEDS::Commands::REGISTERED, addrStr.data(), addrStr.length());
+			globalChange(GEDS::Commands::REGISTERED, addrStr.data(), (char)addrStr.length());
 			/*
 			 * Broadcast to all peers registration
 			 * CMD REGISTERED (0)
@@ -238,7 +238,7 @@ void Gateway::process() {
 		 */
 		if (state == (char)Gate::States::REGISTERED) {
 			string addrStr = addr.tostring();
-			globalChange(GEDS::Commands::UNREGISTERED, addrStr.data(), addrStr.length());
+			globalChange(GEDS::Commands::UNREGISTERED, addrStr.data(), (char)addrStr.length());
 			/*
 			 * Broadcast that registered Gateway left.
 			 * CMD UNREGISTERED (1)
