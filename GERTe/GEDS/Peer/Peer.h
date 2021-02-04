@@ -3,7 +3,6 @@
 #include "../Networking/Ports.h"
 
 class Peer : public Connection {
-	friend int emergencyScan();
 	IP ip;
 
 public:

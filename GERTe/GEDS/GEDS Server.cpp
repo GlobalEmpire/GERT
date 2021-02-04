@@ -15,7 +15,6 @@ typedef unsigned short ushort; //Created ushort shortcut for Unsigned Short
 
 #include <signal.h> //Include signal processing API for error catching
 #include "Networking/netty.h" //Include netcode header for entering server process
-#include "Util/overwatch.h" //Include overwatch header for error checking and "recovery"
 #include "Files/fileMngr.h" //Include file manager library for loading and saving databases
 #include "Util/Trace.h"
 #include "Util/logging.h"
@@ -61,13 +60,6 @@ void shutdownProceedure(int param) { //SIGINT handler function
 
 void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 	running = false;
-
-	int errCode = emergencyScan(); //Scan structure database for faults, there will be faults
-	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
-	if (errCode < 2) { //If no peer error is detected (Wait what faulted?)
-		savePeers(); //Save the peers database
-		debug("Peers uncorrupted, peer file updated."); //Report to user using debug facility
-	}
 	dumpStack();
 	cout << "Well, this is the end\n"; //Print a little poem to the user
 	cout << "I've read too much, and written so far\n"; //Reference to memory error
@@ -81,13 +73,6 @@ void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
 
 void errHandler() { //Error catcher, provides minor error recovery facilities
 	running = false;
-
-	int errCode = emergencyScan(); //Scan structure databases for faults
-	saveResolutions(); //Save key resolutions, these don't easily if ever corrupt
-	if (errCode < 2) { //If no peer error is detected
-		savePeers(); //Save the peers database
-		debug("Peers uncorrupted, peer file updated."); //Report to user using debug facility
-	}
 	cout << "Unknown error, system called terminate() with code " << to_string(errno) << "\n"; //Report fault to user
 	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
 }
