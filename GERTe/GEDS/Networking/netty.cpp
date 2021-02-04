@@ -252,12 +252,12 @@ void buildWeb() {
 		if (death[0] == 0) {
 			recv(newSock, death + 2, 1, 0);
 
-			if (death[3] == 0) {
+			if (death[2] == 0) {
 				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
 				delete newConn;
 				continue;
 			}
-			else if (death[3] == 1) {
+			else if (death[2] == 1) {
 				error("Peer " + ip.stringify() + " rejected this IP!");
 				delete newConn;
 				continue;
