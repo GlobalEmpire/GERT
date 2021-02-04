@@ -33,8 +33,8 @@ volatile bool running = false; //SIGINT tracker
 bool debugMode = false; //Set debug mode to false by default
 
 char * LOCAL_IP = nullptr; //Set local address to predictable null value for testing
-char * peerPort = "59474"; //Set default peer port
-char * gatewayPort = "43780"; //Set default gateway port
+unsigned short peerPort = 59474; //Set default peer port
+unsigned short gatewayPort = 43780; //Set default gateway port
 
 extern Poll serverPoll;
 extern Poll peerPoll;
@@ -96,11 +96,11 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 		} else if (curArg  == "-p") { //Process the local GEDS port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
-			peerPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
+			peerPort = atoi(argv[++i])  ; //Local GEDS port is set to the next argument. Also skips the next argument
 		} else if (curArg == "-g") { //Process the gateway port flag
 			if (argc == i) //If the port flag is missing the actual port
 				printHelp(); //Print help, user might not know how to use the flag
-			gatewayPort = argv[++i]; //Local GEDS port is set to the next argument. Also skips the next argument
+			gatewayPort = atoi(argv[++i]); //Local GEDS port is set to the next argument. Also skips the next argument
 		} else if (curArg == "-h") //Process the help flag
 				printHelp(); //Prints help, user requested it
 	}
@@ -114,7 +114,7 @@ int main( int argc, char* argv[] ) {
 	cout << "Copyright 2017" << endl; //Print simple copyright information
 
 	processArgs(argc, argv); //Process command line argument
-	debug((string)"Processed arguments. Gateway port: " + gatewayPort + " Peer port: " + peerPort + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
+	debug((string)"Processed arguments. Gateway port: " + to_string(gatewayPort) + " Peer port: " + to_string(peerPort) + " Local IP: " + LOCAL_IP + " and debug output"); //Print to debug processed arguments
 
 	startLog(); //Create log handles
 

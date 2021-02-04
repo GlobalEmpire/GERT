@@ -25,8 +25,8 @@ Poll peerPoll;
 Poll serverPoll;
 
 extern volatile bool running;
-extern char * gatewayPort;
-extern char * peerPort;
+extern unsigned short gatewayPort;
+extern unsigned short peerPort;
 extern char * LOCAL_IP;
 extern vector<Gateway*> noAddrList;
 extern map<IP, Ports> peerList;
@@ -101,12 +101,12 @@ void startup() {
 
 	sockaddr_in gate = {
 			AF_INET,
-			htons(stoi(gatewayPort)),
+			htons(gatewayPort),
 			INADDR_ANY
 	};
 	sockaddr_in geds = {
 			AF_INET,
-			htons(stoi(peerPort)),
+			htons(peerPort),
 			INADDR_ANY
 	};
 
