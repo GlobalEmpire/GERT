@@ -8,7 +8,6 @@ public:
 	bool operator== (const Address&) const;
 	bool operator< (const Address&) const;
 	explicit Address(const std::string&);
-	Address(const unsigned char*);
 	Address() : addr{0, 0, 0} {};
 	Address static extract(Connection*);
 	[[nodiscard]] const unsigned char* getAddr() const;
