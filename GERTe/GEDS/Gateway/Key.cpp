@@ -1,15 +1,15 @@
 #include "../Networking/Connection.h"
 #include "Key.h"
+#include "../Util/Crypto.h"
+#include <openssl/evp.h>
 #include <map>
 
-std::map<Address, Key> resolutions;
+static std::map<Address, Key> resolutions;
 
-Key Key::extract(Connection * conn) {
-	char * data = conn->read(20);
-	Key key = std::string{data + 1, 20};
-	delete data;
+Key::Key(const std::string& keyin) : key(CryptoReadKey(keyin)) {}
 
-	return key;
+bool Key::operator==(const Key &comp) const {
+    return EVP_PKEY_cmp((EVP_PKEY*)key, (EVP_PKEY*)comp.key) == 1;
 }
 
 void Key::add(Address addr, Key key) {
@@ -20,8 +20,10 @@ void Key::remove(Address addr) {
 	resolutions.erase(addr);
 }
 
-bool Key::check(Address target) {
-	if (resolutions.count(target) > 0 && resolutions[target] == *this)
-		return true;
-	return false;
+bool Key::exists(Address addr) {
+    return resolutions.contains(addr);
+}
+
+Key Key::retrieve(Address addr) {
+    return resolutions[addr]
 }

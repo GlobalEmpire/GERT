@@ -4,16 +4,15 @@
 class Key {
 	friend void saveResolutions();
 
-	std::string key{20, 0};
 	public:
-		bool operator== (const Key& comp) const { return (key == comp.key); };
-		Key (const std::string& keyin) : key(keyin) {
-			key.resize(20);
-		};
-		Key () {};
-		bool check(Address);
+        void* key;
 
-		static Key extract(Connection*);
+		bool operator== (const Key& comp) const;
+		explicit Key (const std::string&);
+
 		static void add(Address, Key);
 		static void remove(Address);
+
+		static bool exists(Address);
+		static Key retrieve(Address);
 };
