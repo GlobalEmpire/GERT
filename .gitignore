@@ -1,4 +1,5 @@
 CODEOWNERS
 
 GERTe/GEDS/.idea/
-GERTe/GEDS/cmake-build-debug/
+
+GERTe/GEDS/cmake-build-*/
