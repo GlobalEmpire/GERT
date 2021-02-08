@@ -10,7 +10,7 @@
 #include "../Peer/peerManager.h"
 #include "../Gateway/routeManager.h"
 #include "../Gateway/gatewayManager.h"
-#include "query.h"
+#include "../Peer/query.h"
 #include "../Util/logging.h"
 #include "../Threading/Poll.h"
 #include "../Util/Versioning.h"

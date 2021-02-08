@@ -5,7 +5,7 @@
 #include "routeManager.h"
 #include "../Peer/peerManager.h"
 #include "../Networking/NetString.h"
-#include "query.h"
+#include "../Peer/query.h"
 #include "../Util/Versioning.h"
 using namespace std;
 

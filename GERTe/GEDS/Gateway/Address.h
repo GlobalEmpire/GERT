@@ -7,13 +7,13 @@ class Address {
 public:
 	bool operator== (const Address&) const;
 	bool operator< (const Address&) const;
-	Address(const std::string&);
+	explicit Address(const std::string&);
 	Address(const unsigned char*);
 	Address() : addr{0, 0, 0} {};
 	Address static extract(Connection*);
-	const unsigned char* getAddr() const;
-	std::string stringify() const;
-	std::string tostring() const;
+	[[nodiscard]] const unsigned char* getAddr() const;
+	[[nodiscard]] std::string stringify() const;
+	[[nodiscard]] std::string tostring() const;
 };
 
 typedef Address GERTeAddr;
