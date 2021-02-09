@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(GEDS VERSION 2.0)
 
+set(CMAKE_CXX_STANDARD 20)
+
 add_executable(GEDS "GEDS Server.cpp"
         Util/Error.cpp Util/logging.cpp Util/Trace.cpp
         Threading/Poll.cpp Threading/Processor.cpp
@@ -9,7 +11,8 @@ add_executable(GEDS "GEDS Server.cpp"
         Networking/Connection.cpp Networking/NetString.cpp Networking/netty.cpp
         Gateway/Address.cpp Gateway/gatewayManager.cpp Gateway/Key.cpp Gateway/RGateway.cpp Gateway/routeManager.cpp Gateway/Gateway.cpp
         Files/fileMngr.cpp
-        )
+        Networking/SecureConnection.cpp Networking/SecureConnection.h Util/Crypto.cpp Util/Crypto.h Networking/DataPacket.cpp Networking/DataPacket.h Networking/Logic.cpp Networking/Logic.h)
+
 target_include_directories(GEDS PRIVATE ../openssl/include)
 
 set(CMAKE_CXX_STANDARD 20)
