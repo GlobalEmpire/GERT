@@ -1,8 +1,7 @@
 /* 
 	This is the primary code for the GEDS server.
-	This file implements platform independent definitions for internet sockets.
-	Supported platforms are currently Linux(/Unix)
-	To modify the default ports change the numbers in the config.h file.
+	This program implements platform independent definitions for internet sockets.
+	Supported platforms are currently Linux(/Unix), Windows
 	
 	This code is designed to function with other code from
 	https://github.com/GlobalEmpire/GERT/
@@ -22,11 +21,10 @@
 using namespace std; //Default namespace to std so I don't have to type out std::cout or any other crap
 
 enum status { //Create a list of error codes
-	NORMAL, //YAY WE RAN AS WE SHOULD HAVE (0)
-	PEER_LOAD_ERR, //Unknown error when loading peer database (3)
-	KEY_LOAD_ERR, //Unknown error when loading key database (4)
-	UNKNOWN_CRITICAL, //Unknown error which resulted in a crash, either terminate() or SIGSEGV (5)
-	UNKNOWN_MINOR //Unknown error occured preceeding closing, not necessarily a crash (6)
+	NORMAL,
+	KEY_LOAD_ERR,
+	UNKNOWN_CRITICAL,
+	UNKNOWN_MINOR
 };
 
 volatile bool running = false; //SIGINT tracker
@@ -37,10 +35,9 @@ unsigned short peerPort = 59474; //Set default peer port
 unsigned short gatewayPort = 43780; //Set default gateway port
 
 extern Poll serverPoll;
-extern Poll peerPoll;
-extern Poll gatePoll;
+extern Poll socketPoll;
 
-void shutdownProceedure(int param) { //SIGINT handler function
+void shutdownProceedure([[maybe_unused]] int param) { //SIGINT handler function
 	if (running) { //If we actually started running
 		warn("User requested shutdown. Flipping the switch!"); //Notify the user because reasons
 		running = false; //Flip tracker to disable threads and trigger main thread's cleanup
@@ -53,18 +50,13 @@ void shutdownProceedure(int param) { //SIGINT handler function
 		error("!!! Forcing termination of server. !!!"); //Warn user we are stopping
 		exit(UNKNOWN_MINOR); //Exit with correct exit code
 	}
-};
+}
 
-void OHCRAPOHCRAP(int param) { //Uhm, we've caused a CPU error
+void OHCRAPOHCRAP([[maybe_unused]] int param) { //Uhm, we've caused a CPU error
 	running = false;
 	dumpStack();
-	cout << "Well, this is the end\n"; //Print a little poem to the user
-	cout << "I've read too much, and written so far\n"; //Reference to memory error
-	cout << "But here I am, faulting to death\n";
-	cout << "\nSIGSEGV THROWN: SEGMENTATION FAULT.\n"; //Actual error
-	cout << "SIGSEGV is a critical error thrown by the operating system\n"; //Information for uninformed user
-	cout << "It signifies a MASSIVE error that won't correct itself and probably can't be fixed without changing the code.\n"; //Create sense of urgency in user
-	cout << "Please post a bug report including any potentially useful logs.\n"; //Call to action trying to get user to submit report
+	cout << "\nSIGSEGV THROWN: SEGMENTATION FAULT.\n";
+	cout << "Please post a bug report including any potentially useful logs.\n";
 	exit(UNKNOWN_CRITICAL); //Exit with correct exit code
 }
 
@@ -109,7 +101,6 @@ void processArgs(int argc, char* argv[]) { //Process and interpret command line 
 }
 
 int main( int argc, char* argv[] ) {
-
 	cout << "GEDS Server v" << ThisVersion.stringify() << endl; //Print version information
 	cout << "Copyright 2017" << endl; //Print simple copyright information
 
@@ -133,18 +124,9 @@ int main( int argc, char* argv[] ) {
 	sigaction(SIGSEGV, &mem, nullptr);
 	sigaction(SIGINT, &intr, nullptr);
 #endif
-
-	debug("Loading peers"); //Use debug to notify user where we are in the loading process
-	int result = loadPeers(); //Load the peer database
-
-	if (result == -1)
-		return PEER_LOAD_ERR;
-
-	debug("Loading resolutions"); //Use debug to notify user where we are in the loading process
-	result = loadResolutions(); //Load the key resolution database
-
-	if (result == -1)
-		return KEY_LOAD_ERR;
+	debug("Loading key registrations");
+	if (!loadResolutions())
+	    return KEY_LOAD_ERR;
 
 	debug("Starting servers"); //Use debug to notify user where we are in the loading process
 	startup(); //Startup server sockets
@@ -154,32 +136,20 @@ int main( int argc, char* argv[] ) {
 
 	running = true; //We've officially started running! SIGINT is now not evil!
 
-	debug("Starting gateway message processor"); //Use debug to notify user where we are in the loading process
-	auto * gateways = new Processor{ &gatePoll };
+	debug("Starting transport processor"); //Use debug to notify user where we are in the loading process
+    { // New block to abuse built-in C++ memory management.
+        Processor gateways{ &socketPoll };
 
-	debug("Starting peer message processor");
-	auto * peers = new Processor{ &peerPoll };
+        debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
+        runServer(); //Process incoming connections (not messages)
+        warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
 
-	debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
-	runServer(); //Process incoming connections (not messages)
-	warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
-
-	//Shutdown and Cleanup sequence
-	debug("Cleaning up servers"); //Notify user where we are in the shutdown process
-	cleanup(); //Cleanup servers
-
-	debug("Waiting for message processors to exit"); //Notify user where we are in the shutdown process
-	delete gateways;
-	debug("Gateway processor exited");
-	delete peers;
-
-	warn("Processors killed, program ending."); //Notify the user we've stopped processing messages
-	
-	debug("Saving peers"); //Notify user where we are in the shutdown process
-	savePeers(); //Save the peers database to file
-
-	debug("Saving resolutions"); //Notify user where we are in the shutdown process
-	saveResolutions(); //Save the keys database to file
+        //Shutdown and Cleanup sequence
+        debug("Cleaning up servers"); //Notify user where we are in the shutdown process
+        cleanup(); //Cleanup servers
+        debug("Waiting for transport processor to exit"); //Notify user where we are in the shutdown process
+    }
+	debug("Transport processor exited");
 
 	stopLog(); //Release log handles
 
