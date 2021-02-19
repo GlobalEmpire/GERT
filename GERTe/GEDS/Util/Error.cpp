@@ -10,10 +10,10 @@
 
 thread_local bool recursionCheck = false;
 
-void inline printError(int, std::string); //Fixes circular dependency
+void inline printError(int, const std::string&); //Fixes circular dependency
 
 #ifdef _WIN32
-void socketError(std::string prefix) {
+void socketError(const std::string& prefix) {
 	printError(WSAGetLastError(), prefix);
 }
 
@@ -32,7 +32,7 @@ void inline formaterror() {
 void inline cleanup(HLOCAL buffer) {
 	HLOCAL result = LocalFree(buffer);
 	
-	if (result != NULL)
+	if (result != nullptr)
 		formaterror();
 }
 #else
@@ -41,7 +41,7 @@ void socketError(std::string prefix) {
 }
 #endif
 
-void generalError(std::string prefix) {
+void generalError(const std::string& prefix) {
 #ifdef _WIN32
 	printError(GetLastError(), prefix);
 #else
@@ -49,9 +49,9 @@ void generalError(std::string prefix) {
 #endif
 }
 
-void inline printError(int code, std::string prefix) { //Inlined to minimize overhead
+void inline printError(int code, const std::string& prefix) { //Inlined to minimize overhead
 #ifdef _WIN32
-	LPSTR err = NULL;
+	LPSTR err = nullptr;
 	int result = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, 0, (LPSTR)&err, 0, NULL);
 
 	if (result == 0)

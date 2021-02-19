@@ -1,7 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "logging.h"
-#include <time.h>
+#include <ctime>
 #include <iostream>
 using namespace std;
 
@@ -24,27 +23,27 @@ string timeOut() {
 	return string{ time };
 }
 
-void log(string msg) {
+void log(const string& msg) {
 	cout << "[I][" << timeOut() << "] " << msg << "\n";
 }
 
-void warn(string msg) {
+void warn(const string& msg) {
 	cout << "[W][" << timeOut() << "] " << msg << "\n";
 }
 
-void error(string msg) {
+void error(const string& msg) {
 	string log = "[E][" + timeOut() + "] " + msg + "\n";
 	cout << log;
 	fputs(log.c_str(), logFile);
 }
 
-void error2(string msg) {
+void error2(const string& msg) {
 	string log = "[E][" + timeOut() + "] " + msg;
 	cout << log;
 	fputs(log.c_str(), logFile);
 }
 
-void debug(string msg) {
+void debug(const string& msg) {
 	if (debugMode)
 		cout << "[D][" << timeOut() << "] " << msg << "\n";
 }
