@@ -8,11 +8,11 @@ struct Event_Data {
 };
 
 class Poll {
-
 	friend void removeTracker(SOCKET, Poll*);
 	friend void cleanup();
 
-	void * handler = nullptr;
+	int len = 0;
+	void* threads = nullptr;
 
 #ifndef _WIN32
 	int efd;
@@ -29,6 +29,6 @@ public:
 	void add(SOCKET, Connection* = nullptr);
 	void remove(SOCKET);
 	Event_Data wait();
-	void claim();
+	void claim(void*, int);
 	void update();
 };

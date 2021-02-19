@@ -1,7 +1,7 @@
 #include "Poll.h"
 #include "../Util/logging.h"
-#include <thread>
 #include "../Util/Error.h"
+#include <thread>
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -32,17 +32,17 @@ void removeTracker(SOCKET fd, Poll* context) {
 	TrackerT &tracker = context->tracker;
 
 	int i = 0;
-	for (TrackerT::iterator iter = tracker.begin(); iter != tracker.end(); iter++)
+	for (auto iter = tracker.begin(); iter != tracker.end(); iter++)
 	{
 #ifdef _WIN32
-		INNER * store = (INNER*)(*iter);
+		auto * store = (INNER*)(*iter);
 #else
 		Event_Data * store = *iter;
 #endif
 
 		if (GETFD == fd) {
 #ifdef _WIN32
-			std::vector<void*>::iterator eiter = context->events.begin() + i;
+			auto eiter = context->events.begin() + i;
 			WSACloseEvent(*eiter);
 			context->events.erase(eiter);
 			context->events.shrink_to_fit();
@@ -68,9 +68,6 @@ Poll::Poll() {
 }
 
 Poll::~Poll() {
-	if (running)
-		warn("NOTE: POLL HAS CLOSED. THIS IS A POTENTIAL MEMORY/RESOURCE LEAK. NOTIFY DEVELOPERS IF THIS OCCURS WHEN GEDS IS NOT CLOSING!");
-
 #ifndef _WIN32
 	close(efd);
 
@@ -78,24 +75,20 @@ Poll::~Poll() {
 	{
 		delete data;
 	}
-
-	delete (pthread_t*)handler;
 #else
 	for (void * data : tracker) {
-		INNER * store = (INNER*)data;
+		auto * store = (INNER*)data;
 
 		delete store->data;
 		WSACloseEvent(store->event);
 
 		delete store;
 	}
-
-	CloseHandle(handler);
 #endif
 }
 
 void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the pollset and tracks useful information
-	Event_Data * data = new Event_Data{
+	auto * data = new Event_Data{
 		fd,
 		ptr
 	};
@@ -117,14 +110,14 @@ void Poll::add(SOCKET fd, Connection * ptr) { //Adds the file descriptor to the 
 
 	events.push_back(e);
 
-	INNER * store = new INNER{
+	auto * store = new INNER{
 		&(events.back()),
 		data
 	};
 
 	tracker.push_back((void*)store);
 
-	QueueUserAPC(apc, handler, 0); //Cause blocked thread to return allowing it to update it's select call
+	update();
 #endif
 }
 
@@ -159,7 +152,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 	return *(Event_Data*)(eEvent.data.ptr);
 #else
 	while (true) {
-		if (events.size() == 0)
+		if (events.empty())
 			SleepEx(INFINITE, true); //To prevent WSA crashes, if no sockets are in the poll, wait indefinitely until awoken
 		else {
 			int result = WSAWaitForMultipleEvents(events.size(), events.data(), false, WSA_INFINITE, true); //Interruptable select
@@ -170,7 +163,7 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 				int offset = result - WSA_WAIT_EVENT_0;
 
 				if (offset < events.size()) {
-					INNER * store = (INNER*)tracker[offset];
+					auto * store = (INNER*)tracker[offset];
 
 					_WSANETWORKEVENTS waste;
 
@@ -198,25 +191,19 @@ Event_Data Poll::wait() { //Awaits for an event on a file descriptor. Returns th
 #endif
 }
 
-void Poll::claim() {
-#ifdef _WIN32
-	if (handler != nullptr) {
-		error("Attempt to double claim poll!");
-		exit(3);
-	}
-
-	DWORD id = GetCurrentThreadId();
-	handler = OpenThread(THREAD_ALL_ACCESS, false, id);
-#else
-	handler = new pthread_t;
-	*(pthread_t*)handler = pthread_self();
-#endif
+void Poll::claim(void* thr, int thrs) {
+    threads = thr;
+    len = thrs;
 }
 
 void Poll::update() {
+    for (int i = 0; i < len; i++) {
+        std::thread& thread = ((std::thread*)threads)[i];
+
 #ifdef _WIN32
-	QueueUserAPC(apc, handler, 0);
+        QueueUserAPC(apc, thread.native_handle(), 0);
 #else
-	pthread_kill(*(std::thread::native_handle_type*)handler, SIGUSR1);
+        pthread_kill(thread.native_handle(), SIGUSR1);
 #endif
+    }
 }

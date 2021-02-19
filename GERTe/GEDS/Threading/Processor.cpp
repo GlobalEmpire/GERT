@@ -16,18 +16,29 @@
 extern volatile bool running;
 
 Processor::Processor(Poll * poll) : poll(poll) {
-	proc = new std::thread{ &Processor::run, this };
+    numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0)
+        numThreads = 1;
+
+    threads = new std::thread[numThreads];
+
+    for (int i = 0; i < numThreads; i++)
+        ((std::thread*)threads)[i] = std::thread{ &Processor::run, this };
+
+    poll->claim(threads, numThreads);
 }
 
 Processor::~Processor() {
 	poll->update();
-	((std::thread*)proc)->join();
+
+    for (int i = 0; i < numThreads; i++)
+        ((std::thread*)threads)[i].join();
+
+    delete[] (std::thread*)threads;
 }
 
 void Processor::run() {
-	poll->claim();
-
-	while (true) {
+	while (running) {
 		Event_Data data = poll->wait();
 
 		if (data.fd == 0)

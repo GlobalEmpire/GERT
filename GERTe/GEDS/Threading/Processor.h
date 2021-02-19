@@ -3,10 +3,12 @@
 
 class Processor {
 	Poll * poll;
-	void * proc;
+
+	unsigned int numThreads;
+	void* threads;
 
 	void run();
 public:
-	Processor(Poll *);
+	explicit Processor(Poll *);
 	~Processor();
 };
