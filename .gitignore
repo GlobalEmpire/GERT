@@ -3,3 +3,4 @@ CODEOWNERS
 GERTe/GEDS/.idea/
 
 GERTe/GEDS/cmake-build-*/
+GERTe/GERTeAPI/.idea/
