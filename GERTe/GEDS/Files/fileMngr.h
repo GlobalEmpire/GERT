@@ -1,4 +1,1 @@
-int loadPeers();
-int loadResolutions();
-void savePeers();
-void saveResolutions();
+bool loadResolutions();
