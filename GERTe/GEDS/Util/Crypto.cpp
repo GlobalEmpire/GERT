@@ -7,115 +7,9 @@
 #include <stdexcept>
 
 [[noreturn]] void CryptoError() {
-    char* err = new char[256];
+    char err[256];
     ERR_error_string_n(ERR_get_error(), err, 256);
-
-    std::string errStr = err;
-    delete[] err;
-    throw std::runtime_error{ errStr };
-}
-
-EVP_PKEY* CryptoNewParams() {
-    EVP_PKEY_CTX* pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr);
-
-    if (pctx == nullptr)
-        CryptoError();
-
-    if(!EVP_PKEY_paramgen_init(pctx)
-       || !EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) {
-        EVP_PKEY_CTX_free(pctx);
-        CryptoError();
-    }
-
-    EVP_PKEY* params = EVP_PKEY_new();
-
-    if (params == nullptr) {
-        EVP_PKEY_CTX_free(pctx);
-        CryptoError();
-    }
-
-    if (!EVP_PKEY_paramgen(pctx, &params)) {
-        EVP_PKEY_CTX_free(pctx);
-        EVP_PKEY_free(params);
-        CryptoError();
-    }
-
-    EVP_PKEY_CTX_free(pctx);
-    return params;
-}
-
-std::string CryptoRandom(int length) {
-    char* buf = new char[length];
-
-    if (RAND_priv_bytes((unsigned char*)buf, length) != 1) {
-        delete[] buf;
-        CryptoError();
-    }
-
-    std::string output = buf;
-    delete[] buf;
-    return output;
-}
-
-void* CryptoNewKey() {
-    EVP_PKEY* params = CryptoNewParams();
-    EVP_PKEY_CTX* kctx = EVP_PKEY_CTX_new(params, nullptr);
-    EVP_PKEY_free(params);
-
-    if (kctx == nullptr) {
-        EVP_PKEY_free(params);
-        CryptoError();
-    }
-
-    if(!EVP_PKEY_keygen_init(kctx)) {
-        EVP_PKEY_CTX_free(kctx);
-        CryptoError();
-    }
-
-    EVP_PKEY* key = EVP_PKEY_new();
-
-    if (key == nullptr) {
-        EVP_PKEY_CTX_free(kctx);
-        CryptoError();
-    }
-
-    if (!EVP_PKEY_keygen(kctx, &key)) {
-        EVP_PKEY_CTX_free(kctx);
-        EVP_PKEY_free(params);
-        CryptoError();
-    }
-
-    EVP_PKEY_CTX_free(kctx);
-    return key;
-}
-
-std::string CryptoSharedSecret(void* pubPtr, void* privPtr) {
-    auto* pubKey = (EVP_PKEY*)pubPtr;
-    auto* privKey = (EVP_PKEY*)privPtr;
-
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(privKey, nullptr);
-    if (ctx == nullptr)
-        CryptoError();
-
-    size_t secretLen;
-
-    if (EVP_PKEY_derive_init(ctx) <= 0 || EVP_PKEY_derive_set_peer(ctx, pubKey) <= 0
-            || EVP_PKEY_derive(ctx, nullptr, &secretLen) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        CryptoError();
-    }
-
-    auto* secret = new unsigned char[secretLen];
-
-    if (EVP_PKEY_derive(ctx, secret, &secretLen) <= 0) {
-        delete[] secret;
-        EVP_PKEY_CTX_free(ctx);
-        CryptoError();
-    }
-    std::string output{ (char*)secret, secretLen };
-    delete[] secret;
-
-    return output;
+    throw std::runtime_error{ err };
 }
 
 void* CryptoReadKey(const std::string& encoded) {
@@ -140,22 +34,27 @@ void* CryptoReadKey(const std::string& encoded) {
     return pkey;
 }
 
-std::string CryptoHMAC(const std::string& data, const std::string& secret) {
-    return nullptr;
+bool CryptoVerify(const std::string& data, const std::string& signature, void* ptr) {
+    auto* key = (EVP_PKEY*)ptr;
+
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (ctx == nullptr)
+        CryptoError();
+
+    if (EVP_DigestVerifyInit(ctx, nullptr, EVP_sha256(), nullptr, key) != 1) {
+        EVP_MD_CTX_free(ctx);
+        CryptoError();
+    }
+
+    int result = EVP_DigestVerify(ctx, (unsigned char*)signature.c_str(), signature.length(), (unsigned char*)data.c_str(), data.length());
+    EVP_MD_CTX_free(ctx);
+    if (result != 1 && result != 0) {
+        CryptoError();
+    }
+
+    return result == 1;
 }
 
-std::string CryptoExportPubKey(void* ptr) {
-    auto* pkey = (EVP_PKEY*)ptr;
-
-    EC_KEY* key = EVP_PKEY_get0_EC_KEY(pkey);
-    if (key == nullptr)
-        CryptoError();
-
-    unsigned char* buf = nullptr;
-    unsigned long length = i2d_EC_PUBKEY(key, &buf);
-
-    if (length <= 0)
-        CryptoError();
-
-    return std::string{ (char*)buf, length };
+void CryptoFreeKey(void* key) {
+    EVP_PKEY_free((EVP_PKEY*)key);
 }
