@@ -4,37 +4,38 @@
 #include <unistd.h>
 #include <poll.h>
 #include <signal.h>
+#include <netinet/ip.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <WinSock2.h>
+#pragma comment(lib, "Ws2_32.lib")
 #endif
-#include <sys/types.h>
 #include <thread>
-#include "../Peer/peerManager.h"
-#include "../Gateway/routeManager.h"
-#include "../Gateway/gatewayManager.h"
 #include "../Peer/query.h"
 #include "../Util/logging.h"
 #include "../Threading/Poll.h"
-#include "../Util/Versioning.h"
 #include "../Util/Error.h"
 #include "../Threading/Processor.h"
+#include "../Gateway/DataConnection.h"
+#include "../Peer/CommandConnection.h"
+
 using namespace std;
 
 SOCKET gateServer, gedsServer; //Define both server sockets
 
-Poll gatePoll;
-Poll peerPoll;
+Poll socketPoll;
 Poll serverPoll;
 
 extern volatile bool running;
 extern unsigned short gatewayPort;
 extern unsigned short peerPort;
 extern char * LOCAL_IP;
-extern vector<Gateway*> noAddrList;
-extern map<IP, Ports> peerList;
 
 constexpr unsigned int iplen = sizeof(sockaddr);
 
 void killConnections() {
-	for (gatewayIter iter; !iter.isEnd(); iter++) {
+    // TODO: FIX
+	/*for (gatewayIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
 		delete *iter;
 	}
@@ -44,52 +45,7 @@ void killConnections() {
 	for (noAddrIter iter; !iter.isEnd(); iter++) {
 		(*iter)->close();
 		delete *iter;
-	}
-}
-
-void processGateways() {
-	gatePoll.claim();
-
-	while (running) {
-		Event_Data data = gatePoll.wait();
-
-		if (data.fd == 0)
-			return;
-
-		SOCKET sock = data.fd;
-		auto * gate = (Gateway*)data.ptr;
-
-		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
-			gatePoll.remove(data.fd);
-			delete gate;
-		}
-		else
-			gate->process();
-	}
-}
-
-void processPeers() {
-	peerPoll.claim();
-
-	while (running) {
-		Event_Data data = peerPoll.wait();
-
-		if (data.fd == 0) {
-			return;
-		}
-
-		SOCKET sock = data.fd;
-		Peer * peer = (Peer*)data.ptr;
-
-		char test[1];
-		if (recv(sock, test, 1, MSG_PEEK) == 0) { //If there's no data when we were told there was, the socket closed
-			peerPoll.remove(data.fd);
-			delete peer;
-		}
-		else
-			peer->process();
-	}
+	}*/
 }
 
 void startup() {
@@ -147,57 +103,61 @@ void cleanup() {
 }
 
 void runServer() { //Listen for new connections
-	serverPoll.claim();
+    std::thread serverThread { []() -> void {
+            while (running) { //Dies on SIGINT
+                Event_Data data = serverPoll.wait();
 
-	while (running) { //Dies on SIGINT
-		Event_Data data = serverPoll.wait();
+                if (data.fd == 0) {
+                    return;
+                }
 
-		if (data.fd == 0) {
-			return;
-		}
+                SOCKET newSock = accept(data.fd, nullptr, nullptr);
 
-		SOCKET newSock = accept(data.fd, nullptr, nullptr);
-
-		if (newSock == -1) {
-			socketError("Error accepting a new connection: ");
-			continue;
-		}
+                if (newSock == -1) {
+                    socketError("Error accepting a new connection: ");
+                    continue;
+                }
 
 #ifdef _WIN32
-		serverPoll.remove(data.fd);
-		serverPoll.add(data.fd);
+                serverPoll.remove(data.fd);
+                serverPoll.add(data.fd);
 #endif
 
-		try {
-			if (data.fd == gateServer) {
-				auto * gate = new Gateway(newSock);
-				gatePoll.add(newSock, gate);
+                try {
+                    if (data.fd == gateServer) {
+                        auto * gate = new DataConnection(newSock);
+                        socketPoll.add(newSock, gate);
 
 #ifdef _WIN32
-				gatePoll.update();
+                        socketPoll.update();
 #endif
-			}
-			else {
-				Peer * peer = new Peer(newSock);
-				peerPoll.add(newSock, peer);
+                    }
+                    else {
+                        auto peer = new CommandConnection(newSock);
+                        socketPoll.add(newSock, peer);
 
 #ifdef _WIN32
-				peerPoll.update();
+                        socketPoll.update();
 #endif
-			}
-		}
-		catch (int e) {
+                    }
+                }
+                catch ([[maybe_unused]] int e) {
 #ifdef _WIN32
-			closesocket(newSock);
+                    closesocket(newSock);
 #else
-			close(newSock);
+                    close(newSock);
 #endif
-		}
-	}
+                }
+            }
+        }
+    };
+
+    serverPoll.claim(&serverThread, 1);
+    serverThread.join();
 }
 
 void buildWeb() {
-	for (auto & iter : peerList) {
+	/*for (auto & iter : peerList) {
 		IP ip = iter.first;
 		Ports ports = iter.second;
 
@@ -258,9 +218,8 @@ void buildWeb() {
 			}
 		}
 
-		newConn->state = 1;
 		log("Connected to " + ip.stringify());
 
-		peerPoll.add(newSock, newConn);
-	}
+		socketPoll.add(newSock, newConn);
+	}*/
 }
