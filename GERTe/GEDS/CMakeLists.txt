@@ -7,11 +7,11 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(GEDS "GEDS Server.cpp"
         Util/Error.cpp Util/logging.cpp Util/Trace.cpp
         Threading/Poll.cpp Threading/Processor.cpp
-        Peer/Peer.cpp Peer/peerManager.cpp Peer/query.cpp
+        Peer/query.cpp
         Networking/Connection.cpp Networking/NetString.cpp Networking/netty.cpp
-        Gateway/Address.cpp Gateway/gatewayManager.cpp Gateway/Key.cpp Gateway/RGateway.cpp Gateway/routeManager.cpp Gateway/Gateway.cpp
+        Gateway/Address.cpp Gateway/Key.cpp
         Files/fileMngr.cpp
-        Networking/SecureConnection.cpp Networking/SecureConnection.h Util/Crypto.cpp Util/Crypto.h Networking/DataPacket.cpp Networking/DataPacket.h Networking/Logic.cpp Networking/Logic.h)
+        Gateway/DataConnection.cpp Gateway/DataConnection.h Util/Crypto.cpp Util/Crypto.h Gateway/DataPacket.cpp Gateway/DataPacket.h Peer/CommandConnection.cpp Peer/CommandConnection.h Networking/Route.cpp Networking/Route.h Peer/CommandPacket.cpp Peer/CommandPacket.h Networking/ReentrantPacket.cpp Networking/ReentrantPacket.h Peer/RelayPacket.cpp Peer/RelayPacket.h Peer/QueryPacket.cpp Peer/QueryPacket.h Peer/QueryPPacket.cpp Peer/QueryPPacket.h)
 
 target_include_directories(GEDS PRIVATE ../openssl/include)
 
@@ -44,12 +44,10 @@ if (PERL_FOUND)
             INSTALL_COMMAND ""
     )
 
-    add_library(libcrypto SHARED IMPORTED)
-    add_dependencies(libcrypto OpenSSLBuild)
-    target_include_directories(libcrypto INTERFACE ../openssl/include/)
-    target_link_libraries(libcrypto INTERFACE ../openssl/)
-
-    target_link_libraries(GEDS PRIVATE libcrypto)
+    add_dependencies(GEDS OpenSSLBuild)
+    target_link_directories(GEDS PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../openssl/")
+    target_link_libraries(GEDS PRIVATE "libcrypto")
+    target_include_directories(GEDS PRIVATE ../openssl/include/)
 else()
     message(FATAL_ERROR "Cannot build OpenSSL, Perl was not found")
 endif()
