@@ -73,10 +73,10 @@ Connection::~Connection() {
 }
 
 void Connection::write(const std::string& data) const {
-    send(sock, data.c_str(), (ULONG)data.length(), 0);
+    ::send(sock, data.c_str(), (ULONG)data.length(), 0);
 }
 
-void Connection::close() const {
+void Connection::close() {
 #ifdef WIN32
     closesocket(sock);
 #else

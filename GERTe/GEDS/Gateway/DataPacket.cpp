@@ -6,8 +6,9 @@
 #include <arpa/inet.h>
 #endif
 
-int DataPacket::needed() const {
-    return (raw.capacity() - raw.length()) - partial.length() + 32;
+
+DataPacket::DataPacket(): ReentrantPacket(32) {
+    raw.reserve(22);
 }
 
 bool DataPacket::parse(const std::string& newStr) {
@@ -21,7 +22,7 @@ bool DataPacket::parse(const std::string& newStr) {
             partial.erase(0, 2);
 
             short length = ntohs(*(short*)len.c_str());
-            raw.reserve(length + 14);
+            raw.reserve(length + 22);
             data.reserve(length);
         }
     }
@@ -38,16 +39,27 @@ bool DataPacket::parse(const std::string& newStr) {
     }
 
     if (data.length() < data.capacity()) {
-        int diff = data.capacity() - data.length();
+        size_t diff = data.capacity() - data.length();
         data += partial.substr(0, diff);
-        data.erase(0, diff);
+        partial.erase(0, diff);
 
         if (data.length() != data.capacity())
             return false;
+        else
+            raw += data;
+    }
+
+    if (raw.length() < raw.capacity()) {
+        if (partial.length() < 8)
+            return false;
+
+        timestamp = *(unsigned long*)partial.c_str();
+        raw += partial.substr(0, 8);
+        partial.erase(0, 8);
     }
 
     if (partial.length() == 32) {
-        hmac = partial;
+        signature = partial;
         partial.clear();
         partial.shrink_to_fit();
         return true;
