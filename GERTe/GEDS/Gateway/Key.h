@@ -1,17 +1,14 @@
 #pragma once
 #include "Address.h"
+#include <map>
 
 class Key {
-	friend void saveResolutions();
-
 	public:
-        void* key;
+        std::string key;
+        inline static std::map<Address, Key> resolutions;
 
 		bool operator== (const Key& comp) const;
-		explicit Key (const std::string&);
-
-		static void add(Address, Key);
-		static void remove(Address);
+		explicit Key(std::string);
 
 		static bool exists(Address);
 		static Key retrieve(Address);

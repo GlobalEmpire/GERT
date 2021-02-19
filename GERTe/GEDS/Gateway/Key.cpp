@@ -2,22 +2,17 @@
 #include "Key.h"
 #include "../Util/Crypto.h"
 #include <openssl/evp.h>
-#include <map>
+#include <utility>
 
-static std::map<Address, Key> resolutions;
-
-Key::Key(const std::string& keyin) : key(CryptoReadKey(keyin)) {}
+Key::Key(std::string  keyin) : key(std::move(keyin)) {}
 
 bool Key::operator==(const Key &comp) const {
-    return EVP_PKEY_cmp((EVP_PKEY*)key, (EVP_PKEY*)comp.key) == 1;
-}
-
-void Key::add(Address addr, Key key) {
-	resolutions[addr] = key;
-}
-
-void Key::remove(Address addr) {
-	resolutions.erase(addr);
+    void* us = CryptoReadKey(key);
+    void* them = CryptoReadKey(comp.key);
+    bool result = EVP_PKEY_cmp((EVP_PKEY*)us, (EVP_PKEY*)them) == 1;
+    CryptoFreeKey(us);
+    CryptoFreeKey(them);
+    return result;
 }
 
 bool Key::exists(Address addr) {
@@ -25,5 +20,5 @@ bool Key::exists(Address addr) {
 }
 
 Key Key::retrieve(Address addr) {
-    return resolutions[addr]
+    return resolutions.at(addr);
 }
