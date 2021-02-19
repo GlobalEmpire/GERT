@@ -1,33 +1,12 @@
 #include "NetString.h"
 #include <cstring>
+#include <utility>
 
-NetString::NetString(char len, char* str) : length(len), str(str) {}
-
-NetString::~NetString() {
-	delete this->str;
-}
+NetString::NetString(std::string str) : data(std::move(str)) {}
 
 NetString NetString::extract(Connection* conn) {
-	char * rawlen = conn->read(1);
-	char * data = conn->read(rawlen[1]);
+	unsigned short rawlen = *(unsigned short*)conn->read(2).c_str();
+	std::string data = conn->read(rawlen);
 
-	if (data[0] < rawlen[1]) {
-		rawlen[1] = data[0];
-	}
-
-	char len = rawlen[1];
-	char* str = new char[len];
-
-	memcpy(str, data+1, len);
-	delete rawlen;
-	delete data;
-
-	return {
-		len,
-		str
-	};
-}
-
-std::string NetString::string() const {
-	return std::string{this->length} + std::string{this->str, (size_t)this->length};
+	return { data };
 }

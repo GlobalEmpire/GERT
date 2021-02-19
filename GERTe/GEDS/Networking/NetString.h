@@ -2,11 +2,8 @@
 
 class NetString {
 public:
-	NetString(char, char*);
-	~NetString();
+	NetString(std::string);
 
 	NetString static extract(Connection*);
-	std::string string() const;
-	char length;
-	char * str;
+	std::string data;
 };
