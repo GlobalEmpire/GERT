@@ -9,6 +9,8 @@
 #include "QueryPacket.h"
 #include "QueryPPacket.h"
 #include <stdexcept>
+#include <chrono>
+using namespace std::chrono_literals;
 
 CommandConnection::CommandConnection(SOCKET s) : Connection(s, "Peer") {
     write(ThisVersion.tostring());
@@ -90,7 +92,11 @@ void CommandConnection::process() {
                 if (Key::exists(casted->source.external) && route != nullptr) {
                     void* key = CryptoReadKey(Key::retrieve(casted->source.external).key);
 
-                    if (CryptoVerify(casted->raw, casted->signature, key)) {
+
+                    std::chrono::time_point now = std::chrono::system_clock::now();
+                    std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { curPacket.timestamp } };
+
+                    if (now - timestamp < 1min && CryptoVerify(casted->raw, casted->signature, key)) {
                         auto temp = DataPacket();
                         temp.parse(casted->subraw + casted->signature);
                         route->connection->send(temp);

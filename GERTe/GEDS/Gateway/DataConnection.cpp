@@ -5,6 +5,8 @@
 #include "DataConnection.h"
 #include "../Networking/Route.h"
 #include <stdexcept>
+#include <chrono>
+using namespace std::chrono_literals;
 
 DataConnection::DataConnection(SOCKET s) : Connection(s, "Gateway") {
     addr = Address::extract(this);
@@ -42,7 +44,10 @@ void DataConnection::process() {
             return;
         }
 
-        if (CryptoVerify(curPacket.raw, curPacket.signature, key)) {
+        std::chrono::time_point now = std::chrono::system_clock::now();
+        std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { curPacket.timestamp } };
+
+        if (now - timestamp < 1min && CryptoVerify(curPacket.raw, curPacket.signature, key)) {
             Route* route = Route::getRoute(curPacket.destination.external);
             if (route != nullptr)
                 route->connection->send(curPacket);
