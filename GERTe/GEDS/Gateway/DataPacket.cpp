@@ -53,7 +53,7 @@ bool DataPacket::parse(const std::string& newStr) {
         if (partial.length() < 8)
             return false;
 
-        timestamp = *(unsigned long*)partial.c_str();
+        timestamp = ntohl(*(unsigned long*)partial.c_str());
         raw += partial.substr(0, 8);
         partial.erase(0, 8);
     }
