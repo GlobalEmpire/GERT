@@ -157,6 +157,7 @@ void runServer() { //Listen for new connections
 }
 
 void buildWeb() {
+    // TODO: Redo
 	/*for (auto & iter : peerList) {
 		IP ip = iter.first;
 		Ports ports = iter.second;

@@ -15,6 +15,7 @@ enum errors { //Define a list of error codes
 extern char * LOCAL_IP; //Grab the local address
 
 bool loadResolutions() { //Load key resolutions from a file
+    // TODO: FIX
 	FILE* resolutionFile = fopen("resolutions.geds", "rb"); //Open the file in binary mode
 	if (resolutionFile == nullptr) { //If the file failed to open
 		error("Failed to open key file: " + std::to_string(errno));
