@@ -6,8 +6,8 @@ local filesystem = require("filesystem")
 local GERTe = nil
 local os = require("os")
 local serialize = require("serialization")
-local modem = nil
-local tunnel = nil
+local mTable
+local tTable
 
 local nodes = {}
 local connections = {}
@@ -46,7 +46,7 @@ local function waitWithCancel(timeout, cancelCheck)
 	return cancelCheck()
 end
 
-local function storeChild(rAddress, port, tier)
+local function storeChild(rAddress, receiveM, port, tier)
 	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
 	-- children means the direct connections a computer can make to another computer that is a lower tier than it
 	local childGA
@@ -73,12 +73,13 @@ local function storeChild(rAddress, port, tier)
 	childGA = tonumber(childGA)
 	nodes[childGA] = {}
 	nodes[childGA]["add"] = rAddress
+	nodes[childGA]["receiveM"] = receiveM
 	nodes[childGA]["tier"] = tonumber(tier)
 	nodes[childGA]["port"] = tonumber(port)
 	return childGA
 end
 
-local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
+local function storeConnection(origin, ID, dest, nextHop, sendM, port, lieAdd)
 	local connectDex
 	ID = math.floor(ID)
 	if lieAdd then
@@ -91,57 +92,58 @@ local function storeConnection(origin, ID, dest, nextHop, port, lieAdd)
 	connections[connectDex]["dest"]=dest
 	connections[connectDex]["ID"]=ID
 	connections[connectDex]["nextHop"]=nextHop
+	connections[connectDex]["sendM"] = sendM
 	connections[connectDex]["port"]=port
 end
 
-local function transInfo(sendTo, port, ...)
-	if (port ~= 0) and (modem) then
-		return modem.send(sendTo, port, ...)
-	elseif (tunnel) then
-		return tunnel.send(...)
+local function transInfo(sendTo, localM, port, ...)
+	if mTable and port ~= 0 then
+		mTable[localM].send(sendTo, port, ...)
+	elseif tTable then
+		tTable[localM].send(...)
 	end
 end
 
 local handler = {}
-handler.CloseConnection = function(sendingModem, port, connectDex)
-	if connections[connectDex]["nextHop"] == (modem or tunnel).address then
+handler.CloseConnection = function(receiveM, sendM, port, connectDex)
+	if connections[connectDex]["nextHop"] == 1 then
 		connections[connectDex] = nil
 		return
 	else
 		if string.find(connectDex, ":") then
-			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
+			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"])
 		end
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connectDex)
 		connections[connectDex] = nil
 	end
 end
 
-handler.Data = function (sendingModem, port, data, connectDex, order, origin)
+handler.Data = function (_, _, _, data, connectDex, order, origin)
 	if string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
 		local pipeDex = string.find(connectDex, "|")
 		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), data)
 	elseif string.find(connectDex, ":") then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order)
 	elseif connections[connectDex] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["port"], "Data", data, connectDex, order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
 	end
 end
 
-handler.NewNode = function (sendingModem, port, gAddres, nTier)
+handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 	if not gAddress then
-		transInfo(sendingModem, port, "NewNode", 0.0, 0)
+		transInfo(sendM, receiveM, port, "NewNode", 0.0, 0)
 	end
 end
 -- Used in handler["OPENROUTE"]
-local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
+local function routeOpener(dest, origin, receiveM, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
     local function sendOKResponse()
-		transInfo(bHop, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
-		storeConnection(origin, ID, dest, nextHop, transPort, lieAdd)
+		transInfo(bHop, receiveM, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
+		storeConnection(origin, ID, dest, nextHop, receiveM, transPort, lieAdd)
 	end
 	
 	if lieAdd or (not string.find(tostring(dest), ":")) then
-		transInfo(nextHop, transPort, "OpenRoute", dest, hop2, origin, ID)
+		transInfo(nextHop, receiveM, transPort, "OpenRoute", dest, hop2, origin, ID)
 		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig, ID)
 			if (dest == pktDest) and (origin == pktOrig) then
 				sendOKResponse()
@@ -153,18 +155,18 @@ local function routeOpener(dest, origin, bHop, nextHop, hop2, recPort, transPort
 	end
 end
 
-handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID)
+handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
 	local lieAdd
 	dest = tostring(dest)
 	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) then
-		return routeOpener(tonumber(dest), origin, sendingModem, modem.address, modem.address, port, port, ID)
+		return routeOpener(tonumber(dest), origin, receiveM, sendM, receiveM, receiveM, port, port, ID)
 	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then
 		lieAdd = dest
 		dest = string.sub(dest, string.find(dest, ":")+1)
 	end
 	dest = tonumber(dest)
 	if nodes[dest][0.0] then
-		return routeOpener(dest, origin, sendingModem, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
+		return routeOpener(dest, origin, receiveM, sendM, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
 	end
 	
 	local interTier = 1000
@@ -185,13 +187,13 @@ handler.OpenRoute = function (sendingModem, port, dest, intermediary, origin, ID
 	end
 	local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1))
 	inter = string.sub(inter, string.find(inter, "|")+1)
-	return routeOpener(dest, origin, sendingModem, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd)
+	return routeOpener(dest, origin, receiveM, sendM, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd)
 end
 
-handler.RegisterNode = function (sendingModem, port, originatorAddress, childTier, childTable)
+handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, port, childTier)
-	transInfo(sendingModem, port, "RegisterComplete", originatorAddress, childGA)
+	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do
 		if not nodes[childGA][value["tier"]] then
 			nodes[childGA][value["tier"]] = {}
@@ -200,16 +202,16 @@ handler.RegisterNode = function (sendingModem, port, originatorAddress, childTie
 	end
 end
 
-handler.RemoveNeighbor = function (sendingModem, port, origination)
+handler.RemoveNeighbor = function (_, _, _, origination)
 	if nodes[origination] ~= nil then
 		nodes[origination] = nil
 	end
 end
 
-local function receivePacket(eventName, receivingModem, sendingModem, port, distance, code, ...)
+local function receivePacket(_, receiveM, sendM, port, distance, code, ...)
 	print(code)
 	if handler[code] ~= nil then
-		handler[code](sendingModem, port, ...)
+		handler[code](receiveM, sendM, port, ...)
 	end
 end
 
@@ -220,10 +222,10 @@ local function readGMessage()
 	while not errC and message do
 		local target = string.sub(message["target"], string.find(message["target"], ":")+1)
 		if connections[message["source"]..target..0] ~= nil then
-			handler["Data"](_, _, message["data"], target, message["source"], 0)
+			handler["Data"](_, _, _, message["data"], target, message["source"], 0)
 		else
-			handler["OpenRoute"](modem.address, 4378, target, _, message["source"], 0)
-			handler["Data"](_, _, message["data"], target, message["source"], 0)
+			handler["OpenRoute"](nodes[target]["receiveM"], nodes[target]["port"], target, _, message["source"], 0)
+			handler["Data"](_, _, _, message["data"], target, message["source"], 0)
 		end
 		errC, message = pcall(GERTe.parse)
 	end
@@ -266,27 +268,31 @@ function loadAddress()
 end
 
 function realStart()
-	if component.isAvailable("modem") then
-		modem = component.modem
-		modem.open(4378)
-		if modem.isWireless() then
-			modem.setStrength(500)
+------------------------ Startup procedure
+	if (component.isAvailable("modem")) then
+		mTable = {}
+		for address, value in component.list("modem") do
+			mTable[address] = component.proxy(address)
+			mTable[address].open(4378)
+			if (mTable[address].isWireless()) then
+				mTable[address].setStrength(500)
+			end
 		end
 	end
-	
-	if component.isAvailable("tunnel") then
-		tunnel = component.tunnel
+	if (component.isAvailable("tunnel")) then
+		tTable = {}
+		for address, value in component.list("tunnel") do
+			tTable[address] = component.proxy(address)
+		end
 	end
-	
-	if not (modem or tunnel) then
-		io.stderr:write("This program requires a network or linked card to run.")
+	if not (mTable or tTable) then
+		io.stderr:write("This program requires a network card or linked card to run.")
 		os.exit(1)
 	end
 	
 	if filesystem.exists("/lib/GERTeAPI.lua") then
 		GERTe = require("GERTeAPI")
 	end
-	------------------------ Startup procedure
 	event.listen("modem_message", receivePacket)
 
 	if GERTe then
