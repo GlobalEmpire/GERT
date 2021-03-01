@@ -1,4 +1,4 @@
--- GERT v1.3
+-- GERT v1.4 Build 2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -135,10 +135,10 @@ handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 	end
 end
 -- Used in handler["OPENROUTE"]
-local function routeOpener(dest, origin, receiveM, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
+local function routeOpener(dest, origin, receiveM, sendM, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
 	print("Opening Route")
     local function sendOKResponse()
-		transInfo(bHop, receiveM, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
+		transInfo(bHop, sendM, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
 		storeConnection(origin, ID, dest, nextHop, receiveM, transPort, lieAdd)
 	end
 	
@@ -166,7 +166,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 	end
 	dest = tonumber(dest)
 	if nodes[dest][0.0] then
-		return routeOpener(dest, origin, receiveM, sendM, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
+		return routeOpener(dest, origin, nodes[dest]["receiveM"], receiveM, sendM, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd)
 	end
 	
 	local interTier = 1000
@@ -187,12 +187,12 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 	end
 	local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1))
 	inter = string.sub(inter, string.find(inter, "|")+1)
-	return routeOpener(dest, origin, receiveM, sendM, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd)
+	return routeOpener(dest, origin, nodes[nextHop]["receiveM"], receiveM, sendM, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd)
 end
 
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
-	childGA = storeChild(originatorAddress, port, childTier)
+	childGA = storeChild(originatorAddress, receiveM, port, childTier)
 	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do
 		if not nodes[childGA][value["tier"]] then

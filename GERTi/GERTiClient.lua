@@ -1,4 +1,4 @@
--- GERT v1.4 Build 1
+-- GERT v1.4 Build 2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -98,7 +98,7 @@ end
 local handler = {}
 handler.CloseConnection = function(_, _, port, connectDex)
 	if connections[connectDex]["nextHop"] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"] connections[connectDex]["port"], "CloseConnection", connectDex)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connectDex)
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
 	end
@@ -113,7 +113,7 @@ handler.Data = function (_, _, port, data, connectDex, order, origin)
 		if connections[connectDex]["dest"] == iAdd then
 			storeData(connectDex, data, order)
 		else
-			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"] connections[connectDex]["port"], "Data", data, connectDex, order)
+			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
 		end
 	end
 end
@@ -146,7 +146,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
 	end
-	cPend[dest..origin]={["bHop"]=sendM, ["port"]=port}
+	cPend[dest..origin]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 handler.RegisterComplete = function(receiveM, _, port, target, newG)
 	if (mTable and mTable[target]) or (tTable and tTable[target]) then
@@ -172,7 +172,7 @@ end
 
 handler.RouteOpen = function (receiveM, sendM, sPort, pktDest, pktOrig, ID)
 	if cPend[pktDest..pktOrig] then
-		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
+		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["receiveM"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
 		storeConnection(pktOrig, ID, pktDest, sendM, receiveM, sPort)
 		cPend[pktDest..pktOrig] = nil
 	end
@@ -186,12 +186,12 @@ end
 ------------------------------------------
 event.listen("modem_message", receivePacket)
 if tTable then
-	for key, value in tTable do
+	for key, value in pairs(tTable) do
 		tTable[key].send("NewNode")
 	end
 end
 if mTable then
-	for key, value in mTable do
+	for key, value in pairs(mTable) do
 		mTable[key].broadcast(4378, "NewNode")
 	end
 end
@@ -215,12 +215,12 @@ if serialTable ~= "{}" then
 end
 
 if tTable then
-	for key, value in tTable do
+	for key, value in pairs(tTable) do
 		tTable[key].send("NewNode", iAdd, tier)
 	end
 end
 if mTable then
-	for key, value in mTable do
+	for key, value in pairs(mTable) do
 		mTable[key].broadcast(4378, "NewNode", iAdd, tier)
 	end
 end
@@ -231,12 +231,12 @@ local function safedown()
 		handler.CloseConnection(_, _, 4378, key)
 	end
 	if tTable then
-	for key, value in tTable do
+	for key, value in pairs(tTable) do
 		tTable[key].send("RemoveNeighbor", iAdd)
 	end
 end
 if mTable then
-	for key, value in mTable do
+	for key, value in pairs(mTable) do
 		mTable[key].broadcast(4378, "RemoveNeighbor", iAdd)
 	end
 end
