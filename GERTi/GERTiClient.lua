@@ -1,4 +1,4 @@
--- GERT v1.4 Build 2
+-- GERT v1.4 Build 3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -88,9 +88,9 @@ local function storeData(connectDex, data, order)
 end
 
 local function transInfo(sendTo, localM, port, ...)
-	if mTable and port ~= 0 then
+	if mTable and mTable[localM] then
 		mTable[localM].send(sendTo, port, ...)
-	elseif tTable then
+	elseif tTable and tTable[localM] then
 		tTable[localM].send(...)
 	end
 end
@@ -152,15 +152,13 @@ handler.RegisterComplete = function(receiveM, _, port, target, newG)
 	if (mTable and mTable[target]) or (tTable and tTable[target]) then
 		iAdd = tonumber(newG)
 	elseif rPend[target] then
-		transInfo(rPend[target]["add"], receiveM, rPend[target]["port"], "RegisterComplete", target, newG)
+		transInfo(rPend[target]["add"], rPend[target]["receiveM"], rPend[target]["port"], "RegisterComplete", target, newG)
 		rPend[target] = nil
 	end
 end
-handler.RegisterNode = function (_, sendM, sPort, origin, nTier, serialTable)
+handler.RegisterNode = function (receiveM, sendM, sPort, origin, nTier, serialTable)
 	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", origin, nTier, serialTable)
-	rPend[origin] = {}
-	rPend[origin]["add"] = sendM
-	rPend[origin]["port"] = sPort
+	rPend[origin] = {["receiveM"]=receiveM, ["add"]=sendM, ["port"] = sPort}
 end
 
 handler.RemoveNeighbor = function (receiveM, _, port, origination)
@@ -202,12 +200,7 @@ local serialTable = serialize.serialize(nodes)
 if serialTable ~= "{}" then
 	local mncUnavailable = true
 	local addr
-	if mTable then
-		addr = component.modem.address
-	else
-		addr = component.tunnel.address
-	end
-	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", addr, tier, serialTable)
+	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", firstN["receiveM"], tier, serialTable)
 	waitWithCancel(5, function () return iAdd end)
 	if not iAdd then
 		print("Unable to contact the MNC. Functionality will be impaired.")

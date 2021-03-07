@@ -1,4 +1,4 @@
--- GERT v1.4 Build 2
+-- GERT v1.4 Build 3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -97,7 +97,7 @@ local function storeConnection(origin, ID, dest, nextHop, sendM, port, lieAdd)
 end
 
 local function transInfo(sendTo, localM, port, ...)
-	if mTable and port ~= 0 then
+	if mTable and mTable[localM] then
 		mTable[localM].send(sendTo, port, ...)
 	elseif tTable then
 		tTable[localM].send(...)
