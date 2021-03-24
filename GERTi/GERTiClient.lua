@@ -1,11 +1,10 @@
--- GERT v1.4 Build 3
+-- GERT v1.4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local serialize = require("serialization")
-local mTable
-local tTable
+local mTable, tTable
 
 if (component.isAvailable("modem")) then
 	mTable = {}
@@ -60,10 +59,7 @@ end
 local function storeConnection(origin, ID, GAdd, nextHop, sendM, port)
 	ID = math.floor(ID)
 	local connectDex = origin.."|"..GAdd.."|"..ID
-	connections[connectDex] = {}
-	connections[connectDex]["origin"]=origin
-	connections[connectDex]["dest"]=GAdd
-	connections[connectDex]["ID"]=ID
+	connections[connectDex] = {["origin"]=origin, ["dest"]=GAdd, ["ID"]=ID}
 	if GAdd ~= iAdd then
 		connections[connectDex]["nextHop"]=nextHop
 		connections[connectDex]["sendM"] = sendM
@@ -328,6 +324,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4", "1.4 Build 1"
+	return "v1.4", "1.4"
 end
 return GERTi
