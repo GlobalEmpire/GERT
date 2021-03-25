@@ -111,6 +111,17 @@ handler.Data = function (_, _, port, data, connectDex, order, origin)
 		else
 			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
 		end
+	else
+		origin = string.sub(connectDex, 1, string.find(connectDex, "|")-1)
+		local dest = string.sub(connectDex, #origin+2, string.find(connectDex, "|", #origin+2)-1)
+		local ID = string.sub(connectDex, #origin+#dest+3)
+		origin = tonumber(origin)
+		dest = tonumber(dest)
+		ID = tonumber(ID)
+		if dest == iAdd then
+			storeConnection(origin, ID, dest)
+			handler.Data(_, _, port, data, connectDex, order)
+		end
 	end
 end
 
