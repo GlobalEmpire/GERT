@@ -321,7 +321,12 @@ function realStart()
 	loadAddress()
 	loadTables()
 	table.insert(timerID, event.timer(30, cacheNetworkTables, math.huge))
-	event.listen("shutdown", safedown)
+	local shutdownListener = event.listen("shutdown", safedown)
+	if fs.exists("/lib/autoUpdateGERTiMNC.lua") then
+		local listenerFile = io.open("/.GERTiMNCShutdownListener", "w")
+		listenerFile:write(tostring(shutdownListener))
+		listenerFile:close()
+	end
 	print("Setup Complete!")
 end
 
