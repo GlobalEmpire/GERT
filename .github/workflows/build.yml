@@ -1,9 +1,10 @@
 name: GEDS Build Check
 
 on:
-  push:
+  pull_request:
     paths:
     - 'GERTe/GEDS/**'
+    types: [ opened, reopened, edited ]
 
 jobs:
 
