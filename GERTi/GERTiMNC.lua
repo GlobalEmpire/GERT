@@ -53,6 +53,8 @@ local function storeChild(rAddress, receiveM, port, tier)
 	end
 	if not childGA then
 		childGA = addressP1.."."..addressP2
+		print("AddressP1 is "..addressP1.." and AddressP2 is "..addressP2.." and childGA is "..childGA)
+		childGA = tonumber(childGA)
 		savedAddresses[rAddress] = childGA
 		local f = io.open(directory, "a")
 		f:write(addressP1.."."..addressP2.."\n")
@@ -71,7 +73,6 @@ local function storeChild(rAddress, receiveM, port, tier)
 				addressP2 = addressP2 +1
 		end
 	end
-	childGA = tonumber(childGA)
 	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port)} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
 	return childGA
 end
@@ -256,8 +257,8 @@ local function loadAddress() -- load GERTi address file to restore cached GERTi 
 		f:close()
 		highest = tostring(highest)
 		local dividerDex = string.find(highest, "%.")
-		addressP1 = string.sub(highest, 1, dividerDex-1)
-		addressP2 = string.sub(highest, dividerDex+1)+1
+		addressP1 = tonumber(string.sub(highest, 1, dividerDex-1))
+		addressP2 = tonumber(string.sub(highest, dividerDex+1)+1)
 	end
 end
 
