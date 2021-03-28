@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 2
+-- GERT v1.4.1 Build 3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -340,6 +340,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4.1", "1.4.1 Build 2"
+	return "v1.4.1", "1.4.1 Build 3"
 end
 return GERTi

@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 2
+-- GERT v1.4.1 Build 3
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -54,7 +54,6 @@ local function storeChild(rAddress, receiveM, port, tier)
 	if not childGA then
 		childGA = addressP1.."."..addressP2
 		childGA = tonumber(childGA)
-		print("AddressP1 is "..addressP1.." and AddressP2 is "..addressP2.." and childGA is "..childGA)
 		savedAddresses[rAddress] = childGA
 		local f = io.open(directory, "a")
 		f:write(addressP1.."."..addressP2.."\n")
@@ -248,17 +247,15 @@ local function loadAddress() -- load GERTi address file to restore cached GERTi 
 		while newGAddress ~= nil do
 			newGAddress = tonumber(newGAddress)
 			savedAddresses[newRAddress]=newGAddress
-			if newGAddress >= highest then
-				highest = newGAddress
-			end
+			highest = newGAddress
 			newGAddress = f:read("*l")
 			newRAddress = f:read("*l")
 		end
 		f:close()
 		highest = tostring(highest)
 		local dividerDex = string.find(highest, "%.")
-		addressP1 = tonumber(string.sub(highest, 1, dividerDex-1))
-		addressP2 = tonumber(string.sub(highest, dividerDex+1)+1)
+		addressP1 = math.floor(tonumber(string.sub(highest, 1, dividerDex-1)))
+		addressP2 = math.floor(tonumber(string.sub(highest, dividerDex+1)+1))
 	end
 end
 
