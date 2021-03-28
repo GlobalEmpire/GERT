@@ -1,4 +1,4 @@
--- GERT v1.4
+-- GERT v1.4.1 Build 2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -141,7 +141,11 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
-	if dest == iAdd then
+	if cPend[dest..origin..ID] then
+		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
+		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
+		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
+	elseif dest == iAdd then
 		storeConnection(origin, ID, dest)
 		sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif nodes[dest] then
@@ -153,7 +157,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
 	end
-	cPend[dest..origin]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
+	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 handler.RegisterComplete = function(receiveM, _, port, target, newG)
 	if (mTable and mTable[target]) or (tTable and tTable[target]) then
@@ -176,10 +180,11 @@ handler.RemoveNeighbor = function (receiveM, _, port, origination)
 end
 
 handler.RouteOpen = function (receiveM, sendM, sPort, pktDest, pktOrig, ID)
-	if cPend[pktDest..pktOrig] then
-		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["receiveM"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
+	local cDex = pktDest..pktOrig..ID
+	if cPend[cDex] then
+		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], pktDest, pktOrig, ID)
 		storeConnection(pktOrig, ID, pktDest, sendM, receiveM, sPort)
-		cPend[pktDest..pktOrig] = nil
+		cPend[cDex] = nil
 	end
 end
 local function receivePacket(_, receiveM, sendM, port, distance, code, ...)
@@ -283,8 +288,8 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	else
 		handler.OpenRoute(firstN["receiveM"], firstN["receiveM"], 4378, gAddress, nil, iAdd, outID)
 	end
-	waitWithCancel(3, function () return (not cPend[gAddress..iAdd]) end)
-	if not cPend[gAddress..iAdd] then
+	waitWithCancel(3, function () return (not cPend[gAddress..iAdd..outID]) end)
+	if not cPend[gAddress..iAdd..outID] then
 		local socket = {origination = iAdd,
 			destination = gAddress,
 			outPort = port or firstN["port"],
@@ -335,6 +340,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4", "1.4"
+	return "v1.4.1", "1.4.1 Build 2"
 end
 return GERTi

@@ -1,4 +1,4 @@
--- GERT v1.4
+-- GERT v1.4.1 Build 2
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -53,8 +53,8 @@ local function storeChild(rAddress, receiveM, port, tier)
 	end
 	if not childGA then
 		childGA = addressP1.."."..addressP2
-		print("AddressP1 is "..addressP1.." and AddressP2 is "..addressP2.." and childGA is "..childGA)
 		childGA = tonumber(childGA)
+		print("AddressP1 is "..addressP1.." and AddressP2 is "..addressP2.." and childGA is "..childGA)
 		savedAddresses[rAddress] = childGA
 		local f = io.open(directory, "a")
 		f:write(addressP1.."."..addressP2.."\n")
