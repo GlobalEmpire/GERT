@@ -1,2 +1,2 @@
 -- GERT v1.4
-https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/GERTiMNC.lua
+https://github.com/GlobalEmpire/GERT/releases/download/v1.4/GERTiMNC.lua
