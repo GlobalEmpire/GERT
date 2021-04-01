@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 3
+-- GERT v1.4.1 Build 3 Patch 1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -137,25 +137,25 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
 	if origin ~= iAdd then
-		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, ID)
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
 	if cPend[dest..origin..ID] then
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
+		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
 	elseif dest == iAdd then
 		storeConnection(origin, ID, dest)
 		sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif nodes[dest] then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, ID)
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	elseif not intermediary then
-		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, ID)
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	else
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
 	end
 	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
