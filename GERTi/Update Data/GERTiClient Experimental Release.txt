@@ -1,2 +1,2 @@
--- GERT v1.4.1 Build 3
+-- GERT v1.4.1 Build 3 Patch 1
 https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/GERTiClient.lua
