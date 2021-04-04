@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 3 Patch 1
+-- GERT v1.4.1 Build 4
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -94,7 +94,7 @@ end
 local handler = {}
 handler.CloseConnection = function(_, _, port, connectDex)
 	if connections[connectDex]["nextHop"] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", tostring(connectDex))
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
 	end
@@ -147,7 +147,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
 	elseif dest == iAdd then
 		storeConnection(origin, ID, dest)
-		sendOK(sendM, receiveM, port, dest, origin, ID)
+		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif nodes[dest] then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	elseif not intermediary then
