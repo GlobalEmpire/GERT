@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 3 Patch 1
+-- GERT v1.4.1 Build 3 Patch 2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -94,9 +94,10 @@ end
 local handler = {}
 handler.CloseConnection = function(_, _, port, connectDex)
 	if connections[connectDex]["nextHop"] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", tostring(connectDex))
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
+		cPend[connections[connectDex]["dest"]..connections[connectDex]["origin"]..connections[connectDex]["ID"]]=nil
 	end
 	connections[connectDex] = nil
 end
