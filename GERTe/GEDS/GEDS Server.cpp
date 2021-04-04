@@ -132,7 +132,7 @@ int main( int argc, char* argv[] ) {
 	startup(); //Startup server sockets
 
 	debug("Building peer web"); //Use debug to notify user where we are in the loading process
-	buildWeb(); //Connect to online peers and update connection database
+	auto peers = loadPeers();
 
 	running = true; //We've officially started running! SIGINT is now not evil!
 
@@ -141,7 +141,7 @@ int main( int argc, char* argv[] ) {
         Processor gateways{ &socketPoll };
 
         debug("Starting main server loop"); //Use debug to notify user where we are in the loading process
-        runServer(); //Process incoming connections (not messages)
+        runServer(peers); //Process incoming connections (not messages)
         warn("Primary server killed."); //Notify user we've stopped accepting incoming connections
 
         //Shutdown and Cleanup sequence

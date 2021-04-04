@@ -65,7 +65,32 @@ Connection::Connection(SOCKET socket, const std::string& type) : sock(socket) {
 	valid = true;
 }
 
-Connection::Connection(SOCKET socket) : sock(socket) {}	
+Connection::Connection(SOCKET socket) : sock(socket) {
+#ifdef _WIN32
+#define PTR char*
+#else
+#define PTR void*
+#endif
+
+#ifdef WIN32
+    WSAEventSelect(socket, nullptr, 0); //Clears all events associated with the new socket
+    u_long nonblock = 0;
+    ioctlsocket(socket, FIONBIO, &nonblock); //Ensure socket is in blocking mode
+#endif
+
+#ifndef _WIN32
+    timeval opt = { 1, 0 };
+#else
+    int opt = 2000;
+#endif
+
+    setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (PTR)&opt, sizeof(opt));
+
+#undef PTR
+
+    write(ThisVersion.tostring());
+    valid = true;
+}
 
 Connection::~Connection() {
     if (valid)

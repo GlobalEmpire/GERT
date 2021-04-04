@@ -3,6 +3,7 @@
 #include "fileMngr.h"
 #include "../Gateway/Key.h"
 #include "../Util/logging.h"
+#include "../Networking/netty.h"
 #include <map>
 
 typedef std::map<Address, Key>::iterator keyIter; //Define what a iterator for keys is
@@ -40,4 +41,31 @@ bool loadResolutions() { //Load key resolutions from a file
 
 	fclose(resolutionFile); //Close the file
 	return true; //Return without an error
+}
+
+std::vector<CommandConnection*> loadPeers() {
+    std::vector<CommandConnection*> conns;
+    FILE* peerFile = fopen("peers.geds", "rb"); //Open the file in binary mode
+
+    if (peerFile == nullptr) { //If the file failed to open
+        error("Failed to open peers file: " + std::to_string(errno));
+    } else {
+        while (true) {
+            uint32_t ip; //Define a storage variable for an address
+            fread(&ip, 4, 1, peerFile);
+            if (feof(peerFile) != 0) //If the file has nothing left
+                break; //We're done
+            unsigned short rawPort;
+            fread(&rawPort, 2, 1, peerFile);
+
+            SOCKET sock = createSocket(ip, rawPort);
+
+            if (sock != -1)
+                conns.emplace_back(sock, nullptr);
+        }
+
+        fclose(peerFile); //Close the file
+    }
+
+    return conns; //Return without errors
 }

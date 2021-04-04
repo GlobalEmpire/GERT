@@ -24,6 +24,12 @@ CommandConnection::CommandConnection(SOCKET s) : Connection(s, "Peer") {
     lock.unlock();
 }
 
+CommandConnection::CommandConnection(SOCKET s, void* _) : Connection(s) {
+    lock.lock();
+    conns.push_back(this);
+    lock.unlock();
+}
+
 CommandConnection::~CommandConnection() noexcept {
     for (auto client: clients)
         Route::unregisterRoute(client, this);
@@ -43,6 +49,33 @@ void CommandConnection::send(const DataPacket& packet) {
 }
 
 void CommandConnection::process() {
+    if (vers[0] == 0) {
+        std::string data = read(2);
+
+        if (data[0] != 0) { //Determine if major number is not supported
+            std::string cause = read();
+            close();
+
+            switch(cause[0]) {
+                case '\0':
+                    warn("Peer did not support our version.");
+                    break;
+                case '\3':
+                    warn("Peer encountered an unknown error.");
+                    break;
+                default:
+                    warn("Peer returned an unrecognized error.");
+            }
+            return;
+        }
+
+        vers[0] = data[0];
+        vers[1] = data[1];
+
+        log("Peer using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
+        return;
+    }
+
     if (curPacket == nullptr) {
         switch(read(1)[0]) {
             case 0x00: {

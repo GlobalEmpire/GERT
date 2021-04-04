@@ -18,6 +18,7 @@
 #include "../Threading/Processor.h"
 #include "../Gateway/DataConnection.h"
 #include "../Peer/CommandConnection.h"
+#include "../Util/Error.h"
 
 using namespace std;
 
@@ -26,33 +27,47 @@ SOCKET gateServer, gedsServer; //Define both server sockets
 Poll socketPoll;
 Poll serverPoll;
 
+#ifdef _WIN32
+bool wsastarted = false;
+#endif
+
 extern volatile bool running;
 extern unsigned short gatewayPort;
 extern unsigned short peerPort;
 extern char * LOCAL_IP;
 
-constexpr unsigned int iplen = sizeof(sockaddr);
+SOCKET createSocket(uint32_t ip, short port) {
+#ifdef _WIN32 //If compiled for Windows
+    if (!wsastarted) {
+        WSADATA socketConfig; //Construct WSA configuration destination
+        WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
+    }
+#endif
 
-void killConnections() {
-    // TODO: FIX
-	/*for (gatewayIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
-		delete *iter;
-	}
-	for (peerIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
-	}
-	for (noAddrIter iter; !iter.isEnd(); iter++) {
-		(*iter)->close();
-		delete *iter;
-	}*/
+    sockaddr_in tgt = {
+            AF_INET,
+            htons(gatewayPort),
+            INADDR_ANY
+    };
+
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    //Bind servers to addresses
+    if (connect(sock, (sockaddr*)&tgt, sizeof(sockaddr_in)) != 0) {
+        socketError("Failed connecting to peer: ");
+        return -1;
+    }
+
+    return sock;
 }
 
 void startup() {
 	//Server construction
 #ifdef _WIN32 //If compiled for Windows
-	WSADATA socketConfig; //Construct WSA configuration destination
-	WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
+    if (!wsastarted) {
+        WSADATA socketConfig; //Construct WSA configuration destination
+        WSAStartup(MAKEWORD(2, 2), &socketConfig); //Initialize Winsock
+    }
 #endif
 
 	sockaddr_in gate = {
@@ -99,10 +114,16 @@ void cleanup() {
 	close(gateServer);
 #endif
 
-	killConnections();
+	//Maybe later cleanup DataConnections and CommandConnections.
+
+	WSACleanup();
 }
 
-void runServer() { //Listen for new connections
+void runServer(std::vector<CommandConnection*> conns) { //Listen for new connections
+    for (auto conn: conns)
+        socketPoll.add(conn->sock, conn);
+    socketPoll.update();
+
     std::thread serverThread { []() -> void {
             while (running) { //Dies on SIGINT
                 Event_Data data = serverPoll.wait();
@@ -154,73 +175,4 @@ void runServer() { //Listen for new connections
 
     serverPoll.claim(&serverThread, 1);
     serverThread.join();
-}
-
-void buildWeb() {
-    // TODO: Redo
-	/*for (auto & iter : peerList) {
-		IP ip = iter.first;
-		Ports ports = iter.second;
-
-		if (ip.stringify() == LOCAL_IP)
-			continue;
-		else if (ports.peer == 0) {
-			debug("Skipping peer " + ip.stringify() + " because its outbound only.");
-			continue;
-		}
-
-		SOCKET newSock = socket(AF_INET, SOCK_STREAM, 0);
-		in_addr remoteIP = ip.addr;
-		sockaddr_in addrFormat;
-		addrFormat.sin_addr = remoteIP;
-		addrFormat.sin_port = ports.peer;
-		addrFormat.sin_family = AF_INET;
-
-#ifndef _WIN32
-		int opt = 3;
-		setsockopt(newSock, IPPROTO_TCP, TCP_SYNCNT, (void*)&opt, sizeof(opt)); //Correct excessive timeout period on Linux
-#endif
-
-		int result = connect(newSock, (sockaddr*)&addrFormat, iplen);
-
-		if (result != 0) {
-			warn("Failed to connect to " + ip.stringify() + " " + to_string(errno));
-			continue;
-		}
-
-		Peer * newConn = new Peer(newSock, ip);
-
-		newConn->write(ThisVersion.tostring());
-
-		char death[3];
-		timeval timeout = { 2, 0 };
-
-		setsockopt(newSock, IPPROTO_TCP, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeval));
-		int result2 = recv(newSock, death, 2, 0);
-
-		if (result2 == -1) {
-			delete newConn;
-			error("Connection to " + ip.stringify() + " dropped during negotiation");
-			continue;
-		}
-
-		if (death[0] == 0) {
-			recv(newSock, death + 2, 1, 0);
-
-			if (death[2] == 0) {
-				warn("Peer " + ip.stringify() + " doesn't support " + ThisVersion.stringify());
-				delete newConn;
-				continue;
-			}
-			else if (death[2] == 1) {
-				error("Peer " + ip.stringify() + " rejected this IP!");
-				delete newConn;
-				continue;
-			}
-		}
-
-		log("Connected to " + ip.stringify());
-
-		socketPoll.add(newSock, newConn);
-	}*/
 }

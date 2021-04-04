@@ -10,6 +10,7 @@ class CommandConnection: public Connection {
 
 public:
     explicit CommandConnection(SOCKET);
+    explicit CommandConnection(SOCKET, void*);
     ~CommandConnection() noexcept override;
 
     void process() override;

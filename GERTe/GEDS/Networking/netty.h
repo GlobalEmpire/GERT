@@ -1,5 +1,8 @@
 #pragma once
+
+#include <vector>
 #include "../Gateway/Address.h"
+#include "../Peer/CommandConnection.h"
 
 typedef unsigned char UCHAR;
 typedef unsigned long ULONG;
@@ -11,11 +14,9 @@ typedef unsigned long long SOCKET;
 typedef int SOCKET;
 #endif
 
-void runServer();
+SOCKET createSocket(uint32_t, unsigned short);
+
+void runServer(std::vector<CommandConnection*>);
 
 void startup();
 void cleanup();
-void killConnections();
-void processGateways();
-void processPeers();
-void buildWeb();
