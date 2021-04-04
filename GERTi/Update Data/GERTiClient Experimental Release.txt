@@ -1,2 +1,0 @@
--- GERT v1.4.1 Build 3
-https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/GERTiClient.lua
