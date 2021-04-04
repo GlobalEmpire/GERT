@@ -1,9 +1,10 @@
 #include "Key.h"
+#include "DataConnection.h"
 #include "../Util/Versioning.h"
 #include "../Util/Crypto.h"
 #include "../Util/logging.h"
-#include "DataConnection.h"
 #include "../Networking/Route.h"
+#include "../Peer/CommandConnection.h"
 #include <stdexcept>
 #include <chrono>
 using namespace std::chrono_literals;
@@ -51,6 +52,9 @@ void DataConnection::process() {
             Route* route = Route::getRoute(curPacket.destination.external);
             if (route != nullptr)
                 route->connection->send(curPacket);
+            else {
+                CommandConnection::attempt(curPacket);
+            }
         }
         else
             warn("Decrypt error from " + addr.stringify());

@@ -10,15 +10,32 @@
 #include "QueryPPacket.h"
 #include <stdexcept>
 #include <chrono>
+#include <mutex>
 using namespace std::chrono_literals;
+
+std::vector<CommandConnection*> conns;
+std::vector<DataPacket> delayed;
+std::mutex lock;
 
 CommandConnection::CommandConnection(SOCKET s) : Connection(s, "Peer") {
     write(ThisVersion.tostring());
+    lock.lock();
+    conns.push_back(this);
+    lock.unlock();
 }
 
 CommandConnection::~CommandConnection() noexcept {
     for (auto client: clients)
         Route::unregisterRoute(client, this);
+
+    lock.lock();
+    for (auto iter = conns.begin(); iter != conns.end(); iter++) {
+        if (*iter == this) {
+            conns.erase(iter);
+            break;
+        }
+    }
+    lock.unlock();
 }
 
 void CommandConnection::send(const DataPacket& packet) {
@@ -70,8 +87,19 @@ void CommandConnection::process() {
             case 0x01: {
                 auto* casted = (QueryPPacket*)curPacket;
 
-                if (casted->direct)
-                    Route::registerRoute(casted->query, Route{ casted->major, casted->minor, this }, false);
+                if (casted->direct) {
+                    Route::registerRoute(casted->query, Route{casted->major, casted->minor, this}, false);
+
+                    lock.lock();
+                    for (auto iter = queued.begin(); iter != queued.end(); iter++) {
+                        if (iter->destination.external == casted->query) {
+                            send(*iter);
+                            auto temp = iter--;
+                            queued.erase((iter--) + 1);
+                        }
+                    }
+                    lock.unlock();
+                }
 
                 delete casted;
                 curPacket = nullptr;
@@ -80,6 +108,12 @@ void CommandConnection::process() {
             case 0x02: {
                 auto *casted = (QueryPacket *) curPacket;
                 Route::unregisterRoute(casted->query, this);
+
+                lock.lock();
+                for (auto iter = queued.begin(); iter != queued.end(); iter++)
+                    if (iter->destination.external == casted->query)
+                        queued.erase((iter--) + 1);
+                lock.unlock();
 
                 delete casted;
                 curPacket = nullptr;
@@ -94,7 +128,7 @@ void CommandConnection::process() {
 
 
                     std::chrono::time_point now = std::chrono::system_clock::now();
-                    std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { curPacket.timestamp } };
+                    std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { casted->timestamp } };
 
                     if (now - timestamp < 1min && CryptoVerify(casted->raw, casted->signature, key)) {
                         auto temp = DataPacket();
@@ -112,4 +146,17 @@ void CommandConnection::process() {
             }
         }
     }
+}
+
+void CommandConnection::attempt(const DataPacket& packet) {
+    std::string cmd = "\0" + packet.destination.external.tostring();
+
+    lock.lock();
+    for (auto conn: conns) {
+        if (conn->valid) {
+            conn->queued.push_back(packet);
+            conn->write(cmd);
+        }
+    }
+    lock.lock();
 }

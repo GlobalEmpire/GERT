@@ -9,7 +9,6 @@ struct Event_Data {
 
 class Poll {
 	friend void removeTracker(SOCKET, Poll*);
-	friend void cleanup();
 
 	int len = 0;
 	void* threads = nullptr;

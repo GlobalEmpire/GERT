@@ -6,5 +6,5 @@ protected:
     CommandPacket(unsigned char, int);
 
 public:
-    unsigned char command ;
+    unsigned char command;
 };
