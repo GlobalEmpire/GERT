@@ -181,14 +181,15 @@ handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 	end
 end
 
-handler.RouteOpen = function (receiveM, sendM, sPort, pktDest, pktOrig, ID)
-	local cDex = pktDest..pktOrig..ID
+handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
+	local cDex = dest..origin..ID
 	if cPend[cDex] then
-		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], pktDest, pktOrig, ID)
-		storeConnection(pktOrig, ID, pktDest, sendM, receiveM, sPort)
+		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
+		storeConnection(origin, ID, dest, sendM, receiveM, port)
 		cPend[cDex] = nil
 	end
 end
+
 local function receivePacket(_, receiveM, sendM, port, distance, code, ...)
 	if handler[code] then
 		handler[code](receiveM, sendM, port, ...)

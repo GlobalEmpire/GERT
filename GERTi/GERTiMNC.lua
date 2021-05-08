@@ -106,7 +106,7 @@ handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 	end
 end
 
-local function sendOKResponse(bHop, receiveM, recPort, dest, origin, ID)
+local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	if dest==iAdd then
 		storeConnection(origin, ID, dest)
 		computer.pushSignal("GERTConnectionID", origin, ID)
@@ -115,11 +115,11 @@ local function sendOKResponse(bHop, receiveM, recPort, dest, origin, ID)
 		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
 	end
 end
---marked for fusion/rearrangement in v1.5
+
 handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	dest = tostring(dest)
-	if (dest == "0.0") or (string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) and GERTe) then -- If a GERTc address is entered, the GERTe component points to another endpoint, and GERTe is enabled, open the connection. Also applies to connections to the MNC.
-		return sendOKResponse(sendM, receiveM, port, dest, origin, ID)
+	if (dest == "0.0" or dest == "0") or (string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) and GERTe) then -- If a GERTc address is entered, the GERTe component points to another endpoint, and GERTe is enabled, open the connection. Also handles MNC connections
+		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to the MNC, strip out the GERTe component and route it like normal
 		dest = string.sub(dest, string.find(dest, ":")+1)
 	end
@@ -127,9 +127,19 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	if nodes[dest]["neighbors"][0.0] then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	elseif nodes[dest] then -- Make sure that the destination exists. If it doesn't, don't do anything
-		
+		local inter = ""
+		local interTier = math.huge
+		local tempNode = dest
+		while interTier > 1 do
+			interTier = nodes[tempNode]["shortest"]["tier"]
+			tempNode = nodes[tempNode]["shortest"]["add"]
+			inter = tempNode.."|"..inter
+		end
+		local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1)) -- Pull out the first intermediary
+		inter = string.sub(inter, string.find(inter, "|")+1)
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, tostring(ID))
 	end
-	--Insert code for sending on the connection open request
+	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
@@ -140,7 +150,7 @@ handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, child
 	for key, value in pairs(childTable) do -- Load the node's neighbors into the nodes table
 		nodes[childGA]["neighbors"][key] = math.floor(value["tier"])
 		if value["tier"] < shortest then
-			nodes[childGA]["shortest"]= tier=value["tier"], add=key}
+			nodes[childGA]["shortest"]= {tier=value["tier"], add=key}
 			shortest = value["tier"]
 		end
 		if key ~= 0 then -- Do not attempt to access the MNC in the nodes table
@@ -158,6 +168,15 @@ handler.RemoveNeighbor = function (_, _, _, origin) -- Checks to see if the node
 			nodes[key]["neighbors"][origin] = nil
 		end
 		nodes[origin] = nil
+	end
+end
+
+handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
+	local cDex = dest..origin..ID
+	if cPend[cDex] then
+		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
+		storeConnection(origin, ID, dest, sendM, receiveM, port)
+		cPend[cDex] = nil
 	end
 end
 
