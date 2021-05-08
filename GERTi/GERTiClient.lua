@@ -177,7 +177,7 @@ handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 		nodes[origination] = nil
 	end
 	if noQ then
-		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin)
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin, noQ)
 	end
 end
 
