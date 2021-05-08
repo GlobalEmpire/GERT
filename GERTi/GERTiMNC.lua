@@ -56,6 +56,7 @@ local function storeChild(rAddress, receiveM, port, tier)
 				addressP2 = addressP2 +1
 		end
 	end
+
 	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
 	return childGA
 end

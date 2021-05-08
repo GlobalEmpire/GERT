@@ -1,0 +1,1 @@
+These files exist to let the GERTi Update programs locate the latest version of the branch they are set to and the version strings to compare their installed versions to. You can safely ignore this folder.
