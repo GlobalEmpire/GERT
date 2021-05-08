@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 4
+-- GERT v1.4.1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -172,11 +172,13 @@ handler.RegisterNode = function (receiveM, sendM, sPort, origin, nTier, serialTa
 	rPend[origin] = {["receiveM"]=receiveM, ["add"]=sendM, ["port"] = sPort}
 end
 
-handler.RemoveNeighbor = function (receiveM, _, port, origination)
+handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 	if nodes[origination] then
 		nodes[origination] = nil
 	end
-	transInfo(firstN["add"], receiveM, firstN["port"], "RemoveNeighbor", origination)
+	if noQ then
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin)
+	end
 end
 
 handler.RouteOpen = function (receiveM, sendM, sPort, pktDest, pktOrig, ID)
@@ -236,15 +238,16 @@ local function safedown()
 		handler.CloseConnection(_, _, 4378, key)
 	end
 	if tTable then
-	for key, value in pairs(tTable) do
-		tTable[key].send("RemoveNeighbor", iAdd)
+		for key, value in pairs(tTable) do
+			tTable[key].send("RemoveNeighbor", iAdd)
+		end
 	end
-end
-if mTable then
-	for key, value in pairs(mTable) do
-		mTable[key].broadcast(4378, "RemoveNeighbor", iAdd)
+	if mTable then
+		for key, value in pairs(mTable) do
+			mTable[key].broadcast(4378, "RemoveNeighbor", iAdd)
+		end
 	end
-end
+	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", iAdd, 1)
 end
 event.listen("shutdown", safedown)
 
@@ -340,6 +343,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4.1", "1.4.1 Build 3"
+	return "v1.4.1", "1.4.1"
 end
 return GERTi

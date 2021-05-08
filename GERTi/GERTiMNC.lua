@@ -1,4 +1,4 @@
--- GERT v1.4.1 Build 3
+-- GERT v1.4.1
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -6,31 +6,17 @@ local filesystem = require("filesystem")
 local GERTe
 local os = require("os")
 local serialize = require("serialization")
-local mTable, tTable
+local mTable, tTable, gAddress, gKey
 
 local nodes = {}
 local connections = {}
+local cPend = {}
+local rPend = {}
 local addressP1 = 0
 local addressP2 = 1
-local gAddress, gKey
 local timerID ={}
 local savedAddresses = {}
 local directory = "/etc/GERTaddresses.gert"
--- this function adds a handler for a set time in seconds, or until that handler returns a truthful value (whichever comes first)
-local function addTempHandler(timeout, code, cb, cbf)
-	local function cbi(...)
-        local evn, rc, sd, pt, dt, code2 = ...
-        if code ~= code2 then return end
-        if cb(...) then
-        	return false
-        end
-	end
-        event.listen("modem_message", cbi)
-        event.timer(timeout, function ()
-                event.ignore("modem_message", cbi)
-                cbf()
-        end)
-end
 
 local function waitWithCancel(timeout, cancelCheck)
 	local now = computer.uptime()
@@ -45,8 +31,6 @@ local function waitWithCancel(timeout, cancelCheck)
 end
 
 local function storeChild(rAddress, receiveM, port, tier)
-	-- parents means the direct connections a computer can make to another computer that is a higher tier than it
-	-- children means the direct connections a computer can make to another computer that is a lower tier than it
 	local childGA
 	if savedAddresses[rAddress] then -- check to see if the address is already saved
 		childGA = savedAddresses[rAddress]
@@ -72,18 +56,14 @@ local function storeChild(rAddress, receiveM, port, tier)
 				addressP2 = addressP2 +1
 		end
 	end
-	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port)} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
+	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
 	return childGA
 end
 
-local function storeConnection(origin, ID, dest, nextHop, sendM, port, lieAdd) -- GERT address of the connection origin, Connection ID, GERT address of the destination, next node in the connection, modem used to reach the next node, port used to reach the next mode, and the full GERTc address (if necessary)
+local function storeConnection(origin, ID, dest, nextHop, sendM, port) -- GERT address of the connection origin, Connection ID, GERT address of the destination, next node in the connection, modem used to reach the next node, and the port used to reach the next mode
 	local connectDex
 	ID = math.floor(ID)
-	if lieAdd then
-		connectDex = origin.."|"..lieAdd.."|"..ID
-	else
-		connectDex = origin.."|"..dest.."|"..ID
-	end
+	connectDex = origin.."|"..dest.."|"..ID
 	connections[connectDex] = {["origin"]=origin, ["dest"]=dest, ["ID"]=ID, ["nextHop"]=nextHop, ["sendM"] = sendM, ["port"]=port}
 end
 
@@ -125,77 +105,55 @@ handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 		transInfo(sendM, receiveM, port, "NewNode", 0.0, 0)
 	end
 end
--- Used in handler["OPENROUTE"] and marked for fusion/rearrangement in v1.5
-local function routeOpener(dest, origin, receiveM, sendM, bHop, nextHop, hop2, recPort, transPort, ID, lieAdd)
-	print("Opening Route")
-    local function sendOKResponse()
-		transInfo(bHop, sendM, recPort, "RouteOpen", (lieAdd or dest), origin, ID)
-		storeConnection(origin, ID, dest, nextHop, receiveM, transPort, lieAdd)
+
+local function sendOKResponse(bHop, receiveM, recPort, dest, origin, ID)
+	if dest==iAdd then
+		storeConnection(origin, ID, dest)
+		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
-	
-	if lieAdd or (not string.find(tostring(dest), ":")) then
-		transInfo(nextHop, receiveM, transPort, "OpenRoute", dest, hop2, origin, ID)
-		addTempHandler(3, "RouteOpen", function (eventName, recv, sender, port, distance, code, pktDest, pktOrig, ID)
-			if (dest == pktDest) and (origin == pktOrig) then
-				sendOKResponse()
-				return true
-			end
-		end, function () end)
-	elseif GERTe then
-    	sendOKResponse()
+	if origin ~= iAdd then
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
 	end
 end
 --marked for fusion/rearrangement in v1.5
-handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
-	local lieAdd
+handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	dest = tostring(dest)
-	if string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to an endpoint other than the MNC, leave the destination intact. This will allow the MNC to send GERTe messages for this connection.
-		return routeOpener(dest, origin, receiveM, sendM, receiveM, receiveM, port, port, ID)
-	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to the MNC, fragment the address to allow for a hairpin turn. Marked for fusion/rearrangement in v1.5
-		lieAdd = dest
+	if (dest == "0.0") or (string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) and GERTe) then -- If a GERTc address is entered, the GERTe component points to another endpoint, and GERTe is enabled, open the connection. Also applies to connections to the MNC.
+		return sendOKResponse(sendM, receiveM, port, dest, origin, ID)
+	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to the MNC, strip out the GERTe component and route it like normal
 		dest = string.sub(dest, string.find(dest, ":")+1)
 	end
 	dest = tonumber(dest)
 	if nodes[dest][0.0] then
-		return routeOpener(dest, origin, nodes[dest]["receiveM"], receiveM, sendM, nodes[dest]["add"], nodes[dest]["add"], port, nodes[dest]["port"], ID, lieAdd) -- If the destination is immediately adjacent to the MNC, configure the route as appropriate
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
+	elseif nodes[dest] then
 	end
-	
-	local interTier = 1000
-	local nodeDex = dest
-	local inter = ""
-	while interTier > 1 do -- Assemble the intermediary value while less than 1000. Marked for recursion testing in v1.5
-		for i=1, nodes[nodeDex]["tier"] do
-			if nodes[nodeDex][i] then
-				for key,value in pairs(nodes[nodeDex][i]) do
-					inter = value.."|"..inter
-					interTier = i
-					nodeDex = value
-					break
-				end
-				break
-			end
-		end
+	local  doLoop = true
+	local intermediary =""
+	while doLoop do
+		intermediary = accumulateIntermediary(dest)
 	end
-	local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1)) -- Pull out the first intermediary
-	inter = string.sub(inter, string.find(inter, "|")+1)
-	return routeOpener(dest, origin, nodes[nextHop]["receiveM"], receiveM, sendM, nodes[nextHop]["add"], inter, port, nodes[nextHop]["port"], ID, lieAdd) -- Send on information for further handling, optionally with lieAdd being the GERTi fragment of the full GERTc address
+	--Insert code for sending on the connection open request
 end
--- marked for enhancement in v1.5. Does not support updating old nodes to allow for properly refreshing the network table
+
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
 	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
 	for key, value in pairs(childTable) do -- Load the node's neighbors into the nodes table
-		if not nodes[childGA][value["tier"]] then
-			nodes[childGA][value["tier"]] = {}
+		nodes[childGA]["neighbors"][key] = math.floor(value["tier"])
+		if key ~= 0 then -- Do not attempt to access the MNC in the nodes table
+			nodes[key]["neighbors"][childGA]= math.floor(value["tier"])
 		end
-		nodes[childGA][value["tier"]][key] = key
 	end
 end
 
-handler.RemoveNeighbor = function (_, _, _, origination) -- Checks to see if the nodes table contains the appropriate client, and removes it if so.
-	if nodes[origination] ~= nil then
-		nodes[origination] = nil
+handler.RemoveNeighbor = function (_, _, _, origin) -- Checks to see if the nodes table contains the appropriate client, and removes it if so. This also removes the node from other nodes' neighbor tables
+	if nodes[origin] ~= nil then
+		for key, value in pairs(nodes[origin]["neighbors"]) do
+			nodes[key]["neighbors"][origin] = nil
+		end
+		nodes[origin] = nil
 	end
 end
 
