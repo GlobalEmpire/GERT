@@ -124,14 +124,10 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 		dest = string.sub(dest, string.find(dest, ":")+1)
 	end
 	dest = tonumber(dest)
-	if nodes[dest][0.0] then
+	if nodes[dest]["neighbors"][0.0] then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
-	elseif nodes[dest] then
-	end
-	local  doLoop = true
-	local intermediary =""
-	while doLoop do
-		intermediary = accumulateIntermediary(dest)
+	elseif nodes[dest] then -- Make sure that the destination exists. If it doesn't, don't do anything
+		
 	end
 	--Insert code for sending on the connection open request
 end
@@ -140,10 +136,18 @@ handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, child
 	childTable = serialize.unserialize(childTable)
 	childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
 	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
+	local shortest = math.huge
 	for key, value in pairs(childTable) do -- Load the node's neighbors into the nodes table
 		nodes[childGA]["neighbors"][key] = math.floor(value["tier"])
+		if value["tier"] < shortest then
+			nodes[childGA]["shortest"]= tier=value["tier"], add=key}
+			shortest = value["tier"]
+		end
 		if key ~= 0 then -- Do not attempt to access the MNC in the nodes table
 			nodes[key]["neighbors"][childGA]= math.floor(value["tier"])
+			if childTier < nodes[key]["shortest"]["tier"] then
+				nodes[key]["shortest"] = {tier=childTier, add=childGA}
+			end
 		end
 	end
 end
