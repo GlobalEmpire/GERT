@@ -250,7 +250,6 @@ local function safedown()
 	end
 	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", iAdd, 1)
 end
-end
 event.listen("shutdown", safedown)
 
 -------------------
