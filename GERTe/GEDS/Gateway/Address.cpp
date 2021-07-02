@@ -3,10 +3,17 @@
 Address::Address(const std::string &data) : addr{(unsigned char)data[0], (unsigned char)data[1], (unsigned char)data[2]} {}
 
 bool Address::operator== (const Address &target) const {
-	bool first = (target.addr[0] == addr[0]);
-	bool second = (target.addr[1] == addr[1]);
-	bool third = (target.addr[2] == addr[2]);
-	return first && second && third;
+	if (target.addr[0] != addr[0])
+	    return false;
+
+	if (target.addr[1] != addr[1])
+	    return false;
+
+	return target.addr[2] == addr[2];
+}
+
+bool Address::operator!=(const Address& target) const {
+    return !operator==(target);
 }
 
 bool Address::operator< (const Address &target) const {

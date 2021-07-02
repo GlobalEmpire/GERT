@@ -6,6 +6,8 @@ class Address {
 
 public:
 	bool operator== (const Address&) const;
+	bool operator!= (const Address&) const;
+
 	bool operator< (const Address&) const;
 	explicit Address(const std::string&);
 	Address() : addr{0, 0, 0} {};
