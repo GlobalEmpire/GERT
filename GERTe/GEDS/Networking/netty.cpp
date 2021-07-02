@@ -36,7 +36,7 @@ extern unsigned short gatewayPort;
 extern unsigned short peerPort;
 extern char * LOCAL_IP;
 
-SOCKET createSocket(uint32_t ip, short port) {
+SOCKET createSocket(uint32_t ip, unsigned short port) {
 #ifdef _WIN32 //If compiled for Windows
     if (!wsastarted) {
         WSADATA socketConfig; //Construct WSA configuration destination

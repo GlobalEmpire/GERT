@@ -36,7 +36,7 @@ void inline cleanup(HLOCAL buffer) {
 		formaterror();
 }
 #else
-void socketError(std::string prefix) {
+void socketError(const std::string& prefix) {
 	printError(errno, prefix);
 }
 #endif
