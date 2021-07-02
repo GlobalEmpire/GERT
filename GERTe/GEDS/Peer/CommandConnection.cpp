@@ -17,14 +17,10 @@ std::vector<CommandConnection*> conns;
 std::vector<DataPacket> delayed;
 std::mutex lock;
 
-CommandConnection::CommandConnection(SOCKET s) : Connection(s, "Peer") {
-    write(ThisVersion.tostring());
-    lock.lock();
-    conns.push_back(this);
-    lock.unlock();
-}
+CommandConnection::CommandConnection(SOCKET s, bool inbound) : Connection(s, "Peer") {
+    if (inbound)
+        write(ThisVersion.tostring());
 
-CommandConnection::CommandConnection(SOCKET s, void* _) : Connection(s) {
     lock.lock();
     conns.push_back(this);
     lock.unlock();

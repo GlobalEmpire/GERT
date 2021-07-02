@@ -1,5 +1,6 @@
 #pragma once
 #include "../Networking/Connection.h"
+#include "../Gateway/Address.h"
 #include "CommandPacket.h"
 #include <vector>
 
@@ -9,8 +10,7 @@ class CommandConnection: public Connection {
     CommandPacket* curPacket = nullptr;
 
 public:
-    explicit CommandConnection(SOCKET);
-    explicit CommandConnection(SOCKET, void*);
+    CommandConnection(SOCKET, bool=true);
     ~CommandConnection() noexcept override;
 
     void process() override;

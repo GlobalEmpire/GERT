@@ -61,7 +61,7 @@ std::vector<CommandConnection*> loadPeers() {
             SOCKET sock = createSocket(ip, rawPort);
 
             if (sock != -1)
-                conns.emplace_back(sock, nullptr);
+                conns.push_back(new CommandConnection{ sock, false });
         }
 
         fclose(peerFile); //Close the file
