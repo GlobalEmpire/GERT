@@ -109,14 +109,14 @@ void cleanup() {
 #ifdef _WIN32
 	closesocket(gedsServer);
 	closesocket(gateServer);
+
+	WSACleanup();
 #else
 	close(gedsServer);
 	close(gateServer);
 #endif
 
 	//Maybe later cleanup DataConnections and CommandConnections.
-
-	WSACleanup();
 }
 
 void runServer(std::vector<CommandConnection*> conns) { //Listen for new connections
