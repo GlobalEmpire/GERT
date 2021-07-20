@@ -46,81 +46,92 @@ local function unparseAddr(addr)
 end
 
 local function compliant(address)
-    local matches = { address:match("(%d+%.%d+:)?(%d+%.%d+)") }
-    if not matches[1] then
-        return false
+    local matches = {}
+	for w in address:gmatch("(%d+%.%d+)") do
+		table.insert(matches, w)
+	end
+	
+    if #matches == 0 or #matches > 2 then
+        return 0
     end
+	
+	if #matches == 2 then
+		if matches[1] == 0.0 or not address:match("%d+%.%d+:%d+%.%d+") then
+			return 0
+		end
+	end
 
-    matches[1] = matches[1]:gsub(":", "")
-
-    if matches[2] and matches[1] == "0.0" then
-        return false
-    end
-
-    local nums = 0
     for num in address:gmatch("%d+") do
-        nums = nums + 1
-        if nums > 4 then
-            return false
-        end
-
         local conv = math.tointeger(num)
         if not conv or conv > 4095 or conv < 0 then
-            return false
+            return 0
         end
     end
 
-    return true
+	return #matches
 end
 
 ---Creates a new GERTAddress from a string
 ---@param address string
 ---@return GERTAddress
 function GERTAddress:new(address)
-    compliant(address)
-
-    local o = { actual = {} }
-    setmetatable(o.actual, { __index = GERTAddress })
-    setmetatable(o, { 
-        __index = o.actual,
+	local actual = {}
+    local proxy = {}
+    setmetatable(actual, { __index = GERTAddress })
+    setmetatable(proxy, { 
+        __index = function(self, index)
+			if index == "address" then
+				if actual.external then
+					return actual.external .. ":" .. actual.internal
+				else
+					return actual.internal
+				end
+			else
+				return actual[index]
+			end
+		end,
         __newindex = function(self, index, value)
             if index == "external" then
-                self.actual.external = value
-                self.actual.address = value .. ":" .. self.actual.internal
+				if compliant(value) ~= 1 then
+					error("Address is not value")
+				end
+			
+                actual.external = value
             elseif index == "internal" then
-                self.actual.internal = value
-
-                if self.actual.external then
-                    self.actual.address = self.actual.external .. ":" .. value
-                else
-                    self.actual.address = value
-                end
+				if compliant(value) ~= 1 then
+					error("Address is not value")
+				end
+			
+                actual.internal = value
             elseif index == "address" then
-                self.actual.address = value
-
-                local matches = ({ value:match("(%d+%.%d+:)?(%d+%.%d+)") })
+				if compliant(value) == 0 then
+					error("Address is not valid")
+				end
+			
+                local matches = {}
+				for w in address:gmatch("(%d+%.%d+)") do
+					table.insert(matches, w)
+				end
+				
                 if matches[2] then
-                    self.actual.internal = matches[2]
+                    actual.internal = matches[2]
+					actual.external = matches[1]
                 else
-                    self.actual.internal = matches[1]
+                    actual.internal = matches[1]
+					actual.external = nil
                 end
-
-                self.actual.external = value:match("(%d+%.%d+):%d+%.%d+")
-            else
-                self[index] = value
             end
-        end
+        end,
+		__tostring = function(self)
+			return self.address
+		end,
+		__concat = function(first, second)
+			return tostring(first) .. tostring(second)
+		end
     })
     
-    o.address = address
-    local matches = ({ address:match("(%d+%.%d+:)?(%d+%.%d+)") })
-    if matches[2] then
-        o.internal = matches[2]
-    else
-        o.internal = matches[1]
-    end
-
-    o.external = address:match("(%d+%.%d+):%d+%.%d+")
+    proxy.address = address
+	return proxy
 end
 
 ---Parses a GERTc Address from 6 bytes
@@ -136,5 +147,5 @@ function GERTAddress:toBytes()
     return parseAddr(self.address)
 end
 
-setmetatable(GERTAddress, { __newindex = function() end})
+setmetatable(GERTAddress, { __newindex = function() end, __call = function(self, ...) return self:new(...) end})
 return GERTAddress

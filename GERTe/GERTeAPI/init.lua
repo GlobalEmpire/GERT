@@ -1,10 +1,25 @@
 -- GERT v2.0 - Release Candidate 1
 -- Copyright 2021 Tyler Kuhn All Rights Reserved
 
+local cwd = ...
 local component = require "component"
 
 if not component then
-    apiRequired("Component")
+    error("Component API from OpenComputers required. Either this isn't an OpenComputer's computer, or this API is hidden")
+end
+
+local internet = component.list("internet")()
+if not internet then
+	error("No internet card detected")
+end
+
+local data = component.list("data")()
+if not data then
+	error("No data card detected")
+end
+
+if component.invoke(component.list("internet")(), "isTcpEnabled") == false then
+    error("TCP Sockets are not permitted. If this is a server contact the administrator. If this is single player please modify the configuration file.")
 end
 
 ---GERTe API for creating and utilizing GERTe links.
@@ -13,20 +28,20 @@ end
 ---@field GERTConnection table GERTConnection class
 ---@field GERTAddress table GERTAddress class
 ---@field GERTIdentity table GERTIdentity class
+
+local path = package.path
+package.path = package.path .. ";/" .. cwd .. "/?.lua"
+
 local api = {
     VERSION = "2.0.0",
-    GERTConnection = require "GERTConnection",
-    GERTAddress = require "GERTAddress",
-    GERTIdentity = require "GERTIdentity"
+    Connection = require "GERTConnection",
+    Address = require "GERTAddress",
+    Identity = require "GERTIdentity",
+	Packet = require "GERTPacket",
+	KeyDatabase = require "KeyDatabase"
 }
 
-if component.invoke(component.list("internet")(), "isTcpEnabled") == false then
-    error("TCP Sockets are not permitted. If this is a server contact the administrator. If this is single player please modify the configuration file.")
-end
-
-local function apiRequired(name)
-    error(name .. " API from OpenComputers required. Either this isn't an OpenComputer's computer, or this API is hidden")
-end
+package.path = path
 
 setmetatable(api, { __newindex = function(self, index, value) end})
 return api

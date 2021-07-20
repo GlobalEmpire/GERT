@@ -17,7 +17,9 @@ function GERTPacket:new(source, destination, data)
     o.source = source
     o.destination = destination
     o.data = data
+	
+	return o
 end
 
-setmetatable(GERTPacket, { __newindex = function() end })
+setmetatable(GERTPacket, { __newindex = function() end, __call = function(self, ...) return self:new(...) end})
 return GERTPacket

@@ -3,9 +3,12 @@ local component = require "component"
 local RealTime = require "RealTime"
 local computer = require "computer"
 local KeyDatabase = require "KeyDatabase"
+
+local GERTAddress = require "GERTAddress"
 local GERTPacket = require "GERTPacket"
 
-local data = {}
+local data = component.proxy(component.list("data")())
+
 setmetatable(data, { __index = function(_, index)
     return function(...) component.invoke(component.list("data")(), index, ...) end
 end })
@@ -44,10 +47,7 @@ function GERTConnection:new(ip, port, identity)
             error("Peer encountered an unknown error")
         end
     end
-
-    local packet = "\0\0" .. RealTime:new():getTimestamp()
-    local sig = data.ecdsa(packet, identity.key)
-    o.socket:write(packet .. sig)
+	
     o.identity = identity
 
     return o
@@ -57,13 +57,14 @@ end
 ---@param packet GERTPacket
 ---@return void
 function GERTConnection:write(packet)
-    local len str:length()
+    local dlen = packet.data:len()
 
     packet.source.external = self.identity.address
-    local raw = string.char((len >> 8) & 0xFF, len & 0xFF) .. packet.source:toBytes() .. packet.destination:toBytes()
-            .. str .. RealTime:new():getTimestamp()
+    local raw = string.char((dlen >> 8) & 0xFF, dlen & 0xFF) .. packet.source:toBytes() .. packet.destination:toBytes()
+            .. packet.data .. RealTime:new():getTimestamp()
+	
     local sig = data.ecdsa(raw, self.identity.key)
-    self.socket:write(raw .. sig)
+    self.socket:write(raw .. string.char(sig:len()) .. sig):flush()
 end
 
 ---Reads a single packet from the socket
@@ -127,8 +128,7 @@ function GERTConnection:read(timeout)
     if not self.timestamp then
         local raw = self.socket:read(8)
         self.raw = self.raw .. raw
-        self.timestamp = (self.raw:byte(1) << 24) | (self.raw:byte(2) << 16) | (self.raw:byte(2) << 8) |
-                self.raw:byte(2)
+        self.timestamp = RealTime:new(raw)
     end
 
     timeout = computer.uptime() - now
@@ -137,24 +137,38 @@ function GERTConnection:read(timeout)
     end
     self.socket:setTimeout(timeout)
 
-    local signature = self.socket:read(32)
+	if not self.sigLength then
+		self.sigLength = self.socket:read(1):byte()
+	end
+	
+	timeout = computer.uptime() - now
+    if timeout < 0 then
+        error("Read timeout")
+    end
+    self.socket:setTimeout(timeout)
+
+    local signature = self.socket:read(self.sigLength)
     local dta = self.data
     local source = self.source
     local destination = self.destination
-    local timestamp = RealTime:new(self.timestamp)
+    local timestamp = self.timestamp
+	local raw = self.raw
 
     self.length = nil
     self.source = nil
     self.destination = nil
     self.data = nil
     self.timestamp = nil
+	self.sigLength = nil
+	self.raw = nil
 
-    if timestamp:within(60) and data.ecdsa(self.raw, KeyDatabase:getKey(self.destination), signature) then
+	local key = KeyDatabase:getKey(source)
+    if key and timestamp:within(60) and data.ecdsa(raw, key, signature) then
         return GERTPacket:new(source, destination, dta)
     else
         return self:read(timeout - (computer.uptime() - now))
     end
 end
 
-setmetatable(GERTConnection, { __newindex = function() end})
+setmetatable(GERTConnection, { __newindex = function() end, __call = function(self, ...) return self:new(...) end})
 return GERTConnection

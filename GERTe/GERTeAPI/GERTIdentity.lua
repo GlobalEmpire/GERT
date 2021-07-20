@@ -35,5 +35,5 @@ function GERTIdentity:new(address, key)
     return o
 end
 
-setmetatable(GERTIdentity, { __newindex = function() end})
+setmetatable(GERTIdentity, { __newindex = function() end, __call = function(self, ...) return self:new(...) end})
 return GERTIdentity
