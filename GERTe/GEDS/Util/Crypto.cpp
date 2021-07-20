@@ -15,7 +15,7 @@
 void* CryptoReadKey(const std::string& encoded) {
     auto* ptr = (const unsigned char*)encoded.c_str();
 
-    EC_KEY* key = d2i_EC_PUBKEY(&key, &ptr, encoded.length());
+    EC_KEY* key = d2i_EC_PUBKEY(nullptr, &ptr, encoded.length());
     if (key == nullptr)
         CryptoError();
 
@@ -46,7 +46,8 @@ bool CryptoVerify(const std::string& data, const std::string& signature, void* p
         CryptoError();
     }
 
-    int result = EVP_DigestVerify(ctx, (unsigned char*)signature.c_str(), signature.length(), (unsigned char*)data.c_str(), data.length());
+    int result = EVP_DigestVerify(ctx, (unsigned char*)signature.c_str(), signature.length(),
+                                  (unsigned char*)data.c_str(), data.length());
     EVP_MD_CTX_free(ctx);
     if (result != 1 && result != 0) {
         CryptoError();
