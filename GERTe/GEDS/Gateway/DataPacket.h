@@ -3,6 +3,12 @@
 #include "GERTc.h"
 
 class DataPacket: public ReentrantPacket {
+    unsigned char sigLength = 0;
+    unsigned short length = 0;
+
+    bool stamped = false;
+    bool lengthed = false;
+
 public:
     DataPacket();
 
