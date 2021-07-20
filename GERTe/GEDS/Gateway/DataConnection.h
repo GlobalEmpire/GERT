@@ -4,15 +4,21 @@
 #include "DataPacket.h"
 
 class DataConnection : public Connection {
+    template<class T>
+    friend class Server;
+
     DataPacket curPacket{};
-    void* key;
+    void* key = nullptr;
+
+    void _process() override;
+    bool handshake() override;
+
+    explicit DataConnection(SOCKET);
 
 public:
     Address addr;
 
-    explicit DataConnection(SOCKET);
     ~DataConnection() noexcept override;
 
-    void process() override;
     void send(const DataPacket&) override;
 };
