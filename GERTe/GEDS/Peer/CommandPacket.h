@@ -3,7 +3,7 @@
 
 class CommandPacket: public ReentrantPacket {
 protected:
-    CommandPacket(unsigned char, int);
+    CommandPacket(unsigned char);
 
 public:
     unsigned char command;
