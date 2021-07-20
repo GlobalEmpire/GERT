@@ -2,9 +2,9 @@ name: GEDS Build Check
 
 on:
     pull_request:
-    paths:
-        - 'GERTe/GEDS/**'
-    types: [ opened, reopened, edited ]
+        paths:
+            - 'GERTe/GEDS/**'
+        types: [ opened, reopened, edited ]
 
 jobs:
     build-linux:
@@ -13,13 +13,13 @@ jobs:
         steps:
             - uses: actions/checkout@v1
             - name: Make Debug
-                run: |
-                    cmake -DCMAKE_BUILD_TYPE=Debug -S GERTe/GEDS -B build-debug
-                    cmake --build build-debug
+              run: |
+                cmake -DCMAKE_BUILD_TYPE=Debug -S GERTe/GEDS -B build-debug
+                cmake --build build-debug
             - name: Make Release
-                run: |
-                    cmake -DCMAKE_BUILD_TYPE=Release -S GERTe/GEDS -B build-release
-                    cmake --build build-debug
+              run: |
+                cmake -DCMAKE_BUILD_TYPE=Release -S GERTe/GEDS -B build-release
+                cmake --build build-debug
       
     build-windows:
         runs-on: windows-latest
@@ -28,10 +28,10 @@ jobs:
             - uses: actions/checkout@v1
             - uses: ilammy/msvc-dev-cmd@v1
             - name: Make Debug
-                run: |
-                    cmake -DCMAKE_BUILD_TYPE=Debug -S GERTe/GEDS -B build-debug
-                    cmake --build build-debug
+              run: |
+                cmake -DCMAKE_BUILD_TYPE=Debug -S GERTe/GEDS -B build-debug
+                cmake --build build-debug
             - name: Make Release
-                run: |
-                    cmake -DCMAKE_BUILD_TYPE=Release -S GERTe/GEDS -B build-release
-                    cmake --build build-debug
+              run: |
+                cmake -DCMAKE_BUILD_TYPE=Release -S GERTe/GEDS -B build-release
+                cmake --build build-debug
