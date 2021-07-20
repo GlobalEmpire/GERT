@@ -1,4 +1,4 @@
 #include <string>
 
-void socketError(const std::string&);
-void generalError(const std::string&);
+std::string socketError(const std::string&);
+std::string generalError(const std::string&);

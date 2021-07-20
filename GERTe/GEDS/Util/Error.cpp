@@ -2,65 +2,65 @@
 #include "logging.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
+#define GET_GENERAL_ERROR GetLastError()
+#define GET_SOCKET_ERROR WSAGetLastError()
+
 #include <WinSock2.h>
 #else
+#define GET_GENERAL_ERROR errno
+#define GET_SOCKET_ERROR errno
+
 #include <errno.h>
+#include <system_error>
+
 #endif
 
 thread_local bool recursionCheck = false;
 
-void inline printError(int, const std::string&); //Fixes circular dependency
+std::string printError(int, std::string); //Fixes circular dependency
 
-#ifdef _WIN32
-void socketError(const std::string& prefix) {
-	printError(WSAGetLastError(), prefix);
+std::string socketError(const std::string& prefix) {
+    return printError(GET_SOCKET_ERROR, prefix);
 }
 
-void inline formaterror() {
+std::string generalError(const std::string& prefix) {
+    return printError(GET_GENERAL_ERROR, prefix);
+}
+
+#ifdef _WIN32
+std::string formaterror() {
 	if (recursionCheck) {
 		error("Whoops! Looping in error handling function. Passing the code to terminate.");
-		errno = GetLastError();
+		errno = (int)GetLastError();
 		terminate();
 	}
 
 	recursionCheck = true;
-	printError(GetLastError(), "Error when parsing a previous error: ");
+	auto err = printError((int)GetLastError(), "Error when parsing a previous error: ");
 	recursionCheck = false;
-}
 
-void inline cleanup(HLOCAL buffer) {
-	HLOCAL result = LocalFree(buffer);
-	
-	if (result != nullptr)
-		formaterror();
-}
-#else
-void socketError(const std::string& prefix) {
-	printError(errno, prefix);
+	return err;
 }
 #endif
 
-void generalError(const std::string& prefix) {
-#ifdef _WIN32
-	printError(GetLastError(), prefix);
-#else
-	printError(errno, prefix);
-#endif
-}
+std::string printError(int code, std::string msg) { //Inlined to minimize overhead
+    if (!msg.ends_with(' '))
+        msg += ' ';
 
-void inline printError(int code, const std::string& prefix) { //Inlined to minimize overhead
 #ifdef _WIN32
 	LPSTR err = nullptr;
-	int result = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, 0, (LPSTR)&err, 0, NULL);
 
-	if (result == 0)
-		formaterror();
+	if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                      nullptr, code, 0, (LPSTR)&err, 0, nullptr) == 0)
+		return formaterror();
 	else
-		error2(prefix + err);
+        msg += err;
 
-	cleanup(err);
+    if (LocalFree(err) != nullptr)
+        return formaterror();
+    else
+        return msg;
 #else
-	error(prefix + std::to_string(code));
+	return msg + std::make_error_code((std::errc)code).message();
 #endif
 }
