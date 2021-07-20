@@ -15,7 +15,7 @@ bool QueryPPacket::parse(const std::string& data) {
 
         query = Address(partial);
         raw += partial.substr(0, 3);
-        partial.clear();
+        partial.erase(0, 3);
     }
 
     if (raw.length() < 4) {
