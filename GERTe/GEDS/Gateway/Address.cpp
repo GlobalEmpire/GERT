@@ -41,13 +41,6 @@ std::string Address::stringify() const {
 	return std::to_string(high) + "." + std::to_string(low);
 }
 
-Address Address::extract(Connection* conn) {
-	std::string addr = conn->read(3);
-	Address result = Address{addr};
-
-	return result;
-}
-
 std::string Address::tostring() const {
 	return std::string{(char*)addr, 3};
 }

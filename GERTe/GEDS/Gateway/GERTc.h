@@ -9,11 +9,4 @@ public:
 	GERTc() : external(), internal() {};
 	std::string stringify() const { return external.stringify() + ":" + internal.stringify(); }
 	std::string tostring() const { return external.tostring() + internal.tostring(); }
-	GERTc static extract(Connection * conn) {
-		GERTc addr;
-		addr.external = Address::extract(conn);
-		addr.internal = Address::extract(conn);
-
-		return addr;
-	};
 };
