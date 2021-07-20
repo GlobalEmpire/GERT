@@ -1,8 +1,8 @@
 #include "../Gateway/Key.h"
 #include "../Gateway/DataPacket.h"
-#include "../Util/Versioning.h"
 #include "../Util/Crypto.h"
 #include "../Util/logging.h"
+#include "../Util/Error.h"
 #include "../Networking/Route.h"
 #include "CommandConnection.h"
 #include "RelayPacket.h"
@@ -11,16 +11,25 @@
 #include <stdexcept>
 #include <chrono>
 #include <mutex>
+
 using namespace std::chrono_literals;
 
 std::vector<CommandConnection*> conns;
-std::vector<DataPacket> delayed;
 std::mutex lock;
 
-CommandConnection::CommandConnection(SOCKET s, bool inbound) : Connection(s, "Peer") {
-    if (inbound)
-        write(ThisVersion.tostring());
+CommandConnection::CommandConnection(uint32_t ip, uint16_t port) : Connection(ip, port, "Peer") {
+    lock.lock();
+    conns.push_back(this);
+    lock.unlock();
+}
 
+CommandConnection::CommandConnection(ipv6 ip, uint16_t port) : Connection(ip, port, "Peer") {
+    lock.lock();
+    conns.push_back(this);
+    lock.unlock();
+}
+
+CommandConnection::CommandConnection(SOCKET s) : Connection(s, "Peer") {
     lock.lock();
     conns.push_back(this);
     lock.unlock();
@@ -41,37 +50,10 @@ CommandConnection::~CommandConnection() noexcept {
 }
 
 void CommandConnection::send(const DataPacket& packet) {
-    write("\5" + packet.raw + packet.signature);
+    write("\3" + packet.raw + (char)packet.signature.length() + packet.signature);
 }
 
-void CommandConnection::process() {
-    if (vers[0] == 0) {
-        std::string data = read(2);
-
-        if (data[0] != 0) { //Determine if major number is not supported
-            std::string cause = read();
-            close();
-
-            switch(cause[0]) {
-                case '\0':
-                    warn("Peer did not support our version.");
-                    break;
-                case '\3':
-                    warn("Peer encountered an unknown error.");
-                    break;
-                default:
-                    warn("Peer returned an unrecognized error.");
-            }
-            return;
-        }
-
-        vers[0] = data[0];
-        vers[1] = data[1];
-
-        log("Peer using v" + std::to_string(vers[0]) + "." + std::to_string(vers[1]));
-        return;
-    }
-
+void CommandConnection::_process() {
     if (curPacket == nullptr) {
         switch(read(1)[0]) {
             case 0x00: {
@@ -184,7 +166,7 @@ void CommandConnection::attempt(const DataPacket& packet) {
 
     lock.lock();
     for (auto conn: conns) {
-        if (conn->valid) {
+        if (conn->valid()) {
             conn->queued.push_back(packet);
             conn->write(cmd);
         }
