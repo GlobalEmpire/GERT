@@ -12,4 +12,6 @@ class Key {
 
 		static bool exists(Address);
 		static Key retrieve(Address);
+
+		static bool loadKeys(const std::string&);
 };
