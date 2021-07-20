@@ -2,32 +2,38 @@
 #include "../Networking/netty.h"
 #include <vector>
 
-struct Event_Data {
-	SOCKET fd;
-	Connection * ptr;
-};
+#ifdef WIN32
+#include <mutex>
+#include <map>
+
+struct INNER;
+#endif
 
 class Poll {
-	friend void removeTracker(SOCKET, Poll*);
-
-	int len = 0;
-	void* threads = nullptr;
+	void removeTracker(Socket*);
 
 #ifndef _WIN32
 	int efd;
-	std::vector<Event_Data*> tracker;
+	std::vector<Socket*> tracker;
 #else
-	std::vector<void*> tracker;
+	std::mutex lock;
+	std::map<Socket*, INNER*> fired;
+
+	std::vector<INNER*> tracker;
 	std::vector<void*> events;
 #endif
 
 public:
+#ifndef WIN32
 	Poll();
+#endif
+
 	~Poll();
 
-	void add(SOCKET, Connection* = nullptr);
-	void remove(SOCKET);
-	Event_Data wait();
-	void claim(void*, int);
-	void update();
+	void add(Socket*);
+	void remove(Socket*);
+
+	Socket* wait();
+
+    void clear(Socket*);
 };
