@@ -150,24 +150,25 @@ void CommandConnection::process() {
             }
             case 0x03: {
                 auto* casted = (RelayPacket*)curPacket;
+                auto& dpacket = casted->subpacket;
 
-                Route* route = Route::getRoute(casted->destination.external);
-                if (Key::exists(casted->source.external) && route != nullptr) {
-                    void* key = CryptoReadKey(Key::retrieve(casted->source.external).key);
+                Route* route = Route::getRoute(dpacket.destination.external);
+                if (Key::exists(dpacket.source.external) && route != nullptr) {
+                    void* key = CryptoReadKey(Key::retrieve(dpacket.source.external).key);
 
 
                     std::chrono::time_point now = std::chrono::system_clock::now();
-                    std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { casted->timestamp } };
+                    std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { dpacket.timestamp } };
 
-                    if (now - timestamp < 1min && CryptoVerify(casted->raw, casted->signature, key)) {
-                        auto temp = DataPacket();
+                    if (now - timestamp < 1min && CryptoVerify(dpacket.raw, dpacket.signature, key))
+                        route->connection->send(dpacket);
                         temp.parse(casted->subraw + casted->signature);
                         route->connection->send(temp);
                     }
                     else
-                        warn("Decrypt error from " + casted->source.external.stringify());
+                        warn("Decrypt error from " + dpacket.source.external.stringify());
                 } else
-                    write("\2" + casted->source.external.tostring());
+                    write("\2" + dpacket.source.external.tostring());
 
                 delete casted;
                 curPacket = nullptr;
