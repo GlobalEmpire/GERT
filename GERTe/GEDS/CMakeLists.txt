@@ -15,21 +15,19 @@ endif()
 include(BuildOptions.cmake)
 
 add_executable(GEDS "GEDS Server.cpp"
-        Util/Error.cpp Util/logging.cpp Util/Trace.cpp Util/Crypto.cpp Util/Crypto.h
+        Util/Error.cpp Util/logging.cpp Util/Trace.cpp Util/Crypto.cpp Util/string_utils.cpp
 
         Threading/Poll.cpp Threading/Processor.cpp
 
-        Peer/query.cpp Peer/CommandConnection.cpp Peer/CommandConnection.h Peer/CommandPacket.cpp Peer/CommandPacket.h
-        Peer/RelayPacket.cpp Peer/RelayPacket.h Peer/QueryPacket.cpp Peer/QueryPacket.h Peer/QueryPPacket.cpp
-        Peer/QueryPPacket.h
+        Peer/query.cpp Peer/CommandConnection.cpp Peer/CommandPacket.cpp Peer/RelayPacket.cpp Peer/QueryPacket.cpp
+        Peer/QueryPPacket.cpp
 
-        Networking/Connection.cpp Networking/NetString.cpp Networking/netty.cpp Networking/Route.cpp Networking/Route.h
-        Networking/ReentrantPacket.cpp Networking/ReentrantPacket.h
+        Networking/Connection.cpp Networking/NetString.cpp Networking/netty.cpp Networking/Route.cpp
+        Networking/ReentrantPacket.cpp Networking/Socket.cpp
 
-        Gateway/Address.cpp Gateway/Key.cpp Gateway/DataConnection.cpp Gateway/DataConnection.h Gateway/DataPacket.cpp
-        Gateway/DataPacket.h
+        Gateway/Address.cpp Gateway/Key.cpp Gateway/DataConnection.cpp Gateway/DataPacket.cpp
 
-        Files/fileMngr.cpp)
+        Files/Config.cpp)
 
 if (MSVC)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -51,7 +49,10 @@ if (BUILD_OPENSSL)
     if (PERL_FOUND)
         include(ExternalProject)
 
-        set(OPENSSL_CONFIG_OPTIONS no-shared no-deprecated)
+        set(OPENSSL_CONFIG_OPTIONS
+                no-shared no-deprecated no-cms no-ct no-comp no-dgram no-gost no-nextprotoneg no-cmac no-cast no-chacha
+                no-ocsp no-srp no-srtp no-stdio threads no-ts no-ssl no-tls no-sm2 no-sm4 no-sm3 no-rc2 no-rc4 no-rmd160
+                no-des no-idea no-md4 no-mdc2 no-ocb no-poly1305 no-aria no-bf no-blake2 no-camellia) #enable-ec_nistp_64_gcc_128 -- Requires 128-bit
 
         set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../openssl)
         if(WIN32)
