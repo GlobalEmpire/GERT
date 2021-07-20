@@ -91,6 +91,11 @@ void CommandConnection::process() {
                 curPacket = new RelayPacket();
                 break;
             }
+            default: {
+                error("Unknown command from peer.");
+                close();
+                return;
+            }
         }
     }
 
@@ -102,8 +107,8 @@ void CommandConnection::process() {
                 Route* route = Route::getRoute(casted->query);
                 if (route != nullptr) {
                     std::string cmd = "\1" + casted->query.tostring();
-                    cmd += route->major;
-                    cmd += route->minor;
+                    cmd += (char)route->major;
+                    cmd += (char)route->minor;
                     cmd += (char)Route::directRoute(casted->query);
                     write(cmd);
                 } else
@@ -117,16 +122,16 @@ void CommandConnection::process() {
                 auto* casted = (QueryPPacket*)curPacket;
 
                 if (casted->direct) {
-                    Route::registerRoute(casted->query, Route{casted->major, casted->minor, this}, false);
+                    Route::registerRoute(casted->query, Route{ casted->major, casted->minor, this }, false);
 
                     lock.lock();
-                    for (auto iter = queued.begin(); iter != queued.end(); iter++) {
-                        if (iter->destination.external == casted->query) {
-                            send(*iter);
-                            auto temp = iter--;
-                            queued.erase((iter--) + 1);
-                        }
-                    }
+                    std::erase_if(queued, [this, &casted](DataPacket& packet){
+                        if (packet.destination.external == casted->query) {
+                            send(packet);
+                            return true;
+                        } else
+                            return false;
+                    });
                     lock.unlock();
                 }
 
@@ -139,9 +144,8 @@ void CommandConnection::process() {
                 Route::unregisterRoute(casted->query, this);
 
                 lock.lock();
-                for (auto iter = queued.begin(); iter != queued.end(); iter++)
-                    if (iter->destination.external == casted->query)
-                        queued.erase((iter--) + 1);
+                std::erase_if(queued,
+                              [&casted](DataPacket& packet){ return packet.destination.external == casted->query; });
                 lock.unlock();
 
                 delete casted;
@@ -156,15 +160,11 @@ void CommandConnection::process() {
                 if (Key::exists(dpacket.source.external) && route != nullptr) {
                     void* key = CryptoReadKey(Key::retrieve(dpacket.source.external).key);
 
-
                     std::chrono::time_point now = std::chrono::system_clock::now();
                     std::chrono::system_clock::time_point timestamp{ std::chrono::seconds { dpacket.timestamp } };
 
                     if (now - timestamp < 1min && CryptoVerify(dpacket.raw, dpacket.signature, key))
                         route->connection->send(dpacket);
-                        temp.parse(casted->subraw + casted->signature);
-                        route->connection->send(temp);
-                    }
                     else
                         warn("Decrypt error from " + dpacket.source.external.stringify());
                 } else
@@ -179,7 +179,8 @@ void CommandConnection::process() {
 }
 
 void CommandConnection::attempt(const DataPacket& packet) {
-    std::string cmd = "\0" + packet.destination.external.tostring();
+    std::string cmd{ "\0", 1 };
+    cmd += packet.destination.external.tostring();
 
     lock.lock();
     for (auto conn: conns) {
@@ -188,5 +189,5 @@ void CommandConnection::attempt(const DataPacket& packet) {
             conn->write(cmd);
         }
     }
-    lock.lock();
+    lock.unlock();
 }
