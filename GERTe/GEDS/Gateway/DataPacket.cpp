@@ -7,11 +7,13 @@
 #endif
 
 
-DataPacket::DataPacket(): ReentrantPacket(32) {
-    raw.reserve(22);
+DataPacket::DataPacket() {
+    need = 23;
 }
 
 bool DataPacket::parse(const std::string& newStr) {
+    need -= (int)newStr.length();
+
     partial += newStr;
 
     if (raw.empty()) {

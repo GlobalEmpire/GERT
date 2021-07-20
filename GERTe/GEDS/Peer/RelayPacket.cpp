@@ -1,7 +1,7 @@
 #include "RelayPacket.h"
 
-#ifdef WIN32
-#include <winsock.h>
+RelayPacket::RelayPacket(): CommandPacket(0x03) {
+    need = 23;
 #else
 #include <arpa/inet.h>
 #endif

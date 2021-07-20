@@ -2,12 +2,11 @@
 #include <string>
 
 class ReentrantPacket {
-    int offset;
-
 protected:
+    int need = 0;
     std::string partial{};
 
-    explicit ReentrantPacket(int);
+    ReentrantPacket() = default;
 
 public:
     std::string raw{};

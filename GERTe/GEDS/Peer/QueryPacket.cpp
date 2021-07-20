@@ -1,10 +1,12 @@
 #include "QueryPacket.h"
 
-QueryPacket::QueryPacket(): CommandPacket(0x00, 0) {
+QueryPacket::QueryPacket(): CommandPacket(0x00) {
+    need = 3;
     raw.reserve(3);
 }
 
 bool QueryPacket::parse(const std::string& data) {
+    need -= (int)data.length();
     partial += data;
 
     if (raw.empty()) {

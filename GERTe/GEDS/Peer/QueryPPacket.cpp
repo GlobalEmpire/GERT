@@ -1,10 +1,12 @@
 #include "QueryPPacket.h"
 
-QueryPPacket::QueryPPacket(): CommandPacket(0x01, 0) {
+QueryPPacket::QueryPPacket(): CommandPacket(0x01) {
+    need = 6;
     raw.reserve(6);
 }
 
 bool QueryPPacket::parse(const std::string& data) {
+    need -= (int)data.length();
     partial += data;
 
     if (raw.empty()) {
