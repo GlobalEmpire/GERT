@@ -1,4 +1,4 @@
--- GERT v1.4.1
+-- GERT v1.5 Build 1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -173,8 +173,8 @@ handler.RegisterNode = function (receiveM, sendM, sPort, origin, nTier, serialTa
 end
 
 handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
-	if nodes[origination] then
-		nodes[origination] = nil
+	if nodes[origin] then
+		nodes[origin] = nil
 	end
 	if noQ then
 		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin, noQ)

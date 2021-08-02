@@ -1,0 +1,8 @@
+{
+    "Lua.diagnostics.globals": [
+        "_",
+        "realStart",
+        "start",
+        "stop"
+    ]
+}

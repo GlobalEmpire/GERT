@@ -1,4 +1,4 @@
--- GERT v1.4.1
+-- GERT v1.5 Build 1
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -6,17 +6,19 @@ local filesystem = require("filesystem")
 local GERTe
 local os = require("os")
 local serialize = require("serialization")
-local mTable, tTable, gAddress, gKey
 
-local nodes = {}
-local connections = {}
+local mTable, tTable, gAddress, gKey
+local nodes = {} -- add = modem address of the node, receiveM = modem card responsible for receiving data from the node, tier = tier of the node, port = modem port, neighbors = table of nodes neighboring the key node
+local connections = {} -- origin = origination GERT address, dest = destination GERT address, ID = connection ID, nextHop = modem address of the next node in the connection, sendM = modem necessary to forward on data, port = port used by sendM
 local cPend = {}
 local rPend = {}
 local addressP1 = 0
 local addressP2 = 1
 local timerID ={}
 local savedAddresses = {}
-local directory = "/etc/GERTaddresses.gert"
+local registeredPrograms = {} -- [programName] = {[1]=GERTiAddress1, [2]=GERTiAddress2, ...}
+local addressFile = "/etc/GERTaddresses.gert"
+local networkFile = "/etc/networkTables.gert"
 
 local function waitWithCancel(timeout, cancelCheck)
 	local now = computer.uptime()
@@ -39,7 +41,7 @@ local function storeChild(rAddress, receiveM, port, tier)
 		childGA = addressP1.."."..addressP2
 		childGA = tonumber(childGA)
 		savedAddresses[rAddress] = childGA
-		local f = io.open(directory, "a")
+		local f = io.open(addressFile, "a")
 		f:write(addressP1.."."..addressP2.."\n")
 		f:write(rAddress.."\n")
 		f:close()
@@ -57,11 +59,11 @@ local function storeChild(rAddress, receiveM, port, tier)
 		end
 	end
 
-	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
+	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}}
 	return childGA
 end
 
-local function storeConnection(origin, ID, dest, nextHop, sendM, port) -- GERT address of the connection origin, Connection ID, GERT address of the destination, next node in the connection, modem used to reach the next node, and the port used to reach the next mode
+local function storeConnection(origin, ID, dest, nextHop, sendM, port)
 	local connectDex
 	ID = math.floor(ID)
 	connectDex = origin.."|"..dest.."|"..ID
@@ -108,11 +110,11 @@ handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 end
 
 local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
-	if dest==iAdd then
-		storeConnection(origin, ID, dest)
+	if dest==0 or dest == "0.0" then
+		storeConnection(origin, ID, tonumber(dest))
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
-	if origin ~= iAdd then
+	if origin ~= 0 then
 		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
 	end
 end
@@ -145,7 +147,7 @@ end
 
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
-	childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
+	local childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
 	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
 	local shortest = math.huge
 	for key, value in pairs(childTable) do -- Load the node's neighbors into the nodes table
@@ -220,9 +222,9 @@ local function safedown()
 end
 
 local function loadAddress() -- load GERTi address file to restore cached GERTi addresses
-	if filesystem.exists(directory) then
+	if filesystem.exists(addressFile) then
 		print("Address file located; loading now.")
-		local f = io.open(directory, "r")
+		local f = io.open(addressFile, "r")
 		local newGAddress = f:read("*l")
 		local newRAddress = f:read("*l")
 		local highest = 0
@@ -242,9 +244,9 @@ local function loadAddress() -- load GERTi address file to restore cached GERTi 
 end
 
 local function loadTables() -- reload the network tables if they have been cached after an improper restart
-	if filesystem.exists("/etc/networkTables.gert") then
+	if filesystem.exists(networkFile) then
 		print("Reloading cached network tables")
-		local f = io.open("/etc/networkTables.gert", r)
+		local f = io.open(networkFile, "r")
 		nodes = serialize.unserialize(f:read("*l"))
 		connections = serialize.unserialize(f:read("*l"))
 		f:close()
@@ -253,7 +255,7 @@ end
 
 -- Function that runs on a timer to cache the nodes and connections table. In this manner, they can be recovered successfully if the MNC is abruptly powered off
 local function cacheNetworkTables()
-	local f = io.open("/etc/networkTables.gert", "w")
+	local f = io.open(networkFile, "w")
 	f:write(serialize.serialize(nodes).."\n")
 	f:write(serialize.serialize(connections))
 	f:close()
@@ -281,7 +283,7 @@ function realStart()
 		io.stderr:write("This program requires a network card or linked card to run.")
 		os.exit(1)
 	end
-	
+
 	if filesystem.exists("/lib/GERTeAPI.lua") then
 		GERTe = require("GERTeAPI")
 	end
