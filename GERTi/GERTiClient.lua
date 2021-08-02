@@ -253,9 +253,9 @@ end
 event.listen("shutdown", safedown)
 
 -------------------
-local function writeData(self, data)
+local function writeData(self, data, ...)
 	if type(data) ~= "table" and type(data) ~= "function" then
-		transInfo(self.nextHop, self.receiveM, self.outPort, "Data", data, self.outDex, self.order)
+		transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, data, ...)
 		self.order=self.order+1
 	end
 end
@@ -275,10 +275,7 @@ end
 local function closeSock(self)
 	handler.CloseConnection(_, _, 4378, self.outDex)
 end
-function GERTi.openSocket(gAddress, doEvent, outID)
-	if type(doEvent) ~= "boolean" then
-		outID = doEvent
-	end
+function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
 	if not outID then
 		outID = #connections + 1
@@ -320,6 +317,11 @@ function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", data, -1, 0, iAdd)
 	end
+end
+function GERTi.getNetworkServices(name)
+	local socket = GERTi.openSocket(0, 500)
+	socket:write("Identify Services", name)
+	return socket:read()[1]
 end
 function GERTi.getConnections()
 	local tempTable = {}
