@@ -1,4 +1,4 @@
--- GERT v1.5 Build 1
+-- GERT v1.5 Build 3
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -28,7 +28,7 @@ if not (mTable or tTable) then
 end
 
 local iAdd
-local tier = 3
+local tier = 1000
 -- nodes[GERTi]{"add", "port", "tier"}, "add" is modem
 local nodes = {}
 local firstN = {}
@@ -70,7 +70,9 @@ local function storeConnection(origin, ID, GAdd, nextHop, sendM, port)
 	end
 end
 
-local function storeData(connectDex, data, order)
+local function storeData(connectDex, order, ...)
+	local data = table.pack(...)
+	data["n"]=nil
 	if #connections[connectDex]["data"] > 20 then
 		table.remove(connections[connectDex]["data"], 1)
 	end
@@ -101,15 +103,16 @@ handler.CloseConnection = function(_, _, port, connectDex)
 	connections[connectDex] = nil
 end
 
-handler.Data = function (_, _, port, data, connectDex, order, origin)
+handler.Data = function (_, _, port, connectDex, order, ...)
 	if connectDex == -1 then
-		return computer.pushSignal("GERTData", origin, -1, data)
+		local dTable = table.pack(...)
+		return computer.pushSignal("GERTData", dTable[2], -1, dTable[1])
 	end
 	if connections[connectDex] then
 		if connections[connectDex]["dest"] == iAdd then
-			storeData(connectDex, data, order)
+			storeData(connectDex, order, ...)
 		else
-			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
+			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connectDex, order, ...)
 		end
 	else
 		origin = string.sub(connectDex, 1, string.find(connectDex, "|")-1)
@@ -120,7 +123,7 @@ handler.Data = function (_, _, port, data, connectDex, order, origin)
 		ID = tonumber(ID)
 		if dest == iAdd then
 			storeConnection(origin, ID, dest)
-			handler.Data(_, _, port, data, connectDex, order)
+			handler.Data(_, _, port, connectDex, order, ...)
 		end
 	end
 end
@@ -253,11 +256,14 @@ end
 event.listen("shutdown", safedown)
 
 -------------------
-local function writeData(self, data, ...)
-	if type(data) ~= "table" and type(data) ~= "function" then
-		transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, data, ...)
-		self.order=self.order+1
+local function writeData(self, ...)
+	for key, value in pairs(table.pack(...)) do
+		if type(value) == "table" or type(value)== "function" then
+			return
+		end
 	end
+	transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
+	self.order=self.order+1
 end
 
 local function readData(self, doPeek)
@@ -305,6 +311,7 @@ function GERTi.openSocket(gAddress, outID)
 			close = closeSock}
 		return socket
 	else
+		cPend[gAddress..iAdd..outID] = nil
 		return false
 	end
 end
@@ -315,7 +322,7 @@ function GERTi.broadcast(data)
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", data, -1, 0, iAdd)
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", -1, 0, data, iAdd)
 	end
 end
 function GERTi.getNetworkServices(name)
