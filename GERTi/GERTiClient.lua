@@ -1,4 +1,4 @@
--- GERT v1.5 Build 4
+-- GERT v1.5 Build 5
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -266,11 +266,24 @@ local function writeData(self, ...)
 	self.order=self.order+1
 end
 
-local function readData(self, doPeek)
+local function readData(self, flags)
 	if connections[self.inDex] then
 		local data = connections[self.inDex]["data"]
-		if tonumber(doPeek) ~= 2 then
+		if not string.find(flags, "-k") then
 			connections[self.inDex]["data"] = {}
+		end
+		if string.find(flags, "-f") then
+			local flatTable = {}
+			for key, value in pairs(connections[self.inDex]["data"]) do
+				if type(value) == "table" then
+					for key2, value2 in pairs(value) do
+						table.insert(flatTable, value2)
+					end
+				else
+					table.insert(flatTable, value)
+				end
+			end
+			return flatTable
 		end
 		return data
 	else
