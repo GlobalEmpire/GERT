@@ -1,4 +1,4 @@
--- GERT v1.5 Build 5
+-- GERT v1.5 Build 6
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -67,7 +67,7 @@ local function transInfo(sendTo, localM, port, ...)
 end
 
 local handler = {}
-handler.CloseConnection = function(receiveM, sendM, port, connectDex)
+handler.CloseConnection = function(_, _, _, connectDex)
 	if connections[connectDex]["nextHop"] == 1 then
 		connections[connectDex] = nil
 		return
@@ -105,7 +105,7 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
 	if origin ~= 0 then
-		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, math.floor(ID))
 	end
 end
 
@@ -118,7 +118,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	end
 	dest = tonumber(dest)
 	if nodes[dest]["neighbors"][0.0] then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, math.floor(ID))
 	elseif nodes[dest] then -- Make sure that the destination exists. If it doesn't, don't do anything
 		local inter = ""
 		local interTier = math.huge
@@ -130,7 +130,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 		end
 		local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1)) -- Pull out the first intermediary
 		inter = string.sub(inter, string.find(inter, "|")+1)
-		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, tostring(ID))
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, math.floor(ID))
 	end
 	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
@@ -296,6 +296,10 @@ function realStart()
 	loadTables()
 	table.insert(timerID, event.timer(30, cacheNetworkTables, math.huge))
 	event.listen("shutdown", safedown)
+	if filesystem.exists("/lib/GERTiClient.lua") then
+		local MNCAPI = require("GERTiClient")
+		MNCAPI.loadTables(nodes, connections, cPend)
+	end
 	print("Setup Complete!")
 end
 

@@ -1,4 +1,4 @@
--- GERT v1.5 Build 5
+-- GERT v1.5 Build 6
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -140,25 +140,25 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
 	if origin ~= iAdd then
-		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, math.floor(ID))
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
 	if cPend[dest..origin..ID] then
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
+		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, math.floor(ID))
 	elseif dest == iAdd then
 		storeConnection(origin, ID, dest)
 		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif nodes[dest] then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, math.floor(ID))
 	elseif not intermediary then
-		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, tostring(ID))
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, math.floor(ID))
 	else
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, math.floor(ID))
 	end
 	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
@@ -330,7 +330,7 @@ function GERTi.openSocket(gAddress, outID)
 end
 function GERTi.broadcast(data)
 	if mTable and (type(data) ~= "table" and type(data) ~= "function") then
-		component.modem.broadcast(4378, "Data", data, -1, 0, iAdd)
+		component.modem.broadcast(4378, "Data", -1, 0, data, iAdd)
 	end
 end
 function GERTi.send(dest, data)
@@ -338,10 +338,12 @@ function GERTi.send(dest, data)
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", -1, 0, data, iAdd)
 	end
 end
-function GERTi.getNetworkServices(name)
-	local socket = GERTi.openSocket(0, 500)
-	socket:write("Identify Services", name)
-	return socket:read()[1]
+function GERTi.getNServiceList()
+	local socket = GERTi.openSocket(0.0, 500)
+	socket:write("Identify Services")
+	local services = socket:read()
+	socket:close()
+	return services
 end
 function GERTi.getConnections()
 	local tempTable = {}
@@ -366,6 +368,9 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4.1", "1.4.1"
+	return "v1.5", "1.5 Build 6"
+end
+function GERTi.getEdition()
+	return "ClientBasic"
 end
 return GERTi
