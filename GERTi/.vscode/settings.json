@@ -4,5 +4,8 @@
         "realStart",
         "start",
         "stop"
+    ],
+    "Lua.diagnostics.disable": [
+        "undefined-field"
     ]
 }

@@ -1,4 +1,4 @@
--- GERT v1.5 Build 3
+-- GERT v1.5 Build 4
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -80,14 +80,16 @@ handler.CloseConnection = function(receiveM, sendM, port, connectDex)
 	end
 end
 
-handler.Data = function (_, _, _, data, connectDex, order, origin)
-	if string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
+handler.Data = function (_, _, _, connectDex, order, ...)
+	if connections[connectDex]["dest"] == 0.0 then
+		print("Data received by MNC")
+	elseif string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
 		local pipeDex = string.find(connectDex, "|")
-		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), data)
+		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), ...)
 	elseif string.find(connectDex, ":") then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order, ...)
 	elseif connections[connectDex] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connectDex, order, ...)
 	end
 end
 
@@ -99,7 +101,7 @@ end
 
 local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	if dest==0 or dest == "0.0" then
-		storeConnection(origin, ID, tonumber(dest))
+		storeConnection(origin, ID, tonumber(dest), 1, receiveM, recPort)
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
 	if origin ~= 0 then
@@ -156,7 +158,9 @@ end
 handler.RemoveNeighbor = function (_, _, _, origin) -- Checks to see if the nodes table contains the appropriate client, and removes it if so. This also removes the node from other nodes' neighbor tables
 	if nodes[origin] ~= nil then
 		for key, value in pairs(nodes[origin]["neighbors"]) do
-			nodes[key]["neighbors"][origin] = nil
+			if key ~= 0 then
+				nodes[key]["neighbors"][origin] = nil
+			end
 		end
 		nodes[origin] = nil
 	end
