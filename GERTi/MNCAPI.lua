@@ -1,9 +1,8 @@
--- GERT v1.5 Build 7
+-- GERT v1.5 Build 8
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
-local filesystem= require("filesystem")
 local serialize = require("serialization")
 local mTable, tTable, nodes, connections, cPend
 local iAdd = 0.0
@@ -160,7 +159,7 @@ function MNCAPI.getAddress()
 	return iAdd
 end
 function MNCAPI.getVersion()
-	return "v1.5", "1.5 Build 7"
+	return "v1.5", "1.5 Build 8"
 end
 function MNCAPI.getEdition()
 	return "MNCAPI"
@@ -190,7 +189,11 @@ local function checkData(_, origin, ID)
 		if data[1] == "List Services" then
 			sockets[origin]:write(serialize.serialize(networkServices))
 		elseif data[1][1] == "Get Service Port" then
-			sockets[origin]:write(networkServices[data[1][2]])
+			if networkServices[data[1][2]] then
+				sockets[origin]:write(networkServices[data[1][2]])
+			else
+				sockets[origin]:write(false)
+			end
 		end
 	end
 end
