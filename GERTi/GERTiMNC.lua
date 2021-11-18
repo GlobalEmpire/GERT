@@ -1,4 +1,4 @@
--- GERT v1.5 Build 6
+-- GERT v1.5 Build 7
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -58,6 +58,24 @@ local function storeConnection(origin, ID, dest, nextHop, sendM, port)
 	connections[connectDex] = {["origin"]=origin, ["dest"]=dest, ["ID"]=ID, ["nextHop"]=nextHop, ["sendM"] = sendM, ["port"]=port}
 end
 
+local function storeData(connectDex, order, ...)
+	local data = table.pack(...)
+	data["n"]=nil
+	if #data == 1 then
+		data = data[1]
+	end
+	if #connections[connectDex]["data"] > 20 then
+		table.remove(connections[connectDex]["data"], 1)
+	end
+	if order >= connections[connectDex]["order"] then
+		table.insert(connections[connectDex]["data"], data)
+		connections[connectDex]["order"] = order
+	else
+		table.insert(connections[connectDex]["data"], #connections[connectDex]["data"], data)
+	end
+	computer.pushSignal("GERTData", connections[connectDex]["origin"], connections[connectDex]["ID"])
+end
+
 local function transInfo(sendTo, localM, port, ...)
 	if mTable and mTable[localM] then
 		mTable[localM].send(sendTo, port, ...)
@@ -69,6 +87,7 @@ end
 local handler = {}
 handler.CloseConnection = function(_, _, _, connectDex)
 	if connections[connectDex]["nextHop"] == 1 then
+		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
 		connections[connectDex] = nil
 		return
 	else
@@ -82,7 +101,7 @@ end
 
 handler.Data = function (_, _, _, connectDex, order, ...)
 	if connections[connectDex]["dest"] == 0.0 then
-		print("Data received by MNC")
+		storeData(connectDex, order, ...)
 	elseif string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
 		local pipeDex = string.find(connectDex, "|")
 		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), ...)

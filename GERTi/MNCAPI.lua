@@ -1,13 +1,15 @@
--- GERT v1.5 Build 6
+-- GERT v1.5 Build 7
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local filesystem= require("filesystem")
-local shell = require("shell")
+local serialize = require("serialization")
 local mTable, tTable, nodes, connections, cPend
 local iAdd = 0.0
 local tier = 0
+local sockets = {}
+local networkServices = {}
 
 if (component.isAvailable("modem")) then
 	mTable = {}
@@ -158,7 +160,7 @@ function MNCAPI.getAddress()
 	return iAdd
 end
 function MNCAPI.getVersion()
-	return "v1.5", "1.5 Build 6"
+	return "v1.5", "1.5 Build 7"
 end
 function MNCAPI.getEdition()
 	return "MNCAPI"
@@ -169,4 +171,37 @@ function MNCAPI.loadTables(nTable, cTable, cPTable)
 	cPend = cPTable
 	print("MNCAPI Loaded")
 end
+function MNCAPI.registerNetworkService(name, port)
+	networkServices[name] = port
+end
+
+-- Startup Procedure
+local function checkConnection(_, origin, ID)
+	if ID == 500 then
+		local newSocket = MNCAPI.openSocket(origin, ID)
+		table.insert(sockets, newSocket, origin)
+	end
+end
+event.listen("GERTConnectionID", checkConnection)
+
+local function checkData(_, origin, ID)
+	if sockets[origin] and ID == 500 then
+		local data = sockets[origin]:read()
+		if data[1] == "List Services" then
+			sockets[origin]:write(serialize.serialize(networkServices))
+		elseif data[1][1] == "Get Service Port" then
+			sockets[origin]:write(networkServices[data[1][2]])
+		end
+	end
+end
+event.listen("GERTData", checkData)
+
+local function closeSockets(_, origin, dest, ID)
+	if ID == 500 and dest == 0.0 then
+		sockets[origin]:close()
+		sockets[origin] = nil
+	end
+end
+event.listen("GERTConnectionClose", closeSockets)
+-- End Startup
 return MNCAPI

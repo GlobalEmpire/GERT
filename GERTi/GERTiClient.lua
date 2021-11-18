@@ -1,4 +1,4 @@
--- GERT v1.5 Build 6
+-- GERT v1.5 Build 7
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -73,6 +73,9 @@ end
 local function storeData(connectDex, order, ...)
 	local data = table.pack(...)
 	data["n"]=nil
+	if #data == 1 then
+		data = data[1]
+	end
 	if #connections[connectDex]["data"] > 20 then
 		table.remove(connections[connectDex]["data"], 1)
 	end
@@ -368,7 +371,7 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.5", "1.5 Build 6"
+	return "v1.5", "1.5 Build 7"
 end
 function GERTi.getEdition()
 	return "ClientBasic"
