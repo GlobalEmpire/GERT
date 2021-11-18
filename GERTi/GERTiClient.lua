@@ -1,4 +1,4 @@
--- GERT v1.4
+-- GERT v1.4.1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -94,7 +94,7 @@ end
 local handler = {}
 handler.CloseConnection = function(_, _, port, connectDex)
 	if connections[connectDex]["nextHop"] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", connectDex)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", tostring(connectDex))
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
 	end
@@ -137,23 +137,27 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 		computer.pushSignal("GERTConnectionID", origin, ID)
 	end
 	if origin ~= iAdd then
-		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, ID)
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
-	if dest == iAdd then
+	if cPend[dest..origin..ID] then
+		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
+		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
+		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
+	elseif dest == iAdd then
 		storeConnection(origin, ID, dest)
-		sendOK(sendM, receiveM, port, dest, origin, ID)
+		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif nodes[dest] then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, ID)
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	elseif not intermediary then
-		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, ID)
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "OpenRoute", dest, nil, origin, tostring(ID))
 	else
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
-		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, ID)
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, tostring(ID))
 	end
-	cPend[dest..origin]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
+	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 handler.RegisterComplete = function(receiveM, _, port, target, newG)
 	if (mTable and mTable[target]) or (tTable and tTable[target]) then
@@ -168,20 +172,24 @@ handler.RegisterNode = function (receiveM, sendM, sPort, origin, nTier, serialTa
 	rPend[origin] = {["receiveM"]=receiveM, ["add"]=sendM, ["port"] = sPort}
 end
 
-handler.RemoveNeighbor = function (receiveM, _, port, origination)
+handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 	if nodes[origination] then
 		nodes[origination] = nil
 	end
-	transInfo(firstN["add"], receiveM, firstN["port"], "RemoveNeighbor", origination)
-end
-
-handler.RouteOpen = function (receiveM, sendM, sPort, pktDest, pktOrig, ID)
-	if cPend[pktDest..pktOrig] then
-		sendOK(cPend[pktDest..pktOrig]["bHop"], cPend[pktDest..pktOrig]["receiveM"], cPend[pktDest..pktOrig]["port"], pktDest, pktOrig, ID)
-		storeConnection(pktOrig, ID, pktDest, sendM, receiveM, sPort)
-		cPend[pktDest..pktOrig] = nil
+	if noQ then
+		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin, noQ)
 	end
 end
+
+handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
+	local cDex = dest..origin..ID
+	if cPend[cDex] then
+		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
+		storeConnection(origin, ID, dest, sendM, receiveM, port)
+		cPend[cDex] = nil
+	end
+end
+
 local function receivePacket(_, receiveM, sendM, port, distance, code, ...)
 	if handler[code] then
 		handler[code](receiveM, sendM, port, ...)
@@ -231,15 +239,16 @@ local function safedown()
 		handler.CloseConnection(_, _, 4378, key)
 	end
 	if tTable then
-	for key, value in pairs(tTable) do
-		tTable[key].send("RemoveNeighbor", iAdd)
+		for key, value in pairs(tTable) do
+			tTable[key].send("RemoveNeighbor", iAdd)
+		end
 	end
-end
-if mTable then
-	for key, value in pairs(mTable) do
-		mTable[key].broadcast(4378, "RemoveNeighbor", iAdd)
+	if mTable then
+		for key, value in pairs(mTable) do
+			mTable[key].broadcast(4378, "RemoveNeighbor", iAdd)
+		end
 	end
-end
+	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", iAdd, 1)
 end
 event.listen("shutdown", safedown)
 
@@ -283,8 +292,8 @@ function GERTi.openSocket(gAddress, doEvent, outID)
 	else
 		handler.OpenRoute(firstN["receiveM"], firstN["receiveM"], 4378, gAddress, nil, iAdd, outID)
 	end
-	waitWithCancel(3, function () return (not cPend[gAddress..iAdd]) end)
-	if not cPend[gAddress..iAdd] then
+	waitWithCancel(3, function () return (not cPend[gAddress..iAdd..outID]) end)
+	if not cPend[gAddress..iAdd..outID] then
 		local socket = {origination = iAdd,
 			destination = gAddress,
 			outPort = port or firstN["port"],
@@ -335,6 +344,6 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getVersion()
-	return "v1.4", "1.4"
+	return "v1.4.1", "1.4.1"
 end
 return GERTi
