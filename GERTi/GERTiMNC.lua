@@ -1,4 +1,4 @@
--- GERT v1.5 Build 7
+-- GERT v1.5 Build 8
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -11,12 +11,10 @@ local mTable, tTable, gAddress, gKey
 local nodes = {} -- add = modem address of the node, receiveM = modem card responsible for receiving data from the node, tier = tier of the node, port = modem port, neighbors = table of nodes neighboring the key node
 local connections = {} -- origin = origination GERT address, dest = destination GERT address, ID = connection ID, nextHop = modem address of the next node in the connection, sendM = modem necessary to forward on data, port = port used by sendM
 local cPend = {}
-local rPend = {}
 local addressP1 = 0
 local addressP2 = 1
 local timerID ={}
 local savedAddresses = {}
-local registeredPrograms = {} -- [programName] = {[1]=GERTiAddress1, [2]=GERTiAddress2, ...}
 local addressFile = "/etc/GERTaddresses.gert"
 local networkFile = "/etc/networkTables.gert"
 

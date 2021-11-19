@@ -1,11 +1,26 @@
--- GERT v1.5 Build 7
+-- GERT v1.5 Build 8
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
 local serialize = require("serialization")
 local mTable, tTable
+local iAdd
+local tier = 1000
+-- nodes[GERTi]{"add", "port", "tier"}, "add" is modem
+local nodes = {}
+local firstN = {}
 
+-- Connections are established at any point along a route
+local connections = {}
+local cPend = {}
+local rPend = {}
+
+-- Modules are optional add-ons to basic GERTi functionality to extend the network in a transparent manner
+local modules = {}
+local MNCSocket, DNSSocket
+local DNSCache = {}
+local hostname
 if (component.isAvailable("modem")) then
 	mTable = {}
 	for address, value in component.list("modem") do
@@ -27,16 +42,6 @@ if not (mTable or tTable) then
 	os.exit(1)
 end
 
-local iAdd
-local tier = 1000
--- nodes[GERTi]{"add", "port", "tier"}, "add" is modem
-local nodes = {}
-local firstN = {}
-
--- Connections are established at any point along a route
-local connections = {}
-local cPend = {}
-local rPend = {}
 local function waitWithCancel(timeout, cancelCheck)
 	local now = computer.uptime()
 	local deadline = now + timeout
@@ -69,7 +74,6 @@ local function storeConnection(origin, ID, GAdd, nextHop, sendM, port)
 		connections[connectDex]["order"]=1
 	end
 end
-
 local function storeData(connectDex, order, ...)
 	local data = table.pack(...)
 	data["n"]=nil
@@ -106,7 +110,6 @@ handler.CloseConnection = function(_, _, port, connectDex)
 	end
 	connections[connectDex] = nil
 end
-
 handler.Data = function (_, _, port, connectDex, order, ...)
 	if connectDex == -1 then
 		local dTable = table.pack(...)
@@ -131,7 +134,6 @@ handler.Data = function (_, _, port, connectDex, order, ...)
 		end
 	end
 end
-
 handler.NewNode = function (receiveM, sendM, port, gAddress, nTier)
 	if gAddress then
 		storeNodes(tonumber(gAddress), receiveM, sendM, port, nTier)
@@ -178,7 +180,6 @@ handler.RegisterNode = function (receiveM, sendM, sPort, origin, nTier, serialTa
 	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", origin, nTier, serialTable)
 	rPend[origin] = {["receiveM"]=receiveM, ["add"]=sendM, ["port"] = sPort}
 end
-
 handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 	if nodes[origin] then
 		nodes[origin] = nil
@@ -187,7 +188,6 @@ handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 		transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", origin, noQ)
 	end
 end
-
 handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
 	local cDex = dest..origin..ID
 	if cPend[cDex] then
@@ -196,51 +196,12 @@ handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
 		cPend[cDex] = nil
 	end
 end
-
 local function receivePacket(_, receiveM, sendM, port, distance, code, ...)
 	if handler[code] then
 		handler[code](receiveM, sendM, port, ...)
 	end
 end
 
-------------------------------------------
-event.listen("modem_message", receivePacket)
-if tTable then
-	for key, value in pairs(tTable) do
-		tTable[key].send("NewNode")
-	end
-end
-if mTable then
-	for key, value in pairs(mTable) do
-		mTable[key].broadcast(4378, "NewNode")
-	end
-end
-os.sleep(2)
-
--- forward neighbor table up the line
-local serialTable = serialize.serialize(nodes)
-if serialTable ~= "{}" then
-	local mncUnavailable = true
-	local addr
-	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", firstN["receiveM"], tier, serialTable)
-	waitWithCancel(5, function () return iAdd end)
-	if not iAdd then
-		print("Unable to contact the MNC. Functionality will be impaired.")
-	end
-end
-
-if tTable then
-	for key, value in pairs(tTable) do
-		tTable[key].send("NewNode", iAdd, tier)
-	end
-end
-if mTable then
-	for key, value in pairs(mTable) do
-		mTable[key].broadcast(4378, "NewNode", iAdd, tier)
-	end
-end
-
---Listen to computer.shutdown to allow for better network leaves
 local function safedown()
 	for key, value in pairs(connections) do
 		handler.CloseConnection(_, _, 4378, key)
@@ -257,9 +218,7 @@ local function safedown()
 	end
 	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RemoveNeighbor", iAdd, 1)
 end
-event.listen("shutdown", safedown)
-
--------------------
+-- API Functions
 local function writeData(self, ...)
 	for key, value in pairs(table.pack(...)) do
 		if type(value) == "table" or type(value)== "function" then
@@ -269,9 +228,8 @@ local function writeData(self, ...)
 	transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
 	self.order=self.order+1
 end
-
 local function readData(self, flags)
-	if connections[self.inDex] then
+	if connections[self.inDex] and connections[self.inDex]["data"][1] then
 		local data = connections[self.inDex]["data"]
 		if not string.find(flags, "-k") then
 			connections[self.inDex]["data"] = {}
@@ -294,12 +252,18 @@ local function readData(self, flags)
 		return {}
 	end
 end
-
 local function closeSock(self)
 	handler.CloseConnection(_, _, 4378, self.outDex)
 end
+
 function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
+	if type(gAddress) == "string" or math.floor(gAddress) == gAddress then
+		gAddress = GERTi.resolveDNS(gAddress)
+	end
+	if not gAddress then
+		return false
+	end
 	if not outID then
 		outID = #connections + 1
 	end
@@ -337,18 +301,36 @@ function GERTi.broadcast(data)
 		component.modem.broadcast(4378, "Data", -1, 0, data, iAdd)
 	end
 end
+function GERTi.registerModule(modulename, port)
+	modules[modulename] = port
+end
+function GERTi.resolveDNS(remoteHost)
+	if modules["DNS"] then
+		DNSSocket:write("DNSResolve", remoteHost)
+		waitWithCancel(3, function () return (DNSSocket:read("-k")) end)
+		DNSCache[remoteHost] = DNSSocket:read()[1]
+		return DNSCache[remoteHost]
+	else
+		return nil
+	end
+
+end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", -1, 0, data, iAdd)
 	end
 end
-function GERTi.getNServiceList()
-	local socket = GERTi.openSocket(0.0, 500)
-	socket:write("Identify Services")
-	local services = socket:read()
-	socket:close()
-	return services
+
+function GERTi.getAddress()
+	return iAdd
 end
+
+function GERTi.getAllServices()
+	MNCSocket:write("Identify Services")
+	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
+	return MNCSocket:read()
+end
+
 function GERTi.getConnections()
 	local tempTable = {}
 	for key, value in pairs(connections) do
@@ -364,17 +346,65 @@ function GERTi.getConnections()
 	return tempTable
 end
 
+function GERTi.getEdition()
+	return "BasicClient"
+end
+
+function GERTi.getLoadedModules()
+	return modules
+end
+
 function GERTi.getNeighbors()
 	return nodes
 end
 
-function GERTi.getAddress()
-	return iAdd
-end
 function GERTi.getVersion()
-	return "v1.5", "1.5 Build 7"
+	return "v1.5", "1.5 Build 8"
 end
-function GERTi.getEdition()
-	return "ClientBasic"
+
+function GERTi.isServicePresent(name)
+	MNCSocket:write("GERT Service Port", name)
+	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
+	return MNCSocket:read()
+end
+
+-- Startup Procedure
+event.listen("modem_message", receivePacket)
+if tTable then
+	for key, value in pairs(tTable) do
+		tTable[key].send("NewNode")
+	end
+end
+if mTable then
+	for key, value in pairs(mTable) do
+		mTable[key].broadcast(4378, "NewNode")
+	end
+end
+os.sleep(2)
+local serialTable = serialize.serialize(nodes)
+if serialTable ~= "{}" then
+	transInfo(firstN["add"], firstN["receiveM"], firstN["port"], "RegisterNode", firstN["receiveM"], tier, serialTable)
+	waitWithCancel(5, function () return iAdd end)
+	if not iAdd then
+		io.stderr:write("Unable to contact the MNC. Functionality will be impaired.")
+		event.ignore("modem_message", receivePacket)
+		os.exit(1)
+	end
+end
+if tTable then
+	for key, value in pairs(tTable) do
+		tTable[key].send("NewNode", iAdd, tier)
+	end
+end
+if mTable then
+	for key, value in pairs(mTable) do
+		mTable[key].broadcast(4378, "NewNode", iAdd, tier)
+	end
+end
+event.listen("shutdown", safedown)
+MNCSocket = GERTi.openSocket(0.0, 500)
+if GERTi.isServicePresent("DNS")[1] == 53 then
+	DNSSocket = GERTi.openSocket(0.0, 53)
+	GERTi.registerModule("DNS", 53)
 end
 return GERTi
