@@ -35,6 +35,7 @@ local function CompleteSocket(_,originAddress,connectionID)
     if connectionID == updatePort then
         updateSockets[originAddress] = GERTi.openSocket(originAddress,connectionID)
     end
+    return true
 end
 
 local function CloseSocket(_, originAddress,destAddress,ConnectionID)
@@ -45,6 +46,7 @@ local function CloseSocket(_, originAddress,destAddress,ConnectionID)
         updateSockets[destAddress]:close()
         updateSockets[destAddress] = nil
     end
+    return true
 end
 
 GERTUpdaterAPI.CheckLatest = function(data)
@@ -88,15 +90,23 @@ GERTUpdaterAPI.CheckLatest = function(data)
     end
 end
 
-GERTUpdaterAPI.SendCachedFile = function(originAddress,data)
+GERTUpdaterAPI.SendCachedFile = function(originAddress,data) -- returns true if successful, false if timeout
     local fileToSend = io.open(storedPaths[data[2]], "rb")
     local chunk = fileToSend:read(8000)
     updateSockets[originAddress]:write(chunk)
     while string.len(chunk) == 8000 do
-        event.pull(10, "GERTData", originAddress, updatePort)
+        local success = event.pull(10, "GERTData", originAddress, updatePort)
+        if not success then
+            updateSockets[originAddress]:close()
+            fileToSend:close()
+            return false
+        elseif socket:read()[1] == "U.Continue"
+
+        end
         chunk = fileToSend:read(8000)
         updateSockets[originAddress]:write(chunk)
     end
+    fileToSend:close()
     updateSockets[originAddress]:close()
     updateSockets[originAddress] = nil
     return true
@@ -107,7 +117,7 @@ local function HandleData(_,originAddress,connectionID,data)
     if connectionID == updatePort and updateSockets[originAddress] then
         data = updateSockets[originAddress]:read()
         if type(data[1]) == "table" then 
-            if data[1] == "ModuleUpdate" then
+            if data[1][1] == "ModuleUpdate" then
                 updateSockets[originAddress]:write("U.RequestReceived",data[2])
                 local downloadFile, errorState, versionHeader = GERTUpdaterAPI.CheckLatest(data[1])
                 if downloadFile then
