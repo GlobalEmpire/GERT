@@ -88,9 +88,6 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-
-
-
 GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     moduleName = moduleName or storedPaths
     local infoTable = {}
@@ -108,11 +105,8 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     else
         local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
         local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
-        infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
+        infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
     end
-end
-
-
-
-
+    socket:close()
+    return true, infoTable
 end
