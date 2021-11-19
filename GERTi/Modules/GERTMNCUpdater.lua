@@ -47,7 +47,7 @@ local function CloseSocket(_, originAddress,destAddress,ConnectionID)
     end
 end
 
-GERTUpdaterAPI.checkLatest = function(data)
+GERTUpdaterAPI.CheckLatest = function(data)
     if not storedPaths[data[2]] then
         return false, 2 -- 2 means it is not set up to update this module
     end
@@ -77,14 +77,14 @@ GERTUpdaterAPI.checkLatest = function(data)
                 local CacheFile = io.open(storedPaths[data[2]],"w")
                 CacheFile:write(tempFileDownload)
                 CacheFile:close()
-                return true, -1 -- this means that the file was downloaded
+                return true, -1, versionHeader -- this means that the file was downloaded
             else
                 return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
             end
         end
-        return true, 0 -- 0 means no issues
+        return true, 0, versionHeader -- 0 means no issues
     else
-        return localCacheExists, 1 -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
+        return localCacheExists, 1, versionHeader -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
     end
 end
 
@@ -102,7 +102,6 @@ GERTUpdaterAPI.SendCachedFile = function(originAddress,data)
     return true
 end
 
-GERTUpdaterAPI.SendCachedFile
 
 local function HandleData(_,originAddress,connectionID,data)
     if connectionID == updatePort and updateSockets[originAddress] then
@@ -110,9 +109,9 @@ local function HandleData(_,originAddress,connectionID,data)
         if type(data[1]) == "table" then 
             if data[1] == "ModuleUpdate" then
                 updateSockets[originAddress]:write("U.RequestReceived",data[2])
-                local downloadFile, errorState = GERTUpdaterAPI.checkLatest(data[1])
+                local downloadFile, errorState, versionHeader = GERTUpdaterAPI.CheckLatest(data[1])
                 if downloadFile then
-                    updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState) -- Error state: 0 and lower=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
+                    updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState,versionHeader) -- Error state: 0 and lower=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
                 else
                     updateSockets[originAddress]:write(false,errorState)
                 end
