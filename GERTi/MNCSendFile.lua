@@ -10,6 +10,7 @@ local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/OC-P
 local configPath = "/etc/GERTUpdater.cfg"
 local config = {}
 local storedPaths = {}
+local GERTUpdaterAPI = {}
 
 local function CreateConfigFile ()
     local file = io.open(configPath, "w")
@@ -30,7 +31,6 @@ else
     CreateConfigFile()
 end
 
-
 local function CompleteSocket(_,originAddress,connectionID)
     if connectionID == updatePort then
         updateSockets[originAddress] = GERTi.openSocket(originAddress,connectionID)
@@ -47,8 +47,7 @@ local function CloseSocket(_, originAddress,destAddress,ConnectionID)
     end
 end
 
-
-local function checkLatest(data)
+GERTUpdaterAPI.checkLatest = function(data)
     if not storedPaths[data[2]] then
         return false, 2 -- 2 means it is not set up to update this module
     end
@@ -78,6 +77,7 @@ local function checkLatest(data)
                 local CacheFile = io.open(storedPaths[data[2]],"w")
                 CacheFile:write(tempFileDownload)
                 CacheFile:close()
+                return true, -1 -- this means that the file was downloaded
             else
                 return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
             end
@@ -88,8 +88,7 @@ local function checkLatest(data)
     end
 end
 
-
-local function SendCachedFile(originAddress,data)
+GERTUpdaterAPI.SendCachedFile = function(originAddress,data)
     local fileToSend = io.open(storedPaths[data[2]], "rb")
     local chunk = fileToSend:read(8000)
     updateSockets[originAddress]:write(chunk)
@@ -111,7 +110,7 @@ local function HandleData(_,originAddress,connectionID,data)
                 updateSockets[originAddress]:write("U.RequestReceived",data[2])
                 local downloadFile, errorState = checkLatest(data[1])
                 if downloadFile then
-                    updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState) -- Error state: 0=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
+                    updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState) -- Error state: 0 and lower=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
                 else
                     updateSockets[originAddress]:write(false,errorState)
                 end
@@ -125,6 +124,18 @@ local function HandleData(_,originAddress,connectionID,data)
     end
 end
 
-local GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket)
-local GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket)
-local GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData)
+
+GERTUpdaterAPI.listeners = {}
+
+GERTUpdaterAPI.startHandlers = function()
+    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket)
+    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket)
+    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData)    
+end
+GERTUpdaterAPI.stopHandlers = function()
+    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.ignore("GERTConnectionID",CompleteSocket)
+    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.ignore("GERTConnectionClose",CloseSocket)
+    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.ignore("GERTData",HandleData)
+end
+
+return GERTUpdaterAPI
