@@ -12,7 +12,9 @@ local config = {}
 local storedPaths = {}
 
 local function CreateConfigFile ()
-    io.open(configPath)
+    local file = io.open(configPath, "w")
+    file:write(srl.serialize(config))
+    file:close()
 end
 
 if fs.exists(configPath) then
