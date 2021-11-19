@@ -102,20 +102,22 @@ GERTUpdaterAPI.SendCachedFile = function(originAddress,data)
     return true
 end
 
+GERTUpdaterAPI.SendCachedFile
+
 local function HandleData(_,originAddress,connectionID,data)
     if connectionID == updatePort and updateSockets[originAddress] then
         data = updateSockets[originAddress]:read()
         if type(data[1]) == "table" then 
             if data[1] == "ModuleUpdate" then
                 updateSockets[originAddress]:write("U.RequestReceived",data[2])
-                local downloadFile, errorState = checkLatest(data[1])
+                local downloadFile, errorState = GERTUpdaterAPI.checkLatest(data[1])
                 if downloadFile then
                     updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState) -- Error state: 0 and lower=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
                 else
                     updateSockets[originAddress]:write(false,errorState)
                 end
             elseif data[1] == "RequestCache" then
-                local success, information = pcall(SendCachedFile(originAddress,data))
+                local success, information = pcall(GERTUpdaterAPI.SendCachedFile(originAddress,data))
                 if not success then
                     event.push("GERTupdater Send Error", information)
                 end
