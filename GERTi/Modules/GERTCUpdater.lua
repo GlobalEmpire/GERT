@@ -56,13 +56,16 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                 data = socket:read()
                 if type(data[1]) == "table" and  then
                     if data[1][1] == true then
-                        size, state, version = data[1][2],data[1][3],data[1][4]
+                        size, state, version = data[1][2], data[1][3] or 0, data[1][4] or ""
                         if not hadSocket then
                             socket:close()
                         end                    
                         return true, state, size, version
                     else
-
+                        if not hadSocket then
+                            socket:close()
+                        end
+                        return false, state, size, version
                     end
                 else
                     if not hadSocket then
@@ -75,7 +78,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
             if not hadSocket then
                 socket:close()
             end
-            return false, 3, data[1][1] -- 3 means unknown error, passing back unexpected output
+            return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
         end
     else
         if not hadSocket then
@@ -84,7 +87,6 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
     end
 end
-
 
 
 
@@ -99,14 +101,16 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in moduleName do
-            local localVersion = GERTUpdaterAPI.GetLocalVersion(modulePath)
-            local localSize = fs.size(modulePath)
-            local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion()
+            local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
+            local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
         end
     else
-
+        local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
+        local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
+        infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
     end
+end
 
 
 
