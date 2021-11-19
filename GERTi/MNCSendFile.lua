@@ -7,22 +7,25 @@ local srl = require("serialization")
 local updatePort = 941
 local updateSockets = {}
 local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/OC-Programs/master/GERTiModules/"
-local moduleCachePath = "/ModuleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
 local config = {}
-local configPaths = {}
+local storedPaths = {}
+
+local function CreateConfigFile ()
+    io.open(configPath)
+end
 
 if fs.exists(configPath) then
     local configFile = io.open(configPath,"r")
     config = srl.deserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
     while tempPath ~= "" do
-        configPaths[fs.name(tempPath)] = tempPath
+        storedPaths[fs.name(tempPath)] = tempPath
         tempPath = configFile:read("*l")
     end
     configFile:close()
 else
-    createConfigFile()
+    CreateConfigFile()
 end
 
 
@@ -32,14 +35,25 @@ local function CompleteSocket(_,originAddress,connectionID)
     end
 end
 
+local function CloseSocket(_, originAddress,destAddress,ConnectionID)
+    if updateSockets[originAddress] then
+        updateSockets[originAddress]:close()
+        updateSockets[originAddress] = nil
+    elseif updateSockets[destAddress] then 
+        updateSockets[destAddress]:close()
+        updateSockets[destAddress] = nil
+    end
+end
+
+
 local function checkLatest(data)
-    if not configPaths[data[2]] then
+    if not storedPaths[data[2]] then
         return false, 2 -- 2 means it is not set up to update this module
     end
     local versionHeader = ""
-    local localCacheExists = fs.exists(configPaths[data[2]])
+    local localCacheExists = fs.exists(storedPaths[data[2]])
     if localCacheExists then
-        local file = io.open(configPaths[data[2]], "r")
+        local file = io.open(storedPaths[data[2]], "r")
         versionHeader = file:read("*l")
         file:close()
     end
@@ -55,7 +69,16 @@ local function checkLatest(data)
     if success then
         local remoteVersionHeader = fullFile:gmatch("[^\n]+")
         if remoteVersionHeader ~= versionHeader then 
-            local file = io.open(configPaths[data[2]], "w")
+            local storageDrive = fs.get(storedPaths[data[2]])
+            local remainingSpace = fs.size(storedPaths[data[2]]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
+            fileLen = string.len(tempFileDownload)
+            if fileLen < remainingSpace-200 then
+                local CacheFile = io.open(storedPaths[data[2]],"w")
+                CacheFile:write(tempFileDownload)
+                CacheFile:close()
+            else
+                return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
+            end
         end
         return true, 0 -- 0 means no issues
     else
@@ -64,37 +87,8 @@ local function checkLatest(data)
 end
 
 
-local function SearchForProgram(data)
-    local completeRemoteURL = mainRemoteDirectory .. fs.name(data[2]) .. "/latest/" .. fs.name(data[3])
-    local remoteFile = internet.request(completeRemoteURL)
-    local succeed,tempFileDownload = pcall(function()
-        local tempFileDownload = ""
-        for fileChunk in remoteFile do
-            tempFileDownload = tempFileDownload .. fileChunk
-        end
-        return tempFileDownload
-    end)
-    if not succeed then
-        --Here would be where we initiate the check for a (mainRemoteDirectory .. ".removed") check
-        remoteFile:close()
-        return false, 1 -- 1 means file not found on remote
-    end
-    local storageDrive = fs.get(moduleCachePath)
-    local completeModuleCachePath = moduleCachePath .. fs.name(data[2]) .. "/" .. fs.name(data[3])
-    local remainingSpace = fs.size(completeModuleCachePath) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
-    fileLen = string.len(tempFileDownload)
-    if fileLen < remainingSpace-200 then
-        local CacheFile = io.open(completeModuleCachePath,"w")
-        CacheFile:write(tempFileDownload)
-        CacheFile:close()
-        return true, completeModuleCachePath
-    else
-        return false, 2 -- 2 means Insufficient Space To Download File On MNC. Contact Admin if returned
-    end
-end
-
 local function SendCachedFile(originAddress,data)
-    local fileToSend = io.open(configPaths[data[2]])
+    local fileToSend = io.open(storedPaths[data[2]], "rb")
     local chunk = fileToSend:read(8000)
     updateSockets[originAddress]:write(chunk)
     while string.len(chunk) == 8000 do
@@ -115,44 +109,20 @@ local function HandleData(_,originAddress,connectionID,data)
                 updateSockets[originAddress]:write("U.RequestReceived",data[2])
                 local downloadFile, errorState = checkLatest(data[1])
                 if downloadFile then
-                    SendCachedFile(originAddress,data[1])
-                end
-                if cachePath then
-                    updateSockets[originAddress]:write(true,fs.size(information))
-                end
-                
-                
-                
-                local success, information = SearchForProgram(data[1])
-                os.sleep(0.1)
-                if not success then
-                    if information == 2 then
-                        updateSockets[originAddress]:write(false,2)
-                    elseif information == 1 then
-                        
-                    end
+                    updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState) -- Error state: 0=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
+                else
+                    updateSockets[originAddress]:write(false,errorState)
                 end
             elseif data[1] == "RequestCache" then
                 local success, information = pcall(SendCachedFile(originAddress,data))
                 if not success then
-                    event.push
+                    event.push("GERTupdater Send Error", information)
                 end
             end
         end
     end
 end
 
-local ModuleFolder = ""
-local IDFilePath = "/moduleListeners"
-
-local SendFile = function (address,filename)
-
-end
-
-local MNCUpdateListenerSocketID = event.listen("GERTConnectionID",CompleteSocket)
-
-
-
-if fs.exists(IDFilePath) and fs.isDirectory(IDFilePath) then
-    file 
-event.register
+local GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket)
+local GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket)
+local GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData)
