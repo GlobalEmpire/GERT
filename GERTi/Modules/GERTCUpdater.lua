@@ -25,19 +25,22 @@ GERTUpdaterAPI.GetLocalVersion = function(path)
 end
 
 GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
-    local size, state, version = 0, 0, ""
+    local size, state, version = "", 0, ""
     local hadSocket = true
     if not socket then
         hadSocket = false
         socket = GERTi.openSocket(updateAddress,updatePort)
         local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
         if not connectionComplete then
-            return false, 1 -- 1 means No Response From Address
+            return false, 1 -- 1 means could not establish socket
         end
     end
     socket:write("ModuleUpdate",moduleName)
     local response = event.pull(10, "GERTData", updateAddress, updatePort)
     if not response then
+        if not hadSocket then
+            socket:close()
+        end    
         return false, 2 -- 2 means timeout
     end
     local data = socket:read()
@@ -45,28 +48,40 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         if data[1][1] == "U.RequestReceived" then
             response = event.pull(10, "GERTData", updateAddress, updatePort)
             if not response then
+                if not hadSocket then
+                    socket:close()
+                end            
                 return false, 2 -- 2 means timeout
             else
                 data = socket:read()
                 if type(data[1]) == "table" and  then
                     if data[1][1] == true then
                         size, state, version = data[1][2],data[1][3],data[1][4]
-                        return true, size, state, version
+                        if not hadSocket then
+                            socket:close()
+                        end                    
+                        return true, state, size, version
                     else
+
+                    end
                 else
+                    if not hadSocket then
+                        socket:close()
+                    end                
                     return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
                 end
             end
         else
-            socket:close()
+            if not hadSocket then
+                socket:close()
+            end
             return false, 3, data[1][1] -- 3 means unknown error, passing back unexpected output
         end
     else
-        socket:close()
+        if not hadSocket then
+            socket:close()
+        end
         return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
-    end
-    if not hadSocket then
-        socket:close()
     end
 end
 
@@ -86,13 +101,8 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
         for trueModuleName, modulePath in moduleName do
             local localVersion = GERTUpdaterAPI.GetLocalVersion(modulePath)
             local localSize = fs.size(modulePath)
-            local success, remoteSize, statusCode, remoteVersion = GERTUpdaterAPI.GetRemoteVersion()
-            if success then
-                
-            else
-                remoteVersion,remoteSize
-            end
-            infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize}
+            local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion()
+            infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
         end
     else
 
