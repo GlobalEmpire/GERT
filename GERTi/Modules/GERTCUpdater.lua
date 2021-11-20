@@ -111,7 +111,7 @@ GERTUpdaterAPI.GetLocalVersion = function(path)
 end
 
 GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
-    local size, state, version = "", 0, ""
+    local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
         return false, 0 -- 1 means moduleName not provided or invalid type
@@ -184,19 +184,19 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local socket = GERTi.openSocket(updateAddress,updatePort)
     local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
     if not connectionComplete then 
-        return false, 1 -- 1 means No Response From Address
+        return false, -1 -- 1 means No Response From Address
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in moduleName do
             local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
             local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
-            infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
+            infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
         end
     else
         local modulePath = storedPaths[moduleName]
         local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
         local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
-        infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
+        infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
     end
     socket:close()
     return true, infoTable
@@ -288,7 +288,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            local success, code = DownloadModuleToCache(fs.name(moduleName))
+            local success, code = DownloadModuleToCache(fs.name(moduleName),infoTable[4])
             if success then
                 return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
             else
@@ -305,7 +305,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         local resultTable = {}
         for name, information in pairs(infoTable) do
             if information[1] ~= information[3] and information[4] ~= 0 then
-                local success, code = DownloadModuleToCache(fs.name(name))
+                local success, code = DownloadModuleToCache(fs.name(name),information[4])
                 if success then
                     resultTable[name] = GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady) -- Queues program to be installed on next reboot
                 else
