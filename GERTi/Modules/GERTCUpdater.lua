@@ -122,7 +122,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         socket = GERTi.openSocket(updateAddress,updatePort)
         local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
         if not connectionComplete then
-            return false, 1 -- 1 means could not establish socket
+            return false, -1 -- 1 means could not establish socket
         end
     end
     socket:write("ModuleUpdate",moduleName)
@@ -131,7 +131,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         if not hadSocket then
             socket:close()
         end    
-        return false, 2 -- 2 means timeout
+        return false, -2 -- 2 means timeout
     end
     local data = socket:read()
     if type(data[1]) == "table" then 
@@ -141,7 +141,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                 if not hadSocket then
                     socket:close()
                 end            
-                return false, 2 -- 2 means timeout
+                return false, -2 -- 2 means timeout
             else
                 data = socket:read()
                 if type(data[1]) == "table" then
@@ -155,26 +155,26 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                         if not hadSocket then
                             socket:close()
                         end
-                        return false, state, size, version
+                        return false, size
                     end
                 else
                     if not hadSocket then
                         socket:close()
                     end                
-                    return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
+                    return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
                 end
             end
         else
             if not hadSocket then
                 socket:close()
             end
-            return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
+            return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
         end
     else
         if not hadSocket then
             socket:close()
         end
-        return false, 3, data[1] -- 3 means unknown error, passing back unexpected output
+        return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
     end
 end
 
