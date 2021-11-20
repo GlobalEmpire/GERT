@@ -6,7 +6,7 @@ local shell = require("shell")
 local srl = require("serialization")
 local SafeUpdater = require("SafeUpdater")
 local rc = require("rc")
-local rcUpdater = rc.loaded.SafeUpdaterRC
+
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -29,7 +29,7 @@ if opts.n then
 
 end
 
-local function parseConfig ()
+local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.unserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
@@ -77,6 +77,7 @@ end
 
 local function RemoveFromSafeList (moduleName)
     local parsedData = ParseSafeList()
+    fs.remove(parsedData[moduleName][2])
     parsedData[moduleName] = nil
     local file = io.open("/.SafeUpdateCache.srl", "w")
     file:write(srl.serialize(parsedData))
@@ -89,7 +90,7 @@ if not fs.exists(configPath) then
     config["AutoUpdate"] = false
     writeConfig(config,storedPaths)
 else
-    config,storedPaths = parseConfig()
+    config,storedPaths = ParseConfig()
 end
 
 if not fs.isDirectory(cacheFolder) then
@@ -335,7 +336,7 @@ GERTUpdaterAPI.AutoUpdate = function()
 end
 
 GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
-    config,storedPaths = parseConfig()
+    config,storedPaths = ParseConfig()
     config[setting] = newValue
     local configFile = io.open(configPath,"r")
     local _ = configFile:read("*l")
