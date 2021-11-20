@@ -32,7 +32,7 @@
 - `$code` is the operation code:
   - `0`: The requested module was already up to date on the cache.<br>
   - `-1`: The file was downloaded from remote and replaced the cached version. <br>
-  - `-2`: The program could not establish a connection to remote, but a cached file is present. <br>
+  - `-2`: The function could not establish a connection to remote, but a cached file is present. <br>
 
 - `$versionHeader` is the version of the file that is currently on drive.<br>
  
@@ -54,16 +54,16 @@
 
 ## **GERTCUpdater.lua** <br>
 ### **`GCU.GetLocalVersion(path):`**
+This function reads and returns the version header (the first line) of the file at the provided path. If the file does not exist, or the path points towards a directory, it will return an empty string.<br>
 Accepts one variable: a `path`.
-This program reads and returns the version header (the first line) of the file at the provided path. If the file does not exist, or the path points towards a directory, it will return an empty string.
 > This accepts a `path` and not a `moduleName` so that advanced users can use it to check the version of other files, such as cached files.
 
 ### **`GCU.GetRemoteVersion(moduleName,socket):`**
+This function requests the `versionHeader` of `moduleName` from the update server.<br>
 Accepts two variables: `moduleName` and `socket`.
 - `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
-- `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. For your own safety, it is recommended to pcall() this function if a custom socket is used as the program assumes a valid socket and cannot handle an invalid socket object. **This feature is not yet standard in all functions, this will change eventually.**
+- `socket` can be provided to cause the function to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. For your own safety, it is recommended to pcall() this function if a custom socket is used as the function assumes a valid socket and cannot handle an invalid socket object. **This feature is not yet standard in all functions, this will change eventually.**
 
-This function requests the `versionHeader` of `moduleName` from the update server.
 
 If the function succeeds, it returns 4 parameters:
 > `true`, `$state`, `$size`, `$version`
@@ -82,15 +82,16 @@ If the function fails, it returns 2 parameters:
     - `-3`: The server returned unexpected information through the socket. This information is passed as another variable after `$code`.
 
 ### **`GCU.CheckForUpdate(moduleName):`**
+Returns information about the module/modules provided.<br>
 Accepts one variable: `moduleName`.
 - `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
-- Alternatively, you can pass a `table` in the format of `table.[moduleName]=modulePath` and the program will evaluate each module and its provided path.
+- Alternatively, you can pass a `table` in the format of `table.[moduleName]=modulePath` and the function will evaluate each module and its provided path.
 - **Passing nothing to the function will make the function evaluate every module set in the configuration file.**
 
 If the function succeeds, it will return: 
 > `true`, `$infoTable`
 
-The content of `$infoTable` depends on whether it was passed a `moduleName` or a `table` of `(moduleName,modulePath)=(key,value)` pairs.
+The content of `$infoTable` depends on whether it was passed a `moduleName` or a `table` of `(moduleName,modulePath)=(key,value)` pairs, henceforth referred to as a `moduleTable`.
 - Case 1: `moduleName`
   - It will return an ordered table of 6 values, containing `localVersion`, `localSize`, `remoteVersion`, `remoteSize`, `statusCode`, `success` in that order.
     - `localVersion`: The version of the currently installed module.
@@ -98,7 +99,7 @@ The content of `$infoTable` depends on whether it was passed a `moduleName` or a
     - `remoteVersion`: The version string of the module currently available on the server.
     - `remoteSize`: The size of the module available on the server in bytes. 0 if not present on server
     - `statusCode`,`success`: This function wraps `GCU.GetRemoteVersion()`, the result of which is placed into `success`,`statusCode`,`remoteSize`,`remoteVersion` in that order. Use the value of `success` to determine the meaning of `statusCode`
-- Case 2: A `table` of `(moduleName,modulePath)=(key,value)` pairs or nothing at all was passed:
+- Case 2: A `moduleTable` or nothing at all was passed:
   - It will return a table indexed by moduleName, each containing an instance of a table from Case 1.
 
 
@@ -106,3 +107,12 @@ If the function fails, it will return:
 > `false`, `-1`
 
 *The only possible non-crashing error this function can encounter is no response from address which returns 1*
+
+### **`GCU.DownloadUpdate(moduleName,infoTable,InstallWhenReady):`**
+This function downloads to cache the updated version of modules if they are out of date.<br>
+Accepts 3 optional variables: `moduleName`, `infoTable`, `InstallWhenReady`. <br>
+- Provide `moduleName` or a `moduleTable`
+
+
+### **`GCU.InstallUpdate(moduleName):`**
+Accepts one variable:
