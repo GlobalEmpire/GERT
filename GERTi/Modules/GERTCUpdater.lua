@@ -138,7 +138,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                 return false, 2 -- 2 means timeout
             else
                 data = socket:read()
-                if type(data[1]) == "table" and  then
+                if type(data[1]) == "table" then
                     if data[1][1] == true then
                         size, state, version = data[1][2], data[1][3] or 0, data[1][4] or ""
                         if not hadSocket then
