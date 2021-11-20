@@ -100,3 +100,9 @@ The content of `$infoTable` depends on whether it was passed a `moduleName` or a
     - `statusCode`,`success`: This function wraps `GCU.GetRemoteVersion()`, the result of which is placed into `success`,`statusCode`,`remoteSize`,`remoteVersion` in that order. Use the value of `success` to determine the meaning of `statusCode`
 - Case 2: A `table` of `(moduleName,modulePath)=(key,value)` pairs or nothing at all was passed:
   - It will return a table indexed by moduleName, each containing an instance of a table from Case 1.
+
+
+If the function fails, it will return:
+> `false`, `-1`
+
+*The only possible non-crashing error this function can encounter is no response from address which returns 1*
