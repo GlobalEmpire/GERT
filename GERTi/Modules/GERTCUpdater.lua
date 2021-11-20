@@ -3,6 +3,7 @@ local fs = require("filesystem")
 local internet = require("internet")
 local event = require("event")
 local shell = require("shell")
+local srl = require("serialization")
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -12,6 +13,15 @@ local config = {}
 local configPath = "/usr/lib/GERTUpdater.cfg"
 local storedPaths = {}
 local GERTUpdaterAPI = {}
+
+if not fs.exists(configPath) then
+    local configFile = io.open(configPath,"w")
+    configFile:write()
+end
+
+
+
+
 
 GERTUpdaterAPI.GetLocalVersion = function(path)
     local versionHeader = ""
@@ -109,4 +119,12 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     end
     socket:close()
     return true, infoTable
+end
+
+GERTUpdaterAPI.DownloadUpdate = function (moduleName)
+
+end
+
+GERTUpdaterAPI.InstallUpdate = function (moduleName)
+
 end
