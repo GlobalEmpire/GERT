@@ -26,7 +26,7 @@ end
 if opts.n then
     event.listen("UpdateAvailable", eventBeep(1000))
     event.listen("ReadyForInstall", eventBeep(1500))
-    event.listen("InstallComplete", eventBeep(2000,2))
+    event.listen("InstallComplete", eventBeep(2000,0.5))
 end
 
 local function ParseConfig ()
