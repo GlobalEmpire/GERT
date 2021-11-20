@@ -147,6 +147,8 @@ Assume the following:
 If the user wants to manually check for an update to the `GERTiClient.lua` module and install it as soon as possible from the server if it exists, they would have the following code in a file:
 
     local GCU = require("GERTCUpdater",nil,true)
-    local Success, StateCode, Additional = GCU.DownloadUpdate("GERTiClient.lua")
+    local Success, StateTable, Additional = GCU.DownloadUpdate("GERTiClient.lua")
 
-As for understanding the data, Success is a simple boolean determining whether or not the operation succeeded: if it is true, the update was successfully downloaded and queued for installation on reboot (and queued for installation if `InstallImmediately` is true). StateCode is the 
+As for understanding the data:<br> 
+`Success` is a simple boolean determining whether or not the operation succeeded: if it is true, the update was successfully downloaded and queued for installation on reboot (and queued for installation if `InstallImmediately` is true).<br>
+`StateTable` is a table of 
