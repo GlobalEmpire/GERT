@@ -111,7 +111,10 @@ If the function fails, it will return:
 ### **`GCU.DownloadUpdate(moduleName,infoTable,InstallWhenReady):`**
 This function downloads to cache the updated version of modules if they are out of date.<br>
 Accepts 3 optional variables: `moduleName`, `infoTable`, `InstallWhenReady`. <br>
-- Provide `moduleName` or a `moduleTable`
+- Provide `moduleName` or a `moduleTable` to have the function check only the modules provided. Otherwise, will check all modules in the configuration file.
+- If you have already obtained `infoTable` by running `GCU.CheckForUpdate()` you can provide it here to stop the function requesting it again. If `moduleTable` is passed, any `moduleNames` that do not have an entry in `infoTable` will be generated automatically.
+- If `InstallWhenReady` is true, the function will push an event to
+provide `moduleName`/`moduleTable`, 
 
 
 ### **`GCU.InstallUpdate(moduleName):`**
