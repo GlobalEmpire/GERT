@@ -1,6 +1,6 @@
 # GERT Update Suite
 ## Configuration files for both programs. They are created on each run if they do not exist.
- **For GERTMNCUpdater.lua:** Located at `"/etc/GERTUpdater.cfg"`<br>
+ **For GERTUpdateServer.lua:** Located at `"/etc/GERTUpdater.cfg"`<br>
   The first line is a serialized table of config options for the program. For now, it will always be empty because there are no config options. This is for future options.<br>
  All remaining lines designate paths for modules. The program resolves the module name from the path, and this path is assumed to be absolute: *ensure that it leads with a / and ends with the extension of the module.*<br>
  Each line contains a module path, and the filename resolved using fs.name() is considered the module name.
@@ -8,7 +8,7 @@
 
  **For GERTCUpdater.lua:** Located at `"/usr/lib/GERTUpdater.cfg"`<br>
  The first line is a serialized table of config options for the program. As of right now, the only option is "AutoUpdate", which is false by default. If true, the program will install updates as soon as it receives the event from the concerned program that it is ready to install its update. More details on this behaviour later.<br>
- The rest is identical to `MNCUpdater.lua`, each line is a path.
+ The rest is identical to `GERTUpdateServer.lua`, each line is a path.
  >It **is** possible to add and remove modules through the API by calling `InstallNewModule()` and `RemoveModule()`.
 
  **Cache File:** This is used by `GERTCUpdater.lua` and `SafeUpdater.lua` to safe updates between power loss. It is located under `"/.SafeUpdateCache.srl"` at the root directory.<br>
@@ -17,11 +17,11 @@
  **Other Technical Information:**
 
 - The Port used for the connection is `941`.<br>
-- The client program is setup to contact the MNC through the `"GERTModules"` Address. If DNS is not setup, please modify line 14 in `GERTCUpdater.lua`. <br>
+- The client program is setup to contact the server through the `"GERTModules"` Address. If DNS is not setup, please modify line 14 in `GERTCUpdater.lua`. <br>
 - `GERTCUpdater` is capable of running without the `SafeUpdater` program, however it will then only update programs when the user requests it, or if `autoInstall` is true, the target program responds properly, and the computer does not reboot between the time the update is downloaded and the time when the target program safes itself. <br>
 
 # API functions: 
-## **GERTMNCUpdater.lua** <br>
+## **GERTUpdateServer.lua** <br>
  ### **`GMU.CheckLatest(moduleName)`**:<br>
  Accepts one variable: the module's name.<br>
  Reads the header of the provided module's cache if it exists, then downloads and reads the header of the remote file. If the remote file has a different version header, it will be downloaded and **will replace** the current cached file.
@@ -42,10 +42,10 @@
 - `$code` is an error code:
   - `1`: A connection could not be established to Remote.<br>
   - `2`: This module's path is not present in the configuration file.<br>
-  - `3`: There is insufficient space on the MNC to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
+  - `3`: There is insufficient space on the server to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
 
 ### **`GMU.StartHandlers():`**
- Starts all event handlers -- *is called when GERTMNCUpdater.lua is `require`d. I can change this.* <br>
+ Starts all event handlers -- *is called when GERTUpdateServer.lua is `require`d. I can change this.* <br>
  
 ### **`GMU.StopHandlers():`**
  Stops all event handlers <br>
@@ -122,3 +122,31 @@ When the updater has finished installing the update, it will push an event with 
 
 ### **`GCU.InstallUpdate(moduleName):`**
 Accepts one variable:
+
+
+
+# Examples:
+## Requesting modules
+Assume the following:
+
+- The configuration file for the update server looks like this:
+
+        {}
+        /usr/lib/DNS.lua
+        /usr/lib/DNSServer.lua
+        /usr/lib/GERTUpdateServer.lua
+        /usr/lib/GERTCUpdater.lua
+        /usr/lib/GERTiClient.lua
+
+- The configuration file for a client looks like this:
+
+        {AutoUpdate=false}
+        /usr/lib/GERTCUpdater.lua
+        /usr/lib/GERTiClient.lua
+
+If the user wants to manually check for an update to the `GERTiClient.lua` module and install it as soon as possible from the server if it exists, they would have the following code in a file:
+
+    local GCU = require("GERTCUpdater",nil,true)
+    local Success, StateCode, Additional = GCU.DownloadUpdate("GERTiClient.lua")
+
+As for understanding the data, Success is a simple boolean determining whether or not the operation succeeded: if it is true, the update was successfully downloaded and queued for installation on reboot (and queued for installation if `InstallImmediately` is true). StateCode is the 
