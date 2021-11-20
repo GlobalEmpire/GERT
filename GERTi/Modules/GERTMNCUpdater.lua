@@ -49,18 +49,18 @@ local function CloseSocket(_, originAddress,destAddress,ConnectionID)
     return true
 end
 
-GERTUpdaterAPI.CheckLatest = function(data)
-    if not storedPaths[data[2]] then
+GERTUpdaterAPI.CheckLatest = function(moduleName)
+    if not storedPaths[moduleName] then
         return false, 2 -- 2 means it is not set up to update this module
     end
     local versionHeader = ""
-    local localCacheExists = fs.exists(storedPaths[data[2]])
+    local localCacheExists = fs.exists(storedPaths[moduleName])
     if localCacheExists then
-        local file = io.open(storedPaths[data[2]], "r")
+        local file = io.open(storedPaths[moduleName], "r")
         versionHeader = file:read("*l")
         file:close()
     end
-    local completeRemoteURL = mainRemoteDirectory .. data[2]
+    local completeRemoteURL = mainRemoteDirectory .. moduleName
     local success, fullFile = pcall(function() 
         local remoteFile = internet.request(completeRemoteURL)
         local fullFile = ""
@@ -72,11 +72,11 @@ GERTUpdaterAPI.CheckLatest = function(data)
     if success then
         local remoteVersionHeader = fullFile:gmatch("[^\n]+")
         if remoteVersionHeader ~= versionHeader then 
-            local storageDrive = fs.get(storedPaths[data[2]])
-            local remainingSpace = fs.size(storedPaths[data[2]]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
+            local storageDrive = fs.get(storedPaths[moduleName])
+            local remainingSpace = fs.size(storedPaths[moduleName]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
             fileLen = string.len(tempFileDownload)
             if fileLen < remainingSpace-200 then
-                local CacheFile = io.open(storedPaths[data[2]],"w")
+                local CacheFile = io.open(storedPaths[moduleName],"w")
                 CacheFile:write(tempFileDownload)
                 CacheFile:close()
                 return true, -1, versionHeader -- this means that the file was downloaded
@@ -84,14 +84,14 @@ GERTUpdaterAPI.CheckLatest = function(data)
                 return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
             end
         end
-        return true, 0, versionHeader -- 0 means no issues
+        return true, 0, versionHeader -- 0 means up to date
     else
         return localCacheExists, 1, versionHeader -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
     end
 end
 
-GERTUpdaterAPI.SendCachedFile = function(originAddress,data) -- returns true if successful, false if timeout
-    local fileToSend = io.open(storedPaths[data[2]], "rb")
+local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout
+    local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
     updateSockets[originAddress]:write(chunk)
     while string.len(chunk) == 8000 do
@@ -117,15 +117,15 @@ local function HandleData(_,originAddress,connectionID,data)
         data = updateSockets[originAddress]:read()
         if type(data[1]) == "table" then 
             if data[1][1] == "ModuleUpdate" then
-                updateSockets[originAddress]:write("U.RequestReceived",data[2])
-                local downloadFile, errorState, versionHeader = GERTUpdaterAPI.CheckLatest(data[1])
+                updateSockets[originAddress]:write("U.RequestReceived",data[1][2])
+                local downloadFile, errorState, versionHeader = GERTUpdaterAPI.CheckLatest(data[1][2])
                 if downloadFile then
                     updateSockets[originAddress]:write(true,fs.size(storedPaths[data[1][2]]),errorState,versionHeader) -- Error state: 0 and lower=OK, 1=NOFILEONREMOTE, 2=INVALIDMODULE, 3=INSUFFICIENTMNCSPACE
                 else
                     updateSockets[originAddress]:write(false,errorState)
                 end
-            elseif data[1] == "RequestCache" then
-                local success, information = pcall(GERTUpdaterAPI.SendCachedFile(originAddress,data))
+            elseif data[1][1] == "RequestCache" then
+                local success, information = pcall(GERTUpdaterAPI.SendCachedFile(originAddress,data[1][2]))
                 if not success then
                     event.push("GERTupdater Send Error", information)
                 end
@@ -137,15 +137,17 @@ end
 
 GERTUpdaterAPI.listeners = {}
 
-GERTUpdaterAPI.startHandlers = function()
+GERTUpdaterAPI.StartHandlers = function()
     GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket)
     GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket)
     GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData)    
 end
-GERTUpdaterAPI.stopHandlers = function()
+GERTUpdaterAPI.StopHandlers = function()
     GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.ignore("GERTConnectionID",CompleteSocket)
     GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.ignore("GERTConnectionClose",CloseSocket)
     GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.ignore("GERTData",HandleData)
 end
+
+GERTUpdaterAPI.StartHandlers()
 
 return GERTUpdaterAPI
