@@ -86,7 +86,11 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
         end
         return true, 0, versionHeader -- 0 means up to date
     else
-        return localCacheExists, 1, versionHeader -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
+        local eCode = 1
+        if localCacheExists then
+            eCode = -2
+        end
+        return localCacheExists, eCode, versionHeader -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
     end
 end
 
