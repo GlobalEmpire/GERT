@@ -40,7 +40,7 @@ end
 
 local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
-    configFile:write(srl.unserialize(config))
+    configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do 
         configFile:write("\n"..path)
     end
@@ -84,7 +84,6 @@ local function RemoveFromSafeList (moduleName)
     file:close()
     return true
 end
-
 
 if not fs.exists(configPath) then
     config["AutoUpdate"] = false
