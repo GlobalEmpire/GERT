@@ -4,7 +4,10 @@ local internet = require("internet")
 local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
-
+local rc = require("rc")
+if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
+    shell.execute("rc SafeUpdater enable")
+end
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -85,7 +88,7 @@ local function RemoveFromSafeList (moduleName)
     return true
 end
 
-if not fs.exists(configPath) then
+if not fs.exists(configPath) then -- Creates the config file if it does not exist
     config["AutoUpdate"] = false
     writeConfig(config,storedPaths)
 else
