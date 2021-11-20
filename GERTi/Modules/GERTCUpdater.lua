@@ -23,7 +23,7 @@ local function eventBeep (freq,rep)
     return function () computer.beep(freq,rep) end
 end
 
-if opts.n then
+if not opts.n then
     event.listen("UpdateAvailable", eventBeep(1000))
     event.listen("ReadyForInstall", eventBeep(1500))
     event.listen("InstallComplete", eventBeep(2000,0.5))
