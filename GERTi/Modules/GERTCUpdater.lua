@@ -114,7 +114,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = "", 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
-        return false, 1 -- 1 means moduleName not provided or invalid type
+        return false, 0 -- 1 means moduleName not provided or invalid type
     end
     moduleName = fs.name(moduleName)
     if not socket then
