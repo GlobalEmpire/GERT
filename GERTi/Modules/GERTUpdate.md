@@ -68,7 +68,7 @@ This function requests the `versionHeader` of `moduleName` from the update serve
 If the function succeeds, it returns 4 parameters:
 > `true`, `$state`, `$size`, `$version`
 - `$State` is any code that the server sent alongside the information. These are the operation codes returned by `GMU.CheckLatest()`.
-- `$size` is the size in bytes of the file on the server.
+- `$size` is the size in bytes of the file on the server. 0 if the file could not be located for any reason.
 - `$version` is the version header of the file on the server.
 
 If the function fails, it returns 2 parameters:
@@ -87,3 +87,14 @@ Accepts one variable: `moduleName`.
 - Alternatively, you can pass a `table` in the format of `table.[moduleName]=modulePath` and the program will evaluate each module and its provided path.
 - **Passing nothing to the function will make the function evaluate every module set in the configuration file.**
 
+If the function succeeds, it will return: 
+> `true`, `$infoTable`
+
+The content of `$infoTable` depends on whether it was passed a `moduleName` or a `table of (moduleName,modulePath)=(key,value) pairs`.
+- Case 1: `moduleName`
+  - it will return an ordered table of 6 values, containing `localVersion`, `localSize`, `remoteVersion`, `remoteSize`, `statusCode`, `success` in that order.
+    - `localVersion`: The version of the currently installed module.
+    - `localSize`: The size of the currently installed module in bytes.
+    - `remoteVersion`: The version string of the module currently available on the server.
+    - `remoteSize`: The size of the module available on the server in bytes. 0 if not present on server
+    - `statusCode`,`success`: Check `GCU.GetRemoteVersion()`, this function gets 
