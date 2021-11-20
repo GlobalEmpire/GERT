@@ -4,6 +4,7 @@ local internet = require("internet")
 local event = require("event")
 local shell = require("shell")
 local srl = require("serialization")
+local SafeTransferProtocol = require("SafeTransferProtocol")
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -197,13 +198,20 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     end
     if type(moduleName) == "string" then
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
-            success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+            success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
             if not success then
                 return false, 1 -- Could not establish connection to server
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            local success, code = DownloadModuleToCache(moduleName)
+            local success, code = DownloadModuleToCache(fs.name(moduleName))
+            if success then
+                SafeTransferProtocol.register(storedPaths[moduleName], cacheFolder .. moduleName) -- Queues program to be installed on next reboot
+                event.push("UpdateAvailable",moduleName)
+                event.listen("ReadyForInstall")
+            else
+
+            end
         else
             return false, 3 -- Already Up To Date
         end
