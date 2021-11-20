@@ -134,4 +134,6 @@ end
 GERTUpdaterAPI.RemoveModule = function(moduleName)
 end
 
-GERTUpdaterAPI.AutoUpdate = config["AutoUpdate"]
+GERTUpdaterAPI.AutoUpdate = function()
+    return config["AutoUpdate"]
+end
