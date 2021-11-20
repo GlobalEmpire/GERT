@@ -3,7 +3,7 @@
  **For GERTMNCUpdater.lua:** Located at `"/etc/GERTUpdater.cfg"`<br>
   The first line is a serialized table of config options for the program. For now, it will always be empty because there are no config options. This is for future options.<br>
  All remaining lines designate paths for modules. The program resolves the module name from the path, and this path is assumed to be absolute: *ensure that it leads with a / and ends with the extension of the module.*<br>
- Each line contains a module path, and the filename [resolved using fs.name()] is considered the module name.
+ Each line contains a module path, and the filename resolved using fs.name() is considered the module name.
  >As it stands, it is not possible to add or remove new modules through the API, they must be added manually into this file. This is a future feature, but one considered less integral to the program's function, so I have delayed adding it.
 
  **For GERTCUpdater.lua:** Located at `"/usr/lib/GERTUpdater.cfg"`<br>
@@ -56,6 +56,9 @@
 ### `GCU.GetLocalVersion(path):`
 Accepts one variable: a `path`.
 This program reads and returns the version header (the first line) of the file at the provided path. If the file does not exist, or the path points towards a directory, it will return an empty string.
-> 
+> This accepts a `path` and not a `moduleName` so that advanced users can use it to check the version of other files, such as cached files.
 
-### `GCU.GetRemoteVersion(moduleName,socket)
+### `GCU.GetRemoteVersion(moduleName,socket):`
+Accepts two variables: `moduleName` and `socket`.
+- `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
+- `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. **This feature is not yet standard in all functions, this will change eventually.**
