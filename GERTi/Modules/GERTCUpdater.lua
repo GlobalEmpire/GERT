@@ -8,7 +8,8 @@ local srl = require("serialization")
 local args, opts = shell.parse(...)
 local updatePort = 941
 local updateAddress = 0.0
-local ModuleFolder = "/usr/lib/"
+local moduleFolder = "/usr/lib/"
+local cacheFolder = "/.moduleCache/"
 local config = {}
 local configPath = "/usr/lib/GERTUpdater.cfg"
 local storedPaths = {}
@@ -42,7 +43,11 @@ if not fs.exists(configPath) then
     config["AutoUpdate"] = false
     writeConfig(config,storedPaths)
 else
-    parseConfig()
+    config,storedPaths = parseConfig()
+end
+
+if not fs.isDirectory(cacheFolder) then
+    fs.makeDirectory(cacheFolder)
 end
 
 
@@ -124,19 +129,14 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-GERTUpdaterAPI.CheckForUpdate = function (moduleName,socket)
-    local selfSocket = false
+GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     moduleName = moduleName or storedPaths
     local infoTable = {}
-    if not(socket) then
-        local socket = GERTi.openSocket(updateAddress,updatePort)
-        selfSocket = true
-        local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
-        if not connectionComplete then 
-            return false, 1 -- 1 means No Response From Address
-        end
+    local socket = GERTi.openSocket(updateAddress,updatePort)
+    local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
+    if not connectionComplete then 
+        return false, 1 -- 1 means No Response From Address
     end
-    
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in moduleName do
             local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
@@ -148,12 +148,47 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName,socket)
         local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
     end
-    if selfSocket then socket:close() end
+    socket:close()
     return true, infoTable
 end
 
+local function DownloadFilter (event, iAdd, dAdd, CID)
+    if (iAdd == updateAddress or dAdd == updateAddress) and (dAdd == updatePort or CID == updatePort) then
+        if event == "GERTConnectionClose" or event == "GERTData" then
+            return true
+        end
+    end
+    return false
+end
+
+
+local function DownloadModuleToCache (moduleName)
+    local socket = GERTi.openSocket(updateAddress,updatePort)
+    local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
+    if not connectionComplete then 
+        return false, 1 -- 1 means No Response From Address
+    end
+    local file = io.open(cacheFolder .. moduleName, "wb")
+    local loop = true
+    while loop do
+        socket:write("RequestCache",moduleName)
+        local response = event.pullFiltered(10, DownloadFilter)
+        if not response then
+            socket:close()
+            return false, 2 -- 2 means timeout
+        elseif response == "GERTConnectionClose" then
+            loop = false
+        else
+            file:write(socket:read()[1])
+        end
+    end
+    socket:close()
+    file:close()
+    return true
+end
+
+
 GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
-    socket
     if not moduleName then 
         return false, 2, 1 -- 2 means Incorrect Argument, third parameter defines which
     end
@@ -168,7 +203,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-
+            local success, code = DownloadModuleToCache(moduleName)
         else
             return false, 3 -- Already Up To Date
         end
