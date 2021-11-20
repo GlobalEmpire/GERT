@@ -193,6 +193,7 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
         end
     else
+        local modulePath = storedPaths[moduleName]
         local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
         local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
