@@ -303,6 +303,9 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             if not success then
                 return success,1, tempLocalTable -- 1 means could not validate infoTable information
             end
+            for k,v in pairs(tempLocalTable) do
+                infoTable[k] = v
+            end
         end
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
