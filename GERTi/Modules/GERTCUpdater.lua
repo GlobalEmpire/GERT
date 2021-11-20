@@ -101,7 +101,7 @@ end
 
 GERTUpdaterAPI.GetLocalVersion = function(path)
     local versionHeader = ""
-    local localCacheExists = fs.exists(path)
+    local localCacheExists = fs.exists(path) and fs.isDirectory(path)
     if localCacheExists then
         local file = io.open(path, "r")
         versionHeader = file:read("*l")
@@ -113,6 +113,10 @@ end
 GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = "", 0, ""
     local hadSocket = true
+    if not(moduleName) or type(moduleName) ~= "string" then
+        return false, 1 -- 1 means moduleName not provided or invalid type
+    end
+    moduleName = fs.name(moduleName)
     if not socket then
         hadSocket = false
         socket = GERTi.openSocket(updateAddress,updatePort)
