@@ -22,7 +22,7 @@ if fs.exists(configPath) then
     local configFile = io.open(configPath,"r")
     config = srl.unserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
-    while tempPath ~= "" do
+    while tempPath ~= "" and tempPath ~= nil do
         storedPaths[fs.name(tempPath)] = tempPath
         tempPath = configFile:read("*l")
     end
@@ -100,8 +100,6 @@ GERTUpdaterAPI.SendCachedFile = function(originAddress,data) -- returns true if 
             updateSockets[originAddress]:close()
             fileToSend:close()
             return false
-        elseif socket:read()[1] == "U.Continue"
-
         end
         chunk = fileToSend:read(8000)
         updateSockets[originAddress]:write(chunk)
