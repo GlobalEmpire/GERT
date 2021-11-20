@@ -1,3 +1,4 @@
+-- GCU Core Component - Beta 1 
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")

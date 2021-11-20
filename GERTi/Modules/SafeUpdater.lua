@@ -1,3 +1,4 @@
+-- GCU Boot Component - Beta 1 
 local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")
