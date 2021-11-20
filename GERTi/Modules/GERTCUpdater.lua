@@ -280,7 +280,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(fs.name(moduleName),infoTable[4])
             if success then
-                return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
+                return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
                 return success, code
             end
@@ -288,10 +288,6 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             return false, -1 -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
-        --[[local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
-        if not success then
-            return success, infoTable
-        end]]
         local resultTable = {}
         local tempTable = {}
         local counter = false
@@ -320,7 +316,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             if information[1] ~= information[3] and information[4] ~= 0 then
                 local success, code = DownloadModuleToCache(fs.name(name),information[4])
                 if success then
-                    resultTable[name] = GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady) -- Queues program to be installed on next reboot
+                    resultTable[name] = GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady),information -- Queues program to be installed on next reboot
                 else
                     resultTable[name] = {success, code}
                 end
