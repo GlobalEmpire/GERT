@@ -61,7 +61,7 @@ This program reads and returns the version header (the first line) of the file a
 ### `GCU.GetRemoteVersion(moduleName,socket):`
 Accepts two variables: `moduleName` and `socket`.
 - `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
-- `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. **This feature is not yet standard in all functions, this will change eventually.**
+- `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. For your own safety, it is recommended to pcall() this function if a custom socket is used as the program assumes a valid socket and cannot handle an invalid socket object. **This feature is not yet standard in all functions, this will change eventually.**
 
 If the function succeeds, it returns 4 parameters:
 > `true`, `$state`, `$size`, `$version`
@@ -74,4 +74,7 @@ If the function fails, it returns 2 parameters:
 - `$code` is an error code that can be of the following values:
   - For positive values, refer to `GMU.CheckLatest()` under the failure state.
   - For zero/negative values:
-    - `0`:
+    - `0`: `moduleName` was either not provided or invalid
+    - `-1`: A socket could not be established (only possible if socket not provided)
+    - `-2`: Timed-out: The server did not respond fast enough, if at all.
+    - `-3`: The server returned unexpected information through the socket. This information is passed as another variable after $code.
