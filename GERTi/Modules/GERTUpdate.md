@@ -146,10 +146,20 @@ Assume the following:
 
 If the user wants to manually check for an update to the `GERTiClient.lua` module and install it as soon as possible from the server if it exists, they would have the following code in a file:
 
-    local GCU = require("GERTCUpdater",nil,true)
-    local Success, StateTable, Additional = GCU.DownloadUpdate("GERTiClient.lua")
+    local GCU = require("GERTCUpdater")
+    local Success, StateTable, Additional = GCU.DownloadUpdate("GERTiClient.lua",nil,true)
 
 As for understanding the data:<br> 
 `Success` is a simple boolean determining whether or not the operation succeeded: if it is true, the update was successfully downloaded and queued for installation on reboot (and queued for installation if `InstallImmediately` is true).<br>
 `StateTable` is an `infoTable`, this can be searched for relevant parameters, such as whether or not the server was able to establish a connection to remote.<br>
 `Additional` is any additional variables that get passed, for any reason. Should be nil Success is true.
+
+----
+
+Now, if the user wants to do the same thing as before, but with two modules, say, `GERTiClient.lua` and `GERTCUpdater.lua`, they would do the following:
+
+    local GCU = require("GERTCUpdater")
+    local moduleTable = {}
+    moduleTable["GERTiClient.lua"] = "/usr/lib/GERTiClient.lua"
+    moduleTable["GERTCUpdater.lua"] = "/usr/lib/GERTCUpdater.lua"
+    local Success, StateTable, Additional = GCU.DownloadUpdate(moduleTable,nil,true)
