@@ -104,7 +104,7 @@ The content of `$infoTable` depends on whether it was passed a `moduleName` or a
 
 
 If the function fails, it will return:
-> `false`, `-1`
+> `false`, `1`
 
 *The only possible non-crashing error this function can encounter is no response from address which returns 1*
 
