@@ -5,6 +5,7 @@ local event = require("event")
 local shell = require("shell")
 local srl = require("serialization")
 local SafeUpdater = require("SafeUpdater")
+local rc = require("rc")
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -18,7 +19,7 @@ local GERTUpdaterAPI = {}
 
 
 local function eventBeep (freq,rep)
-    computer.beep(freq,rep)
+    return function () computer.beep(freq,rep) end
 end
 
 if opts.n then
@@ -30,7 +31,7 @@ end
 
 local function parseConfig ()
     local configFile = io.open(configPath, "r")
-    config = srl.deserialize(configFile:read("*l"))
+    config = srl.unserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
     while tempPath ~= "" do
         storedPaths[fs.name(tempPath)] = tempPath
@@ -42,7 +43,7 @@ end
 
 local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
-    configFile:write(srl.deserialize(config))
+    configFile:write(srl.unserialize(config))
     for name,path in pairs(storedPaths) do 
         configFile:write("\n"..path)
     end
@@ -212,8 +213,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(fs.name(moduleName))
             if success then
-                SafeUpdater.register(storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
-                event.push("UpdateAvailable",moduleName)
+                SafeUpdater.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
             else
 
             end
@@ -229,6 +229,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
 end
 
 GERTUpdaterAPI.InstallUpdate = function (moduleName)
+    return SafeUpdater.InstallUpdate(moduleName)
 end
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
@@ -249,7 +250,7 @@ GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
     local tempConfig = configFile:read("*a")
     configFile:close()
     local configFile = io.open(configPath,"w")
-    configFile:write(srl.deserialize(config) .. "\n")
+    configFile:write(srl.unserialize(config) .. "\n")
     configFile:write(tempConfig)
     configFile:close()
     return true
