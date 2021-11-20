@@ -30,9 +30,9 @@
  If Successful, it will return 3 parameters: <br>
 >  `true, $code, $versionHeader` <br>
 - `$code` is the operation code:
- > `0` means that the requested module was already up to date on the cache.<br>
- `-1` means that the file was downloaded from remote and replaced the cached version. <br>
- `-2` means that the program could not establish a connection to remote, but a cached file is present. <br>
+  - `0`: The requested module was already up to date on the cache.<br>
+  - `-1`: The file was downloaded from remote and replaced the cached version. <br>
+  - `-2`: The program could not establish a connection to remote, but a cached file is present. <br>
 
 - `$versionHeader` is the version of the file that is currently on drive.<br>
  
@@ -40,9 +40,9 @@
  If not Successful, it will return 2 parameters: <br>
 > `false, $code`<br>
 - `$code` is an error code:
- >`1` means a connection could not be established to Remote.<br>
- `2` means that this module's path is not present in the configuration file.<br>
- `3` means that there is insufficient space on the MNC to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
+  - `1`: A connection could not be established to Remote.<br>
+  - `2`: This module's path is not present in the configuration file.<br>
+  - `3`: There is insufficient space on the MNC to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
 
 ### `GMU.StartHandlers():`
  Starts all event handlers -- *is called when GERTMNCUpdater.lua is `require`d. I can change this.* <br>
@@ -72,3 +72,6 @@ If the function succeeds, it returns 4 parameters:
 If the function fails, it returns 2 parameters:
 > `false`, `$code`
 - `$code` is an error code that can be of the following values:
+  - For positive values, refer to `GMU.CheckLatest()` under the failure state.
+  - For zero/negative values:
+    - `0`:
