@@ -184,7 +184,7 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local socket = GERTi.openSocket(updateAddress,updatePort)
     local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
     if not connectionComplete then 
-        return false, -1 -- 1 means No Response From Address
+        return false, 1 -- 1 means No Response From Address
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in moduleName do
