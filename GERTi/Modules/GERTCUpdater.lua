@@ -338,13 +338,15 @@ GERTUpdaterAPI.InstallUpdate = function (moduleName)
     local parsedData = ParseSafeList()
     if not moduleName then
         return false, 1 -- 1 means no Arg 1
+    elseif not parsedData[moduleName] then
+        return false, 2 -- 2 means there's no local update to install
     end
     local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         RemoveFromSafeList(moduleName)
         return true, 0
     else
-        return false, 2 -- 2 means unknown error
+        return false, 3 -- 3 means unknown error
     end
 end
 
