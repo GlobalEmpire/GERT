@@ -162,4 +162,6 @@ Now, if the user wants to do the same thing as before, but with two modules, say
     local moduleTable = {}
     moduleTable["GERTiClient.lua"] = "/usr/lib/GERTiClient.lua"
     moduleTable["GERTCUpdater.lua"] = "/usr/lib/GERTCUpdater.lua"
-    local Success, StateTable, Additional = GCU.DownloadUpdate(moduleTable,nil,true)
+    local Success, stateTable = GCU.DownloadUpdate(moduleTable,nil,true)
+
+The results are much same, except they are indexed by module name in `stateTable`
