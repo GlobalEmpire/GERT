@@ -90,11 +90,13 @@ Accepts one variable: `moduleName`.
 If the function succeeds, it will return: 
 > `true`, `$infoTable`
 
-The content of `$infoTable` depends on whether it was passed a `moduleName` or a `table of (moduleName,modulePath)=(key,value) pairs`.
+The content of `$infoTable` depends on whether it was passed a `moduleName` or a `table` of `(moduleName,modulePath)=(key,value)` pairs.
 - Case 1: `moduleName`
-  - it will return an ordered table of 6 values, containing `localVersion`, `localSize`, `remoteVersion`, `remoteSize`, `statusCode`, `success` in that order.
+  - It will return an ordered table of 6 values, containing `localVersion`, `localSize`, `remoteVersion`, `remoteSize`, `statusCode`, `success` in that order.
     - `localVersion`: The version of the currently installed module.
     - `localSize`: The size of the currently installed module in bytes.
     - `remoteVersion`: The version string of the module currently available on the server.
     - `remoteSize`: The size of the module available on the server in bytes. 0 if not present on server
-    - `statusCode`,`success`: Check `GCU.GetRemoteVersion()`, this function gets 
+    - `statusCode`,`success`: This function wraps `GCU.GetRemoteVersion()`, the result of which is placed into `success`,`statusCode`,`remoteSize`,`remoteVersion` in that order. Use the value of `success` to determine the meaning of `statusCode`
+- Case 2: A `table` of `(moduleName,modulePath)=(key,value)` pairs or nothing at all was passed:
+  - It will return a table indexed by moduleName, each containing an instance of a table from Case 1.
