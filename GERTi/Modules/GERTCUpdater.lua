@@ -15,8 +15,18 @@ local storedPaths = {}
 local GERTUpdaterAPI = {}
 
 if not fs.exists(configPath) then
+    config["AutoUpdate"] = false
     local configFile = io.open(configPath,"w")
     configFile:write(srl.deserialize(config))
+    configFile:close()
+else
+    local configFile = io.open(configPath, "r")
+    config = srl.deserialize(configFile:read("*l"))
+    local tempPath = configFile:read("*l")
+    while tempPath ~= "" do
+        storedPaths[fs.name(tempPath)] = tempPath
+        tempPath = configFile:read("*l")
+    end
     configFile:close()
 end
 
@@ -122,7 +132,10 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     return true, infoTable
 end
 
-GERTUpdaterAPI.DownloadUpdate = function (moduleName)
+GERTUpdaterAPI.DownloadUpdate = function (moduleName,InstallWhenReady,infoTable)
+    if InstallWhenReady == nil then 
+        InstallWhenReady = config["AutoUpdate"]
+    end
 end
 
 GERTUpdaterAPI.InstallUpdate = function (moduleName)
