@@ -386,7 +386,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     end
 end
 
-GERTUpdaterAPI.RemoveModule = function(moduleName)
+GERTUpdaterAPI.UninstallModule = function(moduleName)
     local config, StoredPaths = ParseConfig()
     if not StoredPaths[moduleName] then
         return false
