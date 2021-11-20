@@ -14,12 +14,9 @@ local configPath = "/usr/lib/GERTUpdater.cfg"
 local storedPaths = {}
 local GERTUpdaterAPI = {}
 
-if not fs.exists(configPath) then
-    config["AutoUpdate"] = false
-    local configFile = io.open(configPath,"w")
-    configFile:write(srl.deserialize(config))
-    configFile:close()
-else
+
+
+local function parseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.deserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
@@ -28,6 +25,24 @@ else
         tempPath = configFile:read("*l")
     end
     configFile:close()
+    return config,storedPaths
+end
+
+local function writeConfig (config,storedPaths)
+    local configFile = io.open(configPath,"w")
+    configFile:write(srl.deserialize(config))
+    for name,path in pairs(storedPaths) do 
+        configFile:write("\n"..path)
+    end
+    configFile:close()
+end
+
+
+if not fs.exists(configPath) then
+    config["AutoUpdate"] = false
+    writeConfig(config,storedPaths)
+else
+    parseConfig()
 end
 
 
@@ -133,9 +148,19 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
 end
 
 GERTUpdaterAPI.DownloadUpdate = function (moduleName,InstallWhenReady,infoTable)
+    if not moduleName then 
+        return false, 1 -- 1 means Incorrect Argument
+    end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
     end
+    if type(moduleName) == "string" then
+
+    elseif type(moduleName) == "table" then
+    else
+        return false, 1 -- 1 means Incorrect Argument
+    end
+
 end
 
 GERTUpdaterAPI.InstallUpdate = function (moduleName)
@@ -149,4 +174,17 @@ end
 
 GERTUpdaterAPI.AutoUpdate = function()
     return config["AutoUpdate"]
+end
+
+GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
+    config,storedPaths = parseConfig()
+    config[setting] = newValue
+    local configFile = io.open(configPath,"r")
+    local _ = configFile:read("*l")
+    local tempConfig = configFile:read("*a")
+    configFile:close()
+    local configFile = io.open(configPath,"w")
+    configFile:write(srl.deserialize(config) .. "\n")
+    configFile:write(tempConfig)
+    configFile:close()
 end
