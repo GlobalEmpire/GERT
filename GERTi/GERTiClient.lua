@@ -1,8 +1,9 @@
--- GERT v1.5 Build 8
+-- GERT v1.5 Build 9
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
+local filesystem = require("filesystem")
 local serialize = require("serialization")
 local mTable, tTable
 local iAdd
@@ -121,7 +122,7 @@ handler.Data = function (_, _, port, connectDex, order, ...)
 			transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connectDex, order, ...)
 		end
 	else
-		origin = string.sub(connectDex, 1, string.find(connectDex, "|")-1)
+		local origin = string.sub(connectDex, 1, string.find(connectDex, "|")-1)
 		local dest = string.sub(connectDex, #origin+2, string.find(connectDex, "|", #origin+2)-1)
 		local ID = string.sub(connectDex, #origin+#dest+3)
 		origin = tonumber(origin)
@@ -149,7 +150,7 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
-	if cPend[dest..origin..ID] then
+	if cPend[dest.."|"..origin.."|"..ID] then
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 		return transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, math.floor(ID))
@@ -165,7 +166,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin,
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
 		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, intermediary, origin, math.floor(ID))
 	end
-	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
+	cPend[dest.."|"..origin.."|"..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 handler.RegisterComplete = function(receiveM, _, port, target, newG)
 	if (mTable and mTable[target]) or (tTable and tTable[target]) then
@@ -188,7 +189,7 @@ handler.RemoveNeighbor = function (receiveM, _, port, origin, noQ)
 	end
 end
 handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
-	local cDex = dest..origin..ID
+	local cDex = dest.."|"..origin.."|"..math.floor(ID)
 	if cPend[cDex] then
 		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
 		storeConnection(origin, ID, dest, sendM, receiveM, port)
@@ -230,6 +231,7 @@ end
 local function readData(self, flags)
 	if connections[self.inDex] and connections[self.inDex]["data"][1] then
 		local data = connections[self.inDex]["data"]
+		flags = flags or ""
 		if not string.find(flags, "-k") then
 			connections[self.inDex]["data"] = {}
 		end
@@ -244,7 +246,7 @@ local function readData(self, flags)
 					table.insert(flatTable, value)
 				end
 			end
-			return flatTable
+		return flatTable
 		end
 		return data
 	else
@@ -257,8 +259,8 @@ end
 
 function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
-	if type(gAddress) == "string" or math.floor(gAddress) == gAddress then
-		gAddress = GERTi.resolveDNS(gAddress)
+	if type(gAddress) == "string" or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
+		gAddress = DNSCache[gAddress] or GERTi.resolveDNS(gAddress)
 	end
 	if not gAddress then
 		return false
@@ -275,8 +277,8 @@ function GERTi.openSocket(gAddress, outID)
 	else
 		handler.OpenRoute(firstN["receiveM"], firstN["receiveM"], 4378, gAddress, nil, iAdd, outID)
 	end
-	waitWithCancel(3, function () return (not cPend[gAddress..iAdd..outID]) end)
-	if not cPend[gAddress..iAdd..outID] then
+	waitWithCancel(3, function () return (not cPend[gAddress.."|"..iAdd.."|"..outID]) end)
+	if not cPend[gAddress.."|"..iAdd.."|"..outID] then
 		local socket = {origination = iAdd,
 			destination = gAddress,
 			outPort = port or firstN["port"],
@@ -291,7 +293,7 @@ function GERTi.openSocket(gAddress, outID)
 			close = closeSock}
 		return socket
 	else
-		cPend[gAddress..iAdd..outID] = nil
+		cPend[gAddress.."|"..iAdd.."|"..outID] = nil
 		return false
 	end
 end
@@ -312,7 +314,6 @@ function GERTi.resolveDNS(remoteHost)
 	else
 		return nil
 	end
-
 end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
@@ -323,13 +324,11 @@ end
 function GERTi.getAddress()
 	return iAdd
 end
-
 function GERTi.getAllServices()
 	MNCSocket:write("Identify Services")
 	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
 	return MNCSocket:read()
 end
-
 function GERTi.getConnections()
 	local tempTable = {}
 	for key, value in pairs(connections) do
@@ -344,29 +343,31 @@ function GERTi.getConnections()
 	end
 	return tempTable
 end
-
+function GERTi.getDNSCache()
+	return DNSCache
+end
 function GERTi.getEdition()
 	return "BasicClient"
 end
-
 function GERTi.getLoadedModules()
 	return modules
 end
-
 function GERTi.getNeighbors()
 	return nodes
 end
-
 function GERTi.getVersion()
 	return "v1.5", "1.5 Build 8"
 end
 
 function GERTi.isServicePresent(name)
-	MNCSocket:write("GERT Service Port", name)
+	MNCSocket:write("Get Service Port", name)
 	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
 	return MNCSocket:read()
 end
 
+function GERTi.updateDNSRecord(hostname, address)
+	DNSSocket:write("Register Name", hostname, (address or iAdd))
+end
 -- Startup Procedure
 event.listen("modem_message", receivePacket)
 if tTable then
@@ -402,8 +403,21 @@ if mTable then
 end
 event.listen("shutdown", safedown)
 MNCSocket = GERTi.openSocket(0.0, 500)
+waitWithCancel(3, function () return (connections[MNCSocket.inDex]) end)
 if GERTi.isServicePresent("DNS")[1] == 53 then
 	DNSSocket = GERTi.openSocket(0.0, 53)
-	GERTi.registerModule("DNS", 53)
+	waitWithCancel(3, function () return (connections[DNSSocket.inDex]) end)
+	if filesystem.exists("/etc/hostname") then
+		local file = io.open("/etc/hostname", "r")
+		hostname = file:read("*l")
+	elseif filesystem.exists("/etc/GClient.cfg") then
+		local file = io.open("/etc/GClient.cfg")
+		hostname = file:read("*l")
+	end
+	if hostname then
+		DNSSocket:write("Register Name", hostname, iAdd)
+		GERTi.registerModule("DNS", 53)
+	end
 end
+-- End Startup
 return GERTi

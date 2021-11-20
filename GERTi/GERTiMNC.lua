@@ -1,4 +1,4 @@
--- GERT v1.5 Build 8
+-- GERT v1.5 Build 9
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -54,6 +54,10 @@ local function storeConnection(origin, ID, dest, nextHop, sendM, port)
 	ID = math.floor(ID)
 	connectDex = origin.."|"..dest.."|"..ID
 	connections[connectDex] = {["origin"]=origin, ["dest"]=dest, ["ID"]=ID, ["nextHop"]=nextHop, ["sendM"] = sendM, ["port"]=port}
+	if dest == 0.0 then
+		connections[connectDex]["data"] = {}
+		connections[connectDex]["order"] = 1
+	end
 end
 
 local function storeData(connectDex, order, ...)
@@ -119,7 +123,7 @@ end
 local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	if dest==0 or dest == "0.0" then
 		storeConnection(origin, ID, tonumber(dest), 1, receiveM, recPort)
-		computer.pushSignal("GERTConnectionID", origin, ID)
+		computer.pushSignal("GERTConnectionID", origin, math.floor(ID))
 	end
 	if origin ~= 0 then
 		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, math.floor(ID))
@@ -128,6 +132,7 @@ end
 
 handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	dest = tostring(dest)
+	ID = math.floor(ID)
 	if (dest == "0.0" or dest == "0") or (string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) and GERTe) then -- If a GERTc address is entered, the GERTe component points to another endpoint, and GERTe is enabled, open the connection. Also handles MNC connections
 		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to the MNC, strip out the GERTe component and route it like normal
@@ -149,7 +154,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 		inter = string.sub(inter, string.find(inter, "|")+1)
 		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, math.floor(ID))
 	end
-	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
+	cPend[dest.."|"..origin.."|"..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
@@ -184,7 +189,7 @@ handler.RemoveNeighbor = function (_, _, _, origin) -- Checks to see if the node
 end
 
 handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
-	local cDex = dest..origin..ID
+	local cDex = dest.."|"..origin.."|"..math.floor(ID)
 	if cPend[cDex] then
 		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
 		storeConnection(origin, ID, dest, sendM, receiveM, port)

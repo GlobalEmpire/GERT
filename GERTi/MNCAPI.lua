@@ -1,4 +1,4 @@
--- GERT v1.5 Build 8
+-- GERT v1.5 Build 9
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
@@ -9,7 +9,9 @@ local iAdd = 0.0
 local tier = 0
 local sockets = {}
 local networkServices = {}
-
+local DNSCache = {}
+local DNSSocket
+local modules = {}
 if (component.isAvailable("modem")) then
 	mTable = {}
 	for address, value in component.list("modem") do
@@ -63,8 +65,9 @@ local function writeData(self, ...)
 end
 
 local function readData(self, flags)
-	if connections[self.inDex] then
+	if connections[self.inDex] and connections[self.inDex]["data"][1] then
 		local data = connections[self.inDex]["data"]
+		flags = flags or ""
 		if not string.find(flags, "-k") then
 			connections[self.inDex]["data"] = {}
 		end
@@ -79,7 +82,7 @@ local function readData(self, flags)
 					table.insert(flatTable, value)
 				end
 			end
-			return flatTable
+		return flatTable
 		end
 		return data
 	else
@@ -92,22 +95,27 @@ local function closeSock(self)
 end
 
 function MNCAPI.openSocket(gAddress, outID)
-	local port, add, receiveM, cDex
+	local receiveM, cDex
+	if type(gAddress) == "string" or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
+		gAddress = DNSCache[gAddress] or MNCAPI.resolveDNS(gAddress)
+	end
+	if not gAddress then
+		return false
+	end
 	if not outID then
 		outID = #connections + 1
 	end
 	outID = math.floor(outID)
 	if nodes[gAddress] then
-		port = nodes[gAddress]["port"]
-		add = nodes[gAddress]["add"]
 		receiveM = nodes[gAddress]["receiveM"]
-		computer.pushSignal("modem_message", receiveM, receiveM, 4378, gAddress, nil, iAdd, outID)
-		cDex = gAddress..iAdd..outID
+		computer.pushSignal("modem_message", receiveM, receiveM, 4378, 0, "OpenRoute", gAddress, nil, iAdd, outID)
+		cDex = gAddress.."|"..iAdd.."|"..outID
 	else
 		return false
 	end
 	waitWithCancel(3, function () return (not cPend[cDex]) end)
 	if not cPend[cDex] then
+		cDex = iAdd.."|"..gAddress.."|"..outID
 		local socket = {origination = iAdd,
 			destination = gAddress,
 			outPort = connections[cDex]["port"],
@@ -115,8 +123,8 @@ function MNCAPI.openSocket(gAddress, outID)
 			receiveM = connections[cDex]["sendM"],
 			ID = outID,
 			order = 1,
-			outDex=iAdd.."|"..gAddress.."|"..outID,
-			inDex = cDex,
+			outDex=cDex,
+			inDex = gAddress.."|"..iAdd.."|"..outID,
 			write = writeData,
 			read = readData,
 			close = closeSock}
@@ -131,10 +139,30 @@ function MNCAPI.broadcast(data)
 		component.modem.broadcast(4378, "Data", -1, 0, data, iAdd)
 	end
 end
+function MNCAPI.registerModule(modulename, port)
+	modules[modulename] = port
+end
+function MNCAPI.resolveDNS(remoteHost)
+	if modules["DNS"] then
+		DNSSocket:write("DNSResolve", remoteHost)
+		waitWithCancel(3, function () return (DNSSocket:read("-k")) end)
+		DNSCache[remoteHost] = DNSSocket:read()[1]
+		return DNSCache[remoteHost]
+	else
+		return nil
+	end
+end
 function MNCAPI.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", -1, 0, data, iAdd)
 	end
+end
+
+function MNCAPI.getAddress()
+	return iAdd
+end
+function MNCAPI.getAllServices()
+	return modules
 end
 function MNCAPI.getConnections()
 	local tempTable = {}
@@ -150,19 +178,23 @@ function MNCAPI.getConnections()
 	end
 	return tempTable
 end
-
+function MNCAPI.getDNSCache()
+	return DNSCache
+end
+function MNCAPI.getEdition()
+	return "MNCAPI"
+end
+function MNCAPI.getLoadedModules()
+	return modules
+end
 function MNCAPI.getNeighbors()
 	return nodes
-end
-
-function MNCAPI.getAddress()
-	return iAdd
 end
 function MNCAPI.getVersion()
 	return "v1.5", "1.5 Build 8"
 end
-function MNCAPI.getEdition()
-	return "MNCAPI"
+function MNCAPI.isServicePresent(name)
+	return modules[name]
 end
 function MNCAPI.loadTables(nTable, cTable, cPTable)
 	nodes = nTable
@@ -178,7 +210,7 @@ end
 local function checkConnection(_, origin, ID)
 	if ID == 500 then
 		local newSocket = MNCAPI.openSocket(origin, ID)
-		table.insert(sockets, newSocket, origin)
+		sockets[origin] = newSocket
 	end
 end
 event.listen("GERTConnectionID", checkConnection)
