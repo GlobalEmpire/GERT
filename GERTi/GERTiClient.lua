@@ -107,7 +107,6 @@ handler.CloseConnection = function(_, _, port, connectDex)
 		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "CloseConnection", tostring(connectDex))
 	else
 		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
-		cPend[connections[connectDex]["dest"]..connections[connectDex]["origin"]..connections[connectDex]["ID"]]=nil
 	end
 	connections[connectDex] = nil
 end
