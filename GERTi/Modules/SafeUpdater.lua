@@ -4,12 +4,7 @@ local srl = require("serialization")
 local term = require("term")
 
 local UpdaterAPI = {}
-
-local function checkTerm (text)
-    if term.isAvailable() then
-        term.write(text,
-    end
-end
+local width = term.getViewport()
 
 local function ParseSafeList ()
     if not fs.exists("/.SafeUpdateCache.srl") then 
@@ -54,10 +49,23 @@ UpdaterAPI.start = function()
     end
     io.stdout:write("Updates Found\n")
     os.sleep(0.3)
-    io.stderr:write("INITIATING PRE-SHELL SECURE UPDATE PROGRAM")
-    gpu.getResolution
+    io.stderr:write("INITIATING PRE-SHELL SECURE UPDATE PROGRAM\n")
+    os.sleep(0.3)
+    io.stderr:write(string.rep("╤",width))
+    io.stderr:write(string.rep("╧",width))
     for name, Information in pairs(parsedData) do
-        RemoveFromSafeList(InstallUpdate(name,parsedData),parsedData)
+        io.stdout:write("Installing Module: <".. tostring(name) .. ">.....")
+        if RemoveFromSafeList(InstallUpdate(name,parsedData),parsedData) then
+            io.stdout:write(" Success!\n")
+        else
+            io.stderr:write(" Failure!\n")
+        end
     end
+    io.stderr:write("SECURE UPDATE COMPLETE - EXITING\n")
+    os.sleep(0.3)
+    io.stderr:write(string.rep("╤",width))
+    io.stderr:write(string.rep("╧",width))
+    os.sleep(0.2)
+    io.stdout:write("Resuming Boot\n")
 end
 
