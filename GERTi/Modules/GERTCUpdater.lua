@@ -124,14 +124,19 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-GERTUpdaterAPI.CheckForUpdate = function (moduleName)
+GERTUpdaterAPI.CheckForUpdate = function (moduleName,socket)
+    local selfSocket = false
     moduleName = moduleName or storedPaths
     local infoTable = {}
-    local socket = GERTi.openSocket(updateAddress,updatePort)
-    local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
-    if not connectionComplete then 
-        return false, 1 -- 1 means No Response From Address
+    if not(socket) then
+        local socket = GERTi.openSocket(updateAddress,updatePort)
+        selfSocket = true
+        local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
+        if not connectionComplete then 
+            return false, 1 -- 1 means No Response From Address
+        end
     end
+    
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in moduleName do
             local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
@@ -143,22 +148,34 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
         local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode}
     end
-    socket:close()
+    if selfSocket then socket:close() end
     return true, infoTable
 end
 
-GERTUpdaterAPI.DownloadUpdate = function (moduleName,InstallWhenReady,infoTable)
+GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
+    socket
     if not moduleName then 
-        return false, 1 -- 1 means Incorrect Argument
+        return false, 2, 1 -- 2 means Incorrect Argument, third parameter defines which
     end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
     end
     if type(moduleName) == "string" then
+        if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
+            success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+            if not success then
+                return false, 1 -- Could not establish connection to server
+            end
+        end
+        if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
 
+        else
+            return false, 3 -- Already Up To Date
+        end
     elseif type(moduleName) == "table" then
+
     else
-        return false, 1 -- 1 means Incorrect Argument
+        return false, 2 -- 2 means Incorrect Argument, third parameter defines which
     end
 
 end
@@ -187,4 +204,8 @@ GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
     configFile:write(srl.deserialize(config) .. "\n")
     configFile:write(tempConfig)
     configFile:close()
+    return true
+end
+
+GERTUpdaterAPI.RunFullCheck = function() 
 end
