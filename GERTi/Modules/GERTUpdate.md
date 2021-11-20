@@ -30,9 +30,9 @@
  If Successful, it will return 3 parameters: <br>
 >  `true, $code, $versionHeader` <br>
 - `$code` is the operation code:
- > `-1` means that the file was downloaded from remote and replaced the cached version. <br>
- `0` means that the requested module was already up to date on the cache.<br>
- `1` means that the program could not establish a connection to remote, but a cached file is present. <br>
+ > `0` means that the requested module was already up to date on the cache.<br>
+ `-1` means that the file was downloaded from remote and replaced the cached version. <br>
+ `-2` means that the program could not establish a connection to remote, but a cached file is present. <br>
 
 - `$versionHeader` is the version of the file that is currently on drive.<br>
  
@@ -70,4 +70,5 @@ If the function succeeds, it returns 4 parameters:
 - `$version` is the version header of the file on the server.
 
 If the function fails, it returns 2 parameters:
-> `false`, `$ErrorCode`
+> `false`, `$code`
+- `$code` is an error code that can be of the following values:
