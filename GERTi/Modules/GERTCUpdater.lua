@@ -187,7 +187,7 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
         return false, 1 -- 1 means No Response From Address
     end
     if type(moduleName) == "table" then
-        for trueModuleName, modulePath in moduleName do
+        for trueModuleName, modulePath in pairs(moduleName) do
             local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
             local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
@@ -270,7 +270,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
             local success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
             if not success then
-                return success, infoTable
+                return success, 1, infoTable
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
@@ -281,15 +281,35 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
                 return success, code
             end
         else
-            return false, 3 -- Already Up To Date
+            return false, -1 -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
-        local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+        --[[local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
         if not success then
             return success, infoTable
-        end
+        end]]
         local resultTable = {}
-        for name, information in pairs(infoTable) do
+        local tempTable = {}
+        local counter = false
+        for name, path in pairs(moduleName) do
+            local information = infoTable[name]
+            if type(information) ~= "table" then
+                tempTable[name] = path
+                counter = true
+            end
+        end
+        if counter then
+            local success, tempLocalTable = GERTUpdaterAPI.CheckForUpdate(tempTable)
+            if not success then
+                return success,1, tempLocalTable -- 1 means could not validate infoTable information
+            end
+        end
+        for name, path in pairs(moduleName) do
+            local information = infoTable[name]
+            local tempTable = {}
+            if type(information) ~= "table" then
+                tempTable[]
+            end
             if information[1] ~= information[3] and information[4] ~= 0 then
                 local success, code = DownloadModuleToCache(fs.name(name),information[4])
                 if success then
@@ -298,12 +318,12 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
                     resultTable[name] = {success, code}
                 end
             else
-                resultTable[name] = {false, 3} -- Already Up To Date
+                resultTable[name] = {false, -1} -- Already Up To Date
             end
         end
-        return resultTable
+        return true, resultTable
     else
-        return false, 2 -- 2 means Incorrect Argument, third parameter defines which
+        return false, 2, 1 -- 2 means Incorrect Argument, third parameter defines which
     end
 end
 
@@ -327,7 +347,7 @@ GERTUpdaterAPI.InstallStatus = function(moduleName)
         return parsedData
     elseif type(moduleName) == "table" then
         local returnList = {}
-        for k,name in moduleName do
+        for k,name in pairs(moduleName) do
             returnList[name] = parsedData[name]
         end
         return returnList
@@ -373,7 +393,7 @@ GERTUpdaterAPI.AutoUpdate = function()
     return config["AutoUpdate"]
 end
 
-GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
+GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
     config,storedPaths = ParseConfig()
     config[setting] = newValue
     local configFile = io.open(configPath,"r")
@@ -390,7 +410,7 @@ end
 GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
     resultTable = {}
-    for moduleName,moduleInformation in parsedData do
+    for moduleName,moduleInformation in pairs(parsedData) do
         resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName)
     end
     return resultTable
