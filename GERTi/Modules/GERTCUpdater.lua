@@ -245,7 +245,11 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     end
     socket:close()
     file:close()
-    return true
+    if fs.size(file) == remoteSize then
+        return true
+    else
+        return false, 4 -- 4 means connection interrupted
+    end
 end
 
 GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
