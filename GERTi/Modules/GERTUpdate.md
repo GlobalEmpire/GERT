@@ -20,18 +20,19 @@
 > `GERTCUpdater` is capable of running without the `SafeUpdater` program, however it will then only update programs when the user requests it, or if `autoInstall` is true, the target program responds properly, and the computer does not reboot between the time the update is downloaded and the time when the target program safes itself.
 
 ## API functions: **GERTMNCUpdater.lua**
-> CheckLatest(moduleName):
-> Accepts one variable: the module's name
-> Does the following: reads the header of the provided module's cache if it exists, then downloads and reads the header of the remote file. If the remote file has a different version header, it will be downloaded and *will replace* the current downloaded cache.
+> `CheckLatest(moduleName)`:<br>
+> Accepts one variable: the module's name.<br>
+>> Reads the header of the provided module's cache if it exists, then downloads and reads the header of the remote file. If the remote file has a different version header, it will be downloaded and **will replace** the current cached file.
 > 
-> Success is determined by whether or not there is a file ready to be sent to clients.
-> If Successful, it will return 3 parameters:
-> `true, $code, $versionHeader`
-> `$versionHeader` is the version of the file that is currently on drive.
-> `$code` is the operation code. 
-> >-1 means the file was downloaded from remote and replaced the cached version
-> >0 means the requested module was already up to date on the cache.
-> >1 means that the program could not establish a connection to remote, and is returning you the on-cache version
+> Success is determined by whether or not there is a file ready to be sent to clients. <br>
+> If Successful, it will return 3 parameters: <br>
+>  `true, $code, $versionHeader` <br>
+> `$code` is the operation code:
+> > `-1` means that the file was downloaded from remote and replaced the cached version. <br>
+> > `0` means that the requested module was already up to date on the cache.<br>
+> > `1` means that the program could not establish a connection to remote, but a cached file is present. <br>
+>
+> `$versionHeader` is the version of the file that is currently on drive.<br>
 > 
 > No success means that there is no file on-server that can be used.
 > If not Successful, it will return 2 parameters:
