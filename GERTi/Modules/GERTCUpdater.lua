@@ -6,17 +6,17 @@ local shell = require("shell")
 local srl = require("serialization")
 local SafeUpdater = require("SafeUpdater")
 local rc = require("rc")
+local rcUpdater = rc.loaded.SafeUpdaterRC
 
 local args, opts = shell.parse(...)
 local updatePort = 941
-local updateAddress = 0.0
+local updateAddress = "GERTModules"
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local config = {}
 local configPath = "/usr/lib/GERTUpdater.cfg"
 local storedPaths = {}
 local GERTUpdaterAPI = {}
-
 
 local function eventBeep (freq,rep)
     return function () computer.beep(freq,rep) end
@@ -48,6 +48,40 @@ local function writeConfig (config,storedPaths)
         configFile:write("\n"..path)
     end
     configFile:close()
+end
+
+local function ParseSafeList ()
+    if not fs.exists("/.SafeUpdateCache.srl") then 
+        return {}
+    end
+    local file = io.open("/.SafeUpdateCache.srl", "r")
+    local rawData = file:read("*a")
+    file:close()
+    local parsedData = srl.unserialize(rawData)
+    return parsedData or {}
+end
+
+local function AddToSafeList (moduleName,currentPath,cachePath,installWhenReady)
+    if not installWhenReady then
+        installWhenReady = false
+    else
+        installWhenReady = true
+    end
+    local parsedData = ParseSafeList()
+    parsedData[moduleName] = {currentPath,cachePath,installWhenReady}
+    local file = io.open("/.SafeUpdateCache.srl", "w")
+    file:write(srl.serialize(parsedData))
+    file:close()
+    return true
+end
+
+local function RemoveFromSafeList (moduleName)
+    local parsedData = ParseSafeList()
+    parsedData[moduleName] = nil
+    local file = io.open("/.SafeUpdateCache.srl", "w")
+    file:write(srl.serialize(parsedData))
+    file:close()
+    return true
 end
 
 
@@ -195,6 +229,30 @@ local function DownloadModuleToCache (moduleName)
     return true
 end
 
+GERTUpdaterAPI.InstallUpdate = function (moduleName)
+    local parsedData = ParseSafeList()
+    if not moduleName then
+        return false, 1 -- 1 means no Arg 1
+    end
+    local success = filesystem.copy(parsedData[moduleName][1],parsedData[moduleName][2])
+    if success then
+        RemoveFromSafeList(moduleName)
+        return true, 0
+    else
+        return false, 2 -- 2 means unknown error
+    end
+end
+
+GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
+    local error, success = pcall(AddToSafeList(moduleName,currentPath,cachePath,installWhenReady))
+    if not(error and success) then
+        return error, success
+    end
+    if installWhenReady then
+        event.push("UpdateAvailable",moduleName)
+    end
+    return true
+end
 
 GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     if not moduleName then 
@@ -205,32 +263,66 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     end
     if type(moduleName) == "string" then
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
-            success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
+            local success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
             if not success then
-                return false, 1 -- Could not establish connection to server
+                return success, infoTable
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(fs.name(moduleName))
             if success then
-                SafeUpdater.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
+                return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
             else
-
+                return success, code
             end
         else
             return false, 3 -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
-
+        local success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
+        if not success then
+            return success, infoTable
+        end
+        local resultTable = {}
+        for name, information in pairs(infoTable) do
+            if information[1] ~= information[3] and information[4] ~= 0 then
+                local success, code = DownloadModuleToCache(fs.name(moduleName))
+                if success then
+                    resultTable[moduleName] = GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
+                else
+                    resultTable[moduleName] = {success, code}
+                end
+            else
+                return false, 3 -- Already Up To Date
+            end
+        end
     else
         return false, 2 -- 2 means Incorrect Argument, third parameter defines which
     end
 
 end
 
-GERTUpdaterAPI.InstallUpdate = function (moduleName)
-    return SafeUpdater.InstallUpdate(moduleName)
+GERTUpdaterAPI.InstallStatus = function(moduleName)
+    local parsedData = ParseSafeList()
+    if not moduleName then
+        return parsedData
+    elseif type(moduleName) == "table" then
+        local returnList = {}
+        for k,name in moduleName do
+            returnList[name] = parsedData[name]
+        end
+        return returnList
+    else
+        return parsedData[moduleName]
+    end
 end
+
+local function InstallEventHandler (event,moduleName)
+    event.push("InstallModule",moduleName,GERTUpdaterAPI.InstallUpdate(moduleName))
+end
+
+
+
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
 end
@@ -256,5 +348,8 @@ GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
     return true
 end
 
-GERTUpdaterAPI.RunFullCheck = function() 
+GERTUpdaterAPI.UpdateAllInCache = function()
+
 end
+
+event.listen("InstallReady",InstallEventHandler)
