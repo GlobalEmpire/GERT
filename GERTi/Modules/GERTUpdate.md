@@ -164,4 +164,5 @@ Now, if the user wants to do the same thing as before, but with two modules, say
     moduleTable["GERTCUpdater.lua"] = "/usr/lib/GERTCUpdater.lua"
     local Success, stateTable = GCU.DownloadUpdate(moduleTable,nil,true)
 
-The results are much same, except they are indexed by module name in `stateTable`
+The results are much same, except they are indexed by module name in `stateTable`. For this specific use case, due to the fact that the modules we requested are identical to the modules that exist in the configuration file, we would obtain the same result by calling `GCU.DownloadUpdate(nil,nil,true)`.
+If we set the `AutoUpdate` configuration setting to `true`, then we would no longer need to specify `true`, and would be able to simply call `GCU.DownloadUpdate()`.
