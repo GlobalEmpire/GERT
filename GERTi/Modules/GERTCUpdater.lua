@@ -4,7 +4,7 @@ local internet = require("internet")
 local event = require("event")
 local shell = require("shell")
 local srl = require("serialization")
-local SafeTransferProtocol = require("SafeTransferProtocol")
+local SafeUpdater = require("SafeUpdater")
 
 local args, opts = shell.parse(...)
 local updatePort = 941
@@ -17,6 +17,16 @@ local storedPaths = {}
 local GERTUpdaterAPI = {}
 
 
+local function eventBeep (freq,rep)
+    computer.beep(freq,rep)
+end
+
+if opts.n then
+    event.listen("UpdateAvailable", eventBeep(1000))
+    event.listen("ReadyForInstall", eventBeep(1500))
+    event.listen("InstallComplete", eventBeep(2000,2))
+
+end
 
 local function parseConfig ()
     local configFile = io.open(configPath, "r")
@@ -50,10 +60,6 @@ end
 if not fs.isDirectory(cacheFolder) then
     fs.makeDirectory(cacheFolder)
 end
-
-
-
-
 
 GERTUpdaterAPI.GetLocalVersion = function(path)
     local versionHeader = ""
@@ -206,9 +212,8 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(fs.name(moduleName))
             if success then
-                SafeTransferProtocol.register(storedPaths[moduleName], cacheFolder .. moduleName) -- Queues program to be installed on next reboot
+                SafeUpdater.register(storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
                 event.push("UpdateAvailable",moduleName)
-                event.listen("ReadyForInstall")
             else
 
             end
