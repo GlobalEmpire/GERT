@@ -62,3 +62,12 @@ This program reads and returns the version header (the first line) of the file a
 Accepts two variables: `moduleName` and `socket`.
 - `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
 - `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. **This feature is not yet standard in all functions, this will change eventually.**
+
+If the function succeeds, it returns 4 parameters:
+> `true`, `$state`, `$size`, `$version`
+- `$State` is any code that the server sent alongside the information. These are the operation codes returned by `GMU.CheckLatest()`.
+- `$size` is the size in bytes of the file on the server.
+- `$version` is the version header of the file on the server.
+
+If the function fails, it returns 2 parameters:
+> `false`, `$ErrorCode`
