@@ -2,10 +2,8 @@ local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
 local event = require("event")
-local shell = require("shell")
 local srl = require("serialization")
-local SafeUpdater = require("SafeUpdater")
-local rc = require("rc")
+local shell = require("shell")
 
 
 local args, opts = shell.parse(...)
@@ -26,7 +24,6 @@ if opts.n then
     event.listen("UpdateAvailable", eventBeep(1000))
     event.listen("ReadyForInstall", eventBeep(1500))
     event.listen("InstallComplete", eventBeep(2000,2))
-
 end
 
 local function ParseConfig ()
@@ -205,7 +202,18 @@ local function DownloadFilter (event, iAdd, dAdd, CID)
 end
 
 
-local function DownloadModuleToCache (moduleName)
+local function DownloadModuleToCache (moduleName,remoteSize)
+    if not remoteSize then
+        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion
+        if not a then
+            return a, b, c, d
+        end
+    end
+    local storageDrive = fs.get(cacheFolder .. moduleName)
+    local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
+    if remoteSize > remainingSpace - 200 then
+        return false, 3 -- 3 means insufficient space for update
+    end
     local socket = GERTi.openSocket(updateAddress,updatePort)
     local connectionComplete = event.pull(10, "GERTConnectionID", updateAddress, updatePort)
     if not connectionComplete then 
@@ -255,9 +263,9 @@ GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhen
     return true
 end
 
-GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
+GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
     if not moduleName then 
-        return false, 2, 1 -- 2 means Incorrect Argument, third parameter defines which
+        config, moduleName = ParseConfig()
     end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
@@ -280,21 +288,21 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             return false, 3 -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
-        local success, infoTable = GERTUpdaterAPI.CheckForUpdate(fs.name(moduleName))
+        local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
         if not success then
             return success, infoTable
         end
         local resultTable = {}
         for name, information in pairs(infoTable) do
             if information[1] ~= information[3] and information[4] ~= 0 then
-                local success, code = DownloadModuleToCache(fs.name(moduleName))
+                local success, code = DownloadModuleToCache(fs.name(name))
                 if success then
-                    resultTable[moduleName] = GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady) -- Queues program to be installed on next reboot
+                    resultTable[name] = GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady) -- Queues program to be installed on next reboot
                 else
-                    resultTable[moduleName] = {success, code}
+                    resultTable[name] = {success, code}
                 end
             else
-                resultTable[moduleName] = {false, 3} -- Already Up To Date
+                resultTable[name] = {false, 3} -- Already Up To Date
             end
         end
         return resultTable
@@ -323,9 +331,19 @@ local function InstallEventHandler (event,moduleName)
 end
 
 
-
-
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
+    local parsedData = ParseSafeList()
+    if parsedData[moduleName] then
+        return false, 4 -- 4 means module already installed. 
+    end
+    AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
+    GERTUpdaterAPI.DownloadUpdate(moduleName)
+    local result = table.pack(GERTUpdaterAPI.GetRemoteVersion(moduleName))
+    if result[1] then
+        AddToSafeList(moduleFolder)
+    else
+        return
+    end
 end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
@@ -355,5 +373,6 @@ GERTUpdaterAPI.UpdateAllInCache = function()
 
     end
 end
+
 
 event.listen("InstallReady",InstallEventHandler)
