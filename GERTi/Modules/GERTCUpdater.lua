@@ -234,7 +234,7 @@ GERTUpdaterAPI.InstallUpdate = function (moduleName)
     if not moduleName then
         return false, 1 -- 1 means no Arg 1
     end
-    local success = filesystem.copy(parsedData[moduleName][1],parsedData[moduleName][2])
+    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         RemoveFromSafeList(moduleName)
         return true, 0
@@ -293,13 +293,13 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
                     resultTable[moduleName] = {success, code}
                 end
             else
-                return false, 3 -- Already Up To Date
+                resultTable[moduleName] = {false, 3} -- Already Up To Date
             end
         end
+        return resultTable
     else
         return false, 2 -- 2 means Incorrect Argument, third parameter defines which
     end
-
 end
 
 GERTUpdaterAPI.InstallStatus = function(moduleName)
@@ -349,7 +349,10 @@ GERTUpdaterAPI.ChangeConfig = function(setting,newValue)
 end
 
 GERTUpdaterAPI.UpdateAllInCache = function()
+    local parsedData = ParseSafeList()
+    for moduleName,moduleInformation in parsedData do
 
+    end
 end
 
 event.listen("InstallReady",InstallEventHandler)
