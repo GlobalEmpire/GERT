@@ -151,4 +151,5 @@ If the user wants to manually check for an update to the `GERTiClient.lua` modul
 
 As for understanding the data:<br> 
 `Success` is a simple boolean determining whether or not the operation succeeded: if it is true, the update was successfully downloaded and queued for installation on reboot (and queued for installation if `InstallImmediately` is true).<br>
-`StateTable` is a table of 
+`StateTable` is an `infoTable`, this can be searched for relevant parameters, such as whether or not the server was able to establish a connection to remote.<br>
+`Additional` is any additional variables that get passed, for any reason. Should be nil Success is true.
