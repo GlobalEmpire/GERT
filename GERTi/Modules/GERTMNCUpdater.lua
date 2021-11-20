@@ -20,7 +20,7 @@ end
 
 if fs.exists(configPath) then
     local configFile = io.open(configPath,"r")
-    config = srl.deserialize(configFile:read("*l"))
+    config = srl.unserialize(configFile:read("*l"))
     local tempPath = configFile:read("*l")
     while tempPath ~= "" do
         storedPaths[fs.name(tempPath)] = tempPath
