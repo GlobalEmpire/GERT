@@ -16,7 +16,8 @@ local GERTUpdaterAPI = {}
 
 if not fs.exists(configPath) then
     local configFile = io.open(configPath,"w")
-    configFile:write()
+    configFile:write(srl.deserialize(config))
+    configFile:close()
 end
 
 
@@ -122,9 +123,15 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
 end
 
 GERTUpdaterAPI.DownloadUpdate = function (moduleName)
-
 end
 
 GERTUpdaterAPI.InstallUpdate = function (moduleName)
-
 end
+
+GERTUpdaterAPI.InstallNewModule = function(moduleName)
+end
+
+GERTUpdaterAPI.RemoveModule = function(moduleName)
+end
+
+GERTUpdaterAPI.AutoUpdate = config["AutoUpdate"]
