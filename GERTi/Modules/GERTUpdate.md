@@ -16,13 +16,13 @@
 
  **Other Technical Information:**
 
- The Port used for the connection is `941`.<br>
- The client program is setup to contact the MNC through the `"GERTModules"` Address. If DNS is not setup, please modify line 14 in `GERTCUpdater.lua`. <br>
- `GERTCUpdater` is capable of running without the `SafeUpdater` program, however it will then only update programs when the user requests it, or if `autoInstall` is true, the target program responds properly, and the computer does not reboot between the time the update is downloaded and the time when the target program safes itself. <br>
+- The Port used for the connection is `941`.<br>
+- The client program is setup to contact the MNC through the `"GERTModules"` Address. If DNS is not setup, please modify line 14 in `GERTCUpdater.lua`. <br>
+- `GERTCUpdater` is capable of running without the `SafeUpdater` program, however it will then only update programs when the user requests it, or if `autoInstall` is true, the target program responds properly, and the computer does not reboot between the time the update is downloaded and the time when the target program safes itself. <br>
 
 # API functions: 
 ## **GERTMNCUpdater.lua** <br>
- ### `CheckLatest(moduleName)`:<br>
+ ### `GMU.CheckLatest(moduleName)`:<br>
  Accepts one variable: the module's name.<br>
  Reads the header of the provided module's cache if it exists, then downloads and reads the header of the remote file. If the remote file has a different version header, it will be downloaded and **will replace** the current cached file.
  
@@ -44,9 +44,18 @@
  `2` means that this module's path is not present in the configuration file.<br>
  `3` means that there is insufficient space on the MNC to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
 
- `StartHandlers():`
- Starts all event handlers -- *is called when GERTMNCUpdater.lua is `require`d. I can change this.*
+### `GMU.StartHandlers():`
+ Starts all event handlers -- *is called when GERTMNCUpdater.lua is `require`d. I can change this.* <br>
  
- `StopHandlers():`
+### `GMU.StopHandlers():`
  Stops all event handlers <br>
- `listeners` is a table that contains the IDs of all the event handlers, under the keys `GERTUpdateSocketOpenerID`, `GERTUpdateSocketCloserID`, `GERTUpdateSocketHandlerID` <br>
+
+ `GMU.listeners` is a table that contains the IDs of all the event handlers, under the keys `GERTUpdateSocketOpenerID`, `GERTUpdateSocketCloserID`, `GERTUpdateSocketHandlerID` <br>
+
+## **GERTCUpdater.lua** <br>
+### `GCU.GetLocalVersion(path):`
+Accepts one variable: a `path`.
+This program reads and returns the version header (the first line) of the file at the provided path. If the file does not exist, or the path points towards a directory, it will return an empty string.
+> 
+
+### `GCU.GetRemoteVersion(moduleName,socket)
