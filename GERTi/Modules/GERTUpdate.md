@@ -22,7 +22,7 @@
 
 # API functions: 
 ## **GERTMNCUpdater.lua** <br>
- ### `GMU.CheckLatest(moduleName)`:<br>
+ ### **`GMU.CheckLatest(moduleName)`**:<br>
  Accepts one variable: the module's name.<br>
  Reads the header of the provided module's cache if it exists, then downloads and reads the header of the remote file. If the remote file has a different version header, it will be downloaded and **will replace** the current cached file.
  
@@ -44,24 +44,26 @@
   - `2`: This module's path is not present in the configuration file.<br>
   - `3`: There is insufficient space on the MNC to download the updated file. The local version either does not exist, or is outdated relative to Remote. This does support multiple drives, but will not move the cached file to a different drive if its drive is full.<br>
 
-### `GMU.StartHandlers():`
+### **`GMU.StartHandlers():`**
  Starts all event handlers -- *is called when GERTMNCUpdater.lua is `require`d. I can change this.* <br>
  
-### `GMU.StopHandlers():`
+### **`GMU.StopHandlers():`**
  Stops all event handlers <br>
 
- `GMU.listeners` is a table that contains the IDs of all the event handlers, under the keys `GERTUpdateSocketOpenerID`, `GERTUpdateSocketCloserID`, `GERTUpdateSocketHandlerID` <br>
+ **`GMU.listeners`** is a table that contains the IDs of all the event handlers, under the keys `GERTUpdateSocketOpenerID`, `GERTUpdateSocketCloserID`, `GERTUpdateSocketHandlerID` <br>
 
 ## **GERTCUpdater.lua** <br>
-### `GCU.GetLocalVersion(path):`
+### **`GCU.GetLocalVersion(path):`**
 Accepts one variable: a `path`.
 This program reads and returns the version header (the first line) of the file at the provided path. If the file does not exist, or the path points towards a directory, it will return an empty string.
 > This accepts a `path` and not a `moduleName` so that advanced users can use it to check the version of other files, such as cached files.
 
-### `GCU.GetRemoteVersion(moduleName,socket):`
+### **`GCU.GetRemoteVersion(moduleName,socket):`**
 Accepts two variables: `moduleName` and `socket`.
 - `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
 - `socket` can be provided to cause the program to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. For your own safety, it is recommended to pcall() this function if a custom socket is used as the program assumes a valid socket and cannot handle an invalid socket object. **This feature is not yet standard in all functions, this will change eventually.**
+
+This function requests the `versionHeader` of `moduleName` from the update server.
 
 If the function succeeds, it returns 4 parameters:
 > `true`, `$state`, `$size`, `$version`
@@ -77,4 +79,11 @@ If the function fails, it returns 2 parameters:
     - `0`: `moduleName` was either not provided or invalid
     - `-1`: A socket could not be established (only possible if socket not provided)
     - `-2`: Timed-out: The server did not respond fast enough, if at all.
-    - `-3`: The server returned unexpected information through the socket. This information is passed as another variable after $code.
+    - `-3`: The server returned unexpected information through the socket. This information is passed as another variable after `$code`.
+
+### **`GCU.CheckForUpdate(moduleName):`**
+Accepts one variable: `moduleName`.
+- `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
+- Alternatively, you can pass a `table` in the format of `table.[moduleName]=modulePath` and the program will evaluate each module and its provided path.
+- **Passing nothing to the function will make the function evaluate every module set in the configuration file.**
+
