@@ -2,9 +2,16 @@ local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")
 local term = require("term")
+local computer = require("computer")
 
 local UpdaterAPI = {}
 local width = term.getViewport()
+
+local function bootBeep(freq,rep)
+    if not (args == "mute") then
+        computer.beep(freq,rep)
+    end
+end
 
 local function ParseSafeList ()
     if not fs.exists("/.SafeUpdateCache.srl") then 
@@ -39,17 +46,24 @@ local function InstallUpdate (moduleName,parsedData)
     end
 end
 
-UpdaterAPI.start = function()
+function start()
+    term.clear()
+    bootBeep(1000)
     io.stdout:write("Parsing GERTUpdate SafeFile\n")
     local parsedData = ParseSafeList()
     if not parsedData then
-        io.stdout:write("No Updates Queued\n")
         os.sleep(0.5)
+        io.stdout:write("No Updates Queued\n")
+        bootBeep(2000)
+        os.sleep(2)
+        io.stdout:write("Resuming Boot\n")
+        os.sleep(0.3)
         return
     end
     io.stdout:write("Updates Found\n")
+    bootBeep(1500)
     os.sleep(0.3)
-    io.stderr:write("INITIATING PRE-SHELL SECURE UPDATE PROGRAM\n")
+    io.stderr:write("INITIATING PRE-SHELL SECURE UPDATE DAEMON\n")
     os.sleep(0.3)
     io.stderr:write(string.rep("╤",width))
     io.stderr:write(string.rep("╧",width))
@@ -57,11 +71,15 @@ UpdaterAPI.start = function()
         io.stdout:write("Installing Module: <".. tostring(name) .. ">.....")
         if RemoveFromSafeList(InstallUpdate(name,parsedData),parsedData) then
             io.stdout:write(" Success!\n")
+            bootBeep(1500)
         else
             io.stderr:write(" Failure!\n")
+            bootBeep(1000)
         end
     end
-    io.stderr:write("SECURE UPDATE COMPLETE - EXITING\n")
+    io.stderr:write("SECURE UPDATE COMPLETE\n")
+    bootBeep(1500)
+    bootBeep(2000)
     os.sleep(0.3)
     io.stderr:write(string.rep("╤",width))
     io.stderr:write(string.rep("╧",width))
