@@ -109,12 +109,15 @@ If the function fails, it will return:
 *The only possible non-crashing error this function can encounter is no response from address which returns 1*
 
 ### **`GCU.DownloadUpdate(moduleName,infoTable,InstallWhenReady):`**
-This function downloads to cache the updated version of modules if they are out of date.<br>
+This function downloads to cache the updated version of modules if they are out of date. It also registers an entry in a safe file that is read every boot up, so that the file is updated on next boot up.<br>
 Accepts 3 optional variables: `moduleName`, `infoTable`, `InstallWhenReady`. <br>
 - Provide `moduleName` or a `moduleTable` to have the function check only the modules provided. Otherwise, will check all modules in the configuration file.
 - If you have already obtained `infoTable` by running `GCU.CheckForUpdate()` you can provide it here to stop the function requesting it again. If `moduleTable` is passed, any `moduleNames` that do not have an entry in `infoTable` will be generated automatically.
-- If `InstallWhenReady` is true, the function will push an event to
-provide `moduleName`/`moduleTable`, 
+- If `InstallWhenReady` is true, the function will push an event when each module is downloaded with the parameters `"UpdateAvailable"`,`<moduleName>`. This will allow modules that run as a service to gracefully shutdown and prepare themselves for an update.<br> 
+When the module has finished shutting down, it must push an event with the parameters `"InstallReady"`, `<moduleName>` to alert the updater that it is ready to be installed.<br> 
+When the updater has finished installing the update, it will push an event with `"ModuleInstall"`,`<moduleName>` and then the results of `GCU.InstallUpdate()` as parameters.<br> 
+`"ModuleInstall"` allows programs to register an event listener before pushing `"InstallReady"` to automatically start back up when the update has concluded.<br>
+- *All modules are expected to be able to respond to the `"UpdateAvailable"`, even if they do not need to gracefully shutdown or restart after the update. **At minimum, a module must include a simple event listener that pushes `"InstallReady"`,`<moduleName>` when the relevant `"UpdateAvailable"` is pushed.*** 
 
 
 ### **`GCU.InstallUpdate(moduleName):`**
