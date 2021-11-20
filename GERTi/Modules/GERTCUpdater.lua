@@ -248,20 +248,6 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     return true
 end
 
-GERTUpdaterAPI.InstallUpdate = function (moduleName)
-    local parsedData = ParseSafeList()
-    if not moduleName then
-        return false, 1 -- 1 means no Arg 1
-    end
-    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
-    if success then
-        RemoveFromSafeList(moduleName)
-        return true, 0
-    else
-        return false, 2 -- 2 means unknown error
-    end
-end
-
 GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     local error, success = pcall(AddToSafeList(moduleName,currentPath,cachePath,installWhenReady))
     if not(error and success) then
@@ -318,6 +304,20 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         return resultTable
     else
         return false, 2 -- 2 means Incorrect Argument, third parameter defines which
+    end
+end
+
+GERTUpdaterAPI.InstallUpdate = function (moduleName)
+    local parsedData = ParseSafeList()
+    if not moduleName then
+        return false, 1 -- 1 means no Arg 1
+    end
+    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
+    if success then
+        RemoveFromSafeList(moduleName)
+        return true, 0
+    else
+        return false, 2 -- 2 means unknown error
     end
 end
 
