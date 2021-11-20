@@ -107,6 +107,7 @@ GERTUpdaterAPI.SendCachedFile = function(originAddress,data) -- returns true if 
         updateSockets[originAddress]:write(chunk)
     end
     fileToSend:close()
+    os.sleep(0.5)
     updateSockets[originAddress]:close()
     updateSockets[originAddress] = nil
     return true
