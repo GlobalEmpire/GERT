@@ -74,6 +74,9 @@ end
 
 local function RemoveFromSafeList (moduleName)
     local parsedData = ParseSafeList()
+    if not parsedData[moduleName] then
+        return false
+    end
     fs.remove(parsedData[moduleName][2])
     parsedData[moduleName] = nil
     local file = io.open("/.SafeUpdateCache.srl", "w")
@@ -332,21 +335,31 @@ end
 
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
-    local parsedData = ParseSafeList()
+    local config, parsedData = ParseConfig()
     if parsedData[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
-    AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
-    GERTUpdaterAPI.DownloadUpdate(moduleName)
-    local result = table.pack(GERTUpdaterAPI.GetRemoteVersion(moduleName))
-    if result[1] then
-        AddToSafeList(moduleFolder)
+    local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
+    if result == true then
+        parsedData[moduleName] = moduleFolder .. "moduleName"
+        writeConfig(config,ParseData)
+        AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
+        return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
-        return
+        return result
     end
 end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
+    local config, StoredPaths = ParseConfig()
+    if not StoredPaths[moduleName] then
+        return false
+    end
+    fs.remove(StoredPaths[moduleName])
+    RemoveFromSafeList(moduleName)
+    StoredPaths[moduleName] = nil
+    writeConfig(StoredPaths)
+    return true
 end
 
 GERTUpdaterAPI.AutoUpdate = function()
@@ -369,9 +382,11 @@ end
 
 GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
+    resultTable = {}
     for moduleName,moduleInformation in parsedData do
-
+        resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName)
     end
+    return resultTable
 end
 
 
