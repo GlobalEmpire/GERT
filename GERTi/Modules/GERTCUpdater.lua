@@ -1,4 +1,5 @@
 -- GCU Core Component - Beta 1 
+local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -338,7 +339,7 @@ GERTUpdaterAPI.InstallUpdate = function (moduleName)
     elseif not parsedData[moduleName] then
         return false, 2 -- 2 means there's no local update to install
     end
-    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
+    local success = fs.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         RemoveFromSafeList(moduleName)
         return true, 0

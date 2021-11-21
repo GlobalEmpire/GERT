@@ -38,7 +38,7 @@ local function RemoveFromSafeList (moduleName,parsedData)
 end
 
 local function InstallUpdate (moduleName,parsedData)
-    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
+    local success = fs.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         return moduleName
     else
