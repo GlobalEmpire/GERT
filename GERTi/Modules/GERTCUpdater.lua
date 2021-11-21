@@ -6,6 +6,7 @@ local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
 local rc = require("rc")
+local computer = require("computer")
 if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
     shell.execute("rc SafeUpdater enable")
 end
@@ -131,7 +132,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     if not response then
         if not hadSocket then
             socket:close()
-        end    
+        end
         return false, -2 -- 2 means timeout
     end
     local data = socket:read()
@@ -215,9 +216,9 @@ end
 
 local function DownloadModuleToCache (moduleName,remoteSize)
     if not remoteSize then
-        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion
+        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
         if not a then
-            return a, b, c, d
+            return a, b, remoteSize, d
         end
     end
     local storageDrive = fs.get(cacheFolder .. moduleName)
@@ -375,7 +376,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
         parsedData[moduleName] = moduleFolder .. "moduleName"
-        writeConfig(config,ParseData)
+        writeConfig(config,parseData)
         AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
