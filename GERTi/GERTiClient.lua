@@ -71,7 +71,7 @@ local function storeConnection(origin, ID, GAdd, nextHop, sendM, port)
 		connections[connectDex]["sendM"] = sendM
 		connections[connectDex]["port"]=port
 	else
-		connections[connectDex]["data"]={}
+		connections[connectDex]["data"]=(connections[connectDex]["data"] or {})
 		connections[connectDex]["order"]=1
 	end
 end
@@ -225,7 +225,12 @@ local function writeData(self, ...)
 			return
 		end
 	end
-	transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
+	if self.destination == iAdd then
+		storeData(self.inDex, self.order, ...)
+	else
+		transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
+	end
+
 	self.order=self.order+1
 end
 local function readData(self, flags)
@@ -349,6 +354,9 @@ end
 function GERTi.getEdition()
 	return "BasicClient"
 end
+function GERTi.getHostname()
+	return hostname
+end
 function GERTi.getLoadedModules()
 	return modules
 end
@@ -364,9 +372,15 @@ function GERTi.isServicePresent(name)
 	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
 	return MNCSocket:read()
 end
-
-function GERTi.updateDNSRecord(hostname, address)
-	DNSSocket:write("Register Name", hostname, (address or iAdd))
+function GERTi.removeDNSRecord(hostname)
+	if DNSSocket then
+		DNSSocket:write("Remove Name", hostname, iAdd)
+	end
+end
+function GERTi.updateDNSRecord(hostname)
+	if DNSSocket then
+		DNSSocket:write("Register Name", hostname, iAdd)
+	end
 end
 -- Startup Procedure
 event.listen("modem_message", receivePacket)

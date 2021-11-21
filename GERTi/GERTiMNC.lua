@@ -55,7 +55,7 @@ local function storeConnection(origin, ID, dest, nextHop, sendM, port)
 	connectDex = origin.."|"..dest.."|"..ID
 	connections[connectDex] = {["origin"]=origin, ["dest"]=dest, ["ID"]=ID, ["nextHop"]=nextHop, ["sendM"] = sendM, ["port"]=port}
 	if dest == 0.0 then
-		connections[connectDex]["data"] = {}
+		connections[connectDex]["data"] = (connections[connectDex]["data"] or {})
 		connections[connectDex]["order"] = 1
 	end
 end
