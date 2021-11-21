@@ -132,7 +132,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     if not response then
         if not hadSocket then
             socket:close()
-        end    
+        end
         return false, -2 -- 2 means timeout
     end
     local data = socket:read()
@@ -216,9 +216,10 @@ end
 
 local function DownloadModuleToCache (moduleName,remoteSize)
     if not remoteSize then
-        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion()
+        local a, b, d = 0,0,0
+        a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
         if not a then
-            return a, b, c, d
+            return a, b, remoteSize, d
         end
     end
     local storageDrive = fs.get(cacheFolder .. moduleName)
@@ -311,14 +312,13 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         end
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
-            local tempTable = {}
-            if type(information) ~= "table" then
-                tempTable[]
-            end
             if information[1] ~= information[3] and information[4] ~= 0 then
                 local success, code = DownloadModuleToCache(fs.name(name),information[4])
                 if success then
-                    resultTable[name] = GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady),information -- Queues program to be installed on next reboot
+                    resultTable[name] = table.pack(GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
+                    for k,v in ipairs(information) do
+                        table.insert(resultTable[name],v)
+                    end
                 else
                     resultTable[name] = {success, code}
                 end
@@ -376,7 +376,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
         parsedData[moduleName] = moduleFolder .. "moduleName"
-        writeConfig(config,ParseData)
+        writeConfig(config,parsedData)
         AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
@@ -416,7 +416,7 @@ end
 
 GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
-    resultTable = {}
+    local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
         resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName)
     end
