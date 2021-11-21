@@ -60,7 +60,11 @@ local function writeData(self, ...)
 			return
 		end
 	end
-	transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
+	if self.destination == iAdd then
+		computer.pushSignal("modem_message", _, _, _, self.inDex, self.order, ...)
+	else
+		transInfo(self.nextHop, self.receiveM, self.outPort, "Data", self.outDex, self.order, ...)
+	end
 	self.order=self.order+1
 end
 
@@ -184,6 +188,9 @@ end
 function MNCAPI.getEdition()
 	return "MNCAPI"
 end
+function MNCAPI.getHostname()
+	return "MNC"
+end
 function MNCAPI.getLoadedModules()
 	return modules
 end
@@ -205,7 +212,16 @@ end
 function MNCAPI.registerNetworkService(name, port)
 	networkServices[name] = port
 end
-
+function MNCAPI.removeDNSRecord(hostname)
+	if DNSSocket then
+		DNSSocket:write("Remove Name", hostname, iAdd)
+	end
+end
+function MNCAPI.updateDNSRecord(hostname, address)
+	if DNSSocket then
+		DNSSocket:write("Register Name", hostname, address)
+	end
+end
 -- Startup Procedure
 local function checkConnection(_, origin, ID)
 	if ID == 500 then

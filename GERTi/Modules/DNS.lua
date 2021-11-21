@@ -14,8 +14,9 @@ end
 local function checkData(_, origin, ID)
 	if sockets[origin] and ID == 53 then
 		local data = sockets[origin]:read()
+		origin = tonumber(origin)
 		if data[1][1] == "Register Name" then
-			if not DNSEntries[data[1][2]] then
+			if not DNSEntries[data[1][2]] and (origin == data[1][3] or origin == 0.0)then
                 DNSEntries[data[1][2]] = data[1][3]
             end
 		elseif data[1][1] == "DNSResolve" then
@@ -24,6 +25,10 @@ local function checkData(_, origin, ID)
 			else
 				sockets[origin]:write(false)
 			end
+		elseif data[1][1] == "Remove Name" then
+			if not DNSEntries[data[1][2]] and (origin == data[1][3] or origin == 0.0)then
+                DNSEntries[data[1][2]] = nil
+            end
 		end
 	end
 end
@@ -47,4 +52,5 @@ function start()
     event.listen("GERTData", checkData)
     event.listen("GERTConnectionClose", closeSockets)
 	MNCAPI.registerNetworkService("DNS", 53)
+	DNSEntries["MNC"] = 0.0
 end

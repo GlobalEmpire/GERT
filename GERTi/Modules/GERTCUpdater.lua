@@ -1,4 +1,5 @@
 -- GCU Core Component - Beta 1 
+local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -6,7 +7,6 @@ local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
 local rc = require("rc")
-local computer = require("computer")
 if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
     shell.execute("rc SafeUpdater enable")
 end
@@ -216,7 +216,8 @@ end
 
 local function DownloadModuleToCache (moduleName,remoteSize)
     if not remoteSize then
-        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
+        local a, b, d = 0,0,0
+        a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
         if not a then
             return a, b, remoteSize, d
         end
@@ -339,7 +340,7 @@ GERTUpdaterAPI.InstallUpdate = function (moduleName)
     elseif not parsedData[moduleName] then
         return false, 2 -- 2 means there's no local update to install
     end
-    local success = filesystem.copy(parsedData[moduleName][2],parsedData[moduleName][1])
+    local success = fs.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         RemoveFromSafeList(moduleName)
         return true, 0
@@ -376,7 +377,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
         parsedData[moduleName] = moduleFolder .. "moduleName"
-        writeConfig(config,parseData)
+        writeConfig(config,parsedData)
         AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
@@ -416,7 +417,7 @@ end
 
 GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
-    resultTable = {}
+    local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
         resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName)
     end
