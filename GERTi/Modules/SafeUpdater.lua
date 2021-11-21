@@ -1,4 +1,4 @@
--- GCU Boot Component - Beta 1 
+-- GUS Boot Component - Beta 1 
 local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")
@@ -64,7 +64,7 @@ function start()
     io.stdout:write("Updates Found\n")
     bootBeep(1500)
     os.sleep(0.3)
-    io.stderr:write("INITIATING PRE-SHELL SECURE UPDATE DAEMON\n")
+    io.stderr:write("INITIATING GERT UPDATE SUITE SECURE DAEMON\n")
     os.sleep(0.3)
     io.stderr:write(string.rep("╤",width))
     io.stderr:write(string.rep("╧",width))
