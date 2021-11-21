@@ -216,7 +216,7 @@ end
 
 local function DownloadModuleToCache (moduleName,remoteSize)
     if not remoteSize then
-        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion
+        local a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion()
         if not a then
             return a, b, c, d
         end
