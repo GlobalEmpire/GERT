@@ -1,4 +1,4 @@
--- GCU Core Component - Beta 1 
+-- GUS Core Component - Beta 1 
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -392,7 +392,7 @@ GERTUpdaterAPI.UninstallModule = function(moduleName)
     fs.remove(StoredPaths[moduleName])
     RemoveFromSafeList(moduleName)
     StoredPaths[moduleName] = nil
-    writeConfig(StoredPaths)
+    writeConfig(config,StoredPaths)
     return true
 end
 
