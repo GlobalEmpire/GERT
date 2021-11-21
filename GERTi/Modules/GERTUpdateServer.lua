@@ -56,9 +56,12 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
     end
     local versionHeader = ""
     local localCacheExists = fs.exists(storedPaths[moduleName])
+    local fileStorage = ""
     if localCacheExists then
         local file = io.open(storedPaths[moduleName], "r")
         versionHeader = file:read("*l")
+        fileStorage = versionHeader
+        fileStorage = fileStorage .. file:read("*a")
         file:close()
     end
     local completeRemoteURL = mainRemoteDirectory .. moduleName
@@ -75,10 +78,10 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
         if remoteVersionHeader ~= versionHeader then 
             local storageDrive = fs.get(storedPaths[moduleName])
             local remainingSpace = fs.size(storedPaths[moduleName]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
-            fileLen = string.len(tempFileDownload)
+            local fileLen = string.len(fileStorage)
             if fileLen < remainingSpace-200 then
                 local CacheFile = io.open(storedPaths[moduleName],"w")
-                CacheFile:write(tempFileDownload)
+                CacheFile:write(fileStorage)
                 CacheFile:close()
                 return true, -1, versionHeader -- this means that the file was downloaded
             else
@@ -130,7 +133,7 @@ local function HandleData(_,originAddress,connectionID,data)
                     updateSockets[originAddress]:write(false,errorState)
                 end
             elseif data[1][1] == "RequestCache" then
-                local success, information = pcall(GERTUpdaterAPI.SendCachedFile(originAddress,data[1][2]))
+                local success, information = pcall(SendCachedFile(originAddress,data[1][2]))
                 if not success then
                     event.push("GERTupdater Send Error", information)
                 end

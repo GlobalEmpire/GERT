@@ -315,9 +315,10 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             if information[1] ~= information[3] and information[4] ~= 0 then
                 local success, code = DownloadModuleToCache(fs.name(name),information[4])
                 if success then
-                    
                     resultTable[name] = table.pack(GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
-                    table.insert(resultTable[name],information) 
+                    for k,v in ipairs(information) do
+                        table.insert(resultTable[name],v)
+                    end
                 else
                     resultTable[name] = {success, code}
                 end
