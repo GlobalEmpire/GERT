@@ -19,6 +19,28 @@ local function CreateConfigFile ()
     file:close()
 end
 
+local function writeConfig (config,storedPaths)
+    local configFile = io.open(configPath,"w")
+    configFile:write(srl.serialize(config))
+    for name,path in pairs(storedPaths) do 
+        configFile:write("\n"..path)
+    end
+    configFile:close()
+end
+
+local function ParseConfig ()
+    local configFile = io.open(configPath, "r")
+    config = srl.unserialize(configFile:read("*l"))
+    local tempPath = configFile:read("*l")
+    while tempPath ~= "" do
+        storedPaths[fs.name(tempPath)] = tempPath
+        tempPath = configFile:read("*l")
+    end
+    configFile:close()
+    return config,storedPaths
+end
+
+
 if fs.exists(configPath) then
     local configFile = io.open(configPath,"r")
     config = srl.unserialize(configFile:read("*l"))
@@ -50,7 +72,28 @@ local function CloseSocket(_, originAddress,destAddress,ConnectionID)
     return true
 end
 
+GERTUpdaterAPI.SyncNewModule = function(moduleName,modulePath)
+    local config, storedPaths = ParseConfig()
+    if storedPaths[moduleName] then
+        return false, 4 -- 4 means module already installed. 
+    end
+    storedPaths[moduleName] = modulePath
+    writeConfig(config,storedPaths)
+end
+
+GERTUpdaterAPI.RemoveModule = function(moduleName)
+    local config, storedPaths = ParseConfig()
+    if not storedPaths[moduleName] then
+        return false
+    end
+    fs.remove(storedPaths[moduleName])
+    storedPaths[moduleName] = nil
+    writeConfig(config,storedPaths)
+    return true
+end
+
 GERTUpdaterAPI.CheckLatest = function(moduleName)
+    local config, storedPaths = ParseConfig()
     if not storedPaths[moduleName] then
         return false, 2 -- 2 means it is not set up to update this module
     end
@@ -99,6 +142,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
 end
 
 local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout
+    local config, storedPaths = ParseConfig()
     local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
     updateSockets[originAddress]:write(chunk)
@@ -121,6 +165,7 @@ end
 
 
 local function HandleData(_,originAddress,connectionID,data)
+    local config, storedPaths = ParseConfig()
     if connectionID == updatePort and updateSockets[originAddress] then
         data = updateSockets[originAddress]:read()
         if type(data[1]) == "table" then 

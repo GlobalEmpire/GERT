@@ -392,7 +392,7 @@ GERTUpdaterAPI.UninstallModule = function(moduleName)
     fs.remove(StoredPaths[moduleName])
     RemoveFromSafeList(moduleName)
     StoredPaths[moduleName] = nil
-    writeConfig(StoredPaths)
+    writeConfig(config,StoredPaths)
     return true
 end
 
