@@ -105,7 +105,7 @@ end
 
 GERTUpdaterAPI.GetLocalVersion = function(path)
     local versionHeader = ""
-    local localCacheExists = fs.exists(path) and fs.isDirectory(path)
+    local localCacheExists = fs.exists(path) and (not fs.isDirectory(path))
     if localCacheExists then
         local file = io.open(path, "r")
         versionHeader = file:read("*l")
