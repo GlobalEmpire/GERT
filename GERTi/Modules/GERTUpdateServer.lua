@@ -7,7 +7,7 @@ local srl = require("serialization")
 
 local updatePort = 941
 local updateSockets = {}
-local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/OC-Programs/master/GERTiModules/"
+local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/OC-Programs/master/"
 local configPath = "/etc/GERTUpdater.cfg"
 local config = {}
 local storedPaths = {}
@@ -23,6 +23,7 @@ local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
     configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do 
+        configFile:write("\n"..name)
         configFile:write("\n"..path)
     end
     configFile:close()
@@ -31,27 +32,15 @@ end
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.unserialize(configFile:read("*l"))
+    local tempName = configFile:read("*l")
     local tempPath = configFile:read("*l")
-    while tempPath ~= "" do
-        storedPaths[fs.name(tempPath)] = tempPath
+    while tempPath ~= "" and tempPath do
+        storedPaths[tempName] = tempPath
+        tempName = configFile:read("*l")
         tempPath = configFile:read("*l")
     end
     configFile:close()
     return config,storedPaths
-end
-
-
-if fs.exists(configPath) then
-    local configFile = io.open(configPath,"r")
-    config = srl.unserialize(configFile:read("*l"))
-    local tempPath = configFile:read("*l")
-    while tempPath ~= "" and tempPath ~= nil do
-        storedPaths[fs.name(tempPath)] = tempPath
-        tempPath = configFile:read("*l")
-    end
-    configFile:close()
-else
-    CreateConfigFile()
 end
 
 local function CompleteSocket(_,originAddress,connectionID)
@@ -61,7 +50,7 @@ local function CompleteSocket(_,originAddress,connectionID)
     return true
 end
 
-local function CloseSocket(_, originAddress,destAddress,ConnectionID)
+local function CloseSocket(_, originAddress,destAddress)
     if updateSockets[originAddress] then
         updateSockets[originAddress]:close()
         updateSockets[originAddress] = nil
@@ -103,8 +92,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
     if localCacheExists then
         local file = io.open(storedPaths[moduleName], "r")
         versionHeader = file:read("*l")
-        fileStorage = versionHeader
-        fileStorage = fileStorage .. file:read("*a")
+        fileStorage = versionHeader .. file:read("*a")
         file:close()
     end
     local completeRemoteURL = mainRemoteDirectory .. moduleName
@@ -145,8 +133,8 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
     local config, storedPaths = ParseConfig()
     local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
-    updateSockets[originAddress]:write(chunk)
-    while string.len(chunk) == 8000 do
+    while chunk do
+        updateSockets[originAddress]:write(chunk)
         local success = event.pull(10, "GERTData", originAddress, updatePort)
         if not success then
             updateSockets[originAddress]:close()
@@ -154,7 +142,6 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
             return false
         end
         chunk = fileToSend:read(8000)
-        updateSockets[originAddress]:write(chunk)
     end
     fileToSend:close()
     os.sleep(0.5)
@@ -162,7 +149,6 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
     updateSockets[originAddress] = nil
     return true
 end
-
 
 local function HandleData(_,originAddress,connectionID,data)
     local config, storedPaths = ParseConfig()
@@ -187,6 +173,11 @@ local function HandleData(_,originAddress,connectionID,data)
     end
 end
 
+if fs.exists(configPath) then
+    ParseConfig()
+else
+    CreateConfigFile()
+end
 
 GERTUpdaterAPI.listeners = {}
 

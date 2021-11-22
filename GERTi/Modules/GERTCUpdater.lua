@@ -2,7 +2,6 @@
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
-local internet = require("internet")
 local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
@@ -14,10 +13,10 @@ end
 local args, opts = shell.parse(...)
 local updatePort = 941
 local updateAddress = "GERTModules"
-local moduleFolder = "/usr/lib/"
+local moduleFolder = "/lib/"
 local cacheFolder = "/.moduleCache/"
 local config = {}
-local configPath = "/usr/lib/GERTUpdater.cfg"
+local configPath = "/etc/GERTUpdater.cfg"
 local storedPaths = {}
 local GERTUpdaterAPI = {}
 
@@ -34,9 +33,11 @@ end
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.unserialize(configFile:read("*l"))
+    local tempName = configFile:read("*l")
     local tempPath = configFile:read("*l")
-    while tempPath ~= "" do
-        storedPaths[fs.name(tempPath)] = tempPath
+    while tempPath ~= "" and tempPath do
+        storedPaths[tempName] = tempPath
+        tempName = configFile:read("*l")
         tempPath = configFile:read("*l")
     end
     configFile:close()
@@ -47,6 +48,7 @@ local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
     configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do 
+        configFile:write("\n"..name)
         configFile:write("\n"..path)
     end
     configFile:close()
