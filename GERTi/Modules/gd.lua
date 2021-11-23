@@ -10,7 +10,7 @@ local function Help()
   print("gd help - print this documentation")
   print("gd neigh - get network neighbors")
   print("gd ping [address] - attempt to ping [address]")
-  print("gd addr - get this computer's GERT address")
+  print("gd addr - get this computer's GERTi address")
 end
 
 if not arg then
@@ -44,5 +44,5 @@ elseif arg == "ping" then
     print("Ping Failed")
   end
 elseif arg == "addr" then
-  print("Your GERT Address is: " .. g.getAddress())
+  print("Your GERTi Address is: " .. g.getAddress())
 end
