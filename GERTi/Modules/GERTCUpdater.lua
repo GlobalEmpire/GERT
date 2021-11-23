@@ -20,17 +20,6 @@ local configPath = "/etc/GERTUpdater.cfg"
 local storedPaths = {}
 local GERTUpdaterAPI = {}
 
-local function waitWithCancel(timeout, cancelCheck)
-	local now = computer.uptime()
-	local deadline = now + timeout
-	while now < deadline do
-		event.pull(deadline - now, "modem_message")
-		local response = cancelCheck()
-		if response then return end
-		now = computer.uptime()
-	end
-end
-
 local function eventBeep (freq,rep)
     return function () computer.beep(freq,rep) end
 end
@@ -129,33 +118,36 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
-        return false, 0 -- 1 means moduleName not provided or invalid type
+        return false, 0 -- 0 means moduleName not provided or invalid type
     end
     if not socket then
         hadSocket = false
         socket = GERTi.openSocket(updateAddress,updatePort)
-        waitWithCancel(5, function () return (socket) end)
-        if not socket then
-            return false, -1 -- 1 means could not establish socket
+        local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
+        if not serverPresence then
+            if not hadSocket then
+                socket:close()
+            end
+            return false, -1 -- -1 means could not establish socket
         end
     end
     socket:write("ModuleUpdate",moduleName)
-    waitWithCancel(5, function () return (socket:read("-k")~={}) end)
-    if not (socket:read("-k")~={}) then
+    local response = event.pullFiltered(5,function (event) return event=="modem_message" and #socket:read("-k")~=0 end)
+    if not response then
         if not hadSocket then
             socket:close()
         end
-        return false, -2 -- 2 means timeout
+        return false, -2 -- -2 means timeout
     end
     local data = socket:read()
     if type(data[1]) == "table" then 
         if data[1][1] == "U.RequestReceived" then
-            waitWithCancel(5, function () return (socket:read("-k")~={}) end)
-            if not (socket:read("-k")~={}) then
+            local response = event.pullFiltered(5,function (event) return event=="modem_message" and #socket:read("-k")~=0 end)
+            if not response then
                 if not hadSocket then
                     socket:close()
                 end            
-                return false, -2 -- 2 means timeout
+                return false, -2 -- -2 means timeout
             else
                 data = socket:read()
                 if type(data[1]) == "table" then
@@ -175,20 +167,20 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                     if not hadSocket then
                         socket:close()
                     end                
-                    return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
+                    return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
                 end
             end
         else
             if not hadSocket then
                 socket:close()
             end
-            return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
+            return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
         end
     else
         if not hadSocket then
             socket:close()
         end
-        return false, -3, data[1] -- 3 means unknown error, passing back unexpected output
+        return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
     end
 end
 
@@ -196,9 +188,10 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     moduleName = moduleName or storedPaths
     local infoTable = {}
     local socket = GERTi.openSocket(updateAddress,updatePort)
-    waitWithCancel(5, function () return (socket) end)
-    if not socket then 
-        return false, 1 -- 1 means No Response From Address
+    local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
+    if not serverPresence then
+        socket:close()
+        return false, 1 -- 1 means could not establish socket
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in pairs(moduleName) do
@@ -240,24 +233,25 @@ local function DownloadModuleToCache (moduleName,remoteSize)
         return false, 3 -- 3 means insufficient space for update
     end
     local socket = GERTi.openSocket(updateAddress,updatePort)
-    waitWithCancel(5, function () return (socket) end)
-    if not socket then 
-        return false, 1 -- 1 means No Response From Address
+    local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
+    if not serverPresence then
+        socket:close()
+        return false, 1 -- 1 means could not establish socket
     end
     local file = io.open(cacheFolder .. moduleName, "wb")
-    local loop = true
-    while loop do
+    local loop = false
+    repeat
         socket:write("RequestCache",moduleName)
         local response = event.pullFiltered(10, DownloadFilter)
         if not response then
             socket:close()
             return false, 2 -- 2 means timeout
         elseif response == "GERTConnectionClose" then
-            loop = false
+            loop = true
         else
             file:write(socket:read()[1])
         end
-    end
+    until loop
     socket:close()
     file:close()
     if fs.size(file) == remoteSize then

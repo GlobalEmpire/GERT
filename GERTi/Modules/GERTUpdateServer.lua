@@ -7,7 +7,7 @@ local srl = require("serialization")
 
 local updatePort = 941
 local updateSockets = {}
-local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/OC-Programs/master/"
+local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
 local config = {}
 local storedPaths = {}
@@ -32,12 +32,18 @@ end
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.unserialize(configFile:read("*l"))
-    local tempName = configFile:read("*l")
-    local tempPath = configFile:read("*l")
-    while tempPath ~= "" and tempPath do
-        storedPaths[tempName] = tempPath
-        tempName = configFile:read("*l")
-        tempPath = configFile:read("*l")
+    local lineData = configFile:read("*l")
+    while lineData ~= "" do
+        local temporaryDataTable = {}
+        for element in string.gmatch(lineData, "([^".."|".."]+)") do
+            table.insert(temporaryDataTable,element)
+        end
+        if #temporaryDataTable > 1 then
+            storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[2]
+        else
+            storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[1]
+        end
+        lineData = configFile:read("*l")
     end
     configFile:close()
     return config,storedPaths
@@ -105,7 +111,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
         return fullFile
     end)
     if success then
-        local remoteVersionHeader = fullFile:gmatch("[^\n]+")
+        local remoteVersionHeader = fullFile:gmatch("[^\n]+")()
         if remoteVersionHeader ~= versionHeader then 
             local storageDrive = fs.get(storedPaths[moduleName])
             local remainingSpace = fs.size(storedPaths[moduleName]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
