@@ -1,4 +1,4 @@
--- GERT v1.5 Build 9
+-- GERTi Client v1.5 Build 10
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -150,6 +150,7 @@ local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
 	end
 end
 handler.OpenRoute = function (receiveM, sendM, port, dest, intermediary, origin, ID)
+	ID = math.floor(ID)
 	if cPend[dest.."|"..origin.."|"..ID] then
 		local nextHop = tonumber(string.sub(intermediary, 1, string.find(intermediary, "|")-1))
 		intermediary = string.sub(intermediary, string.find(intermediary, "|")+1)
@@ -234,7 +235,7 @@ local function writeData(self, ...)
 	self.order=self.order+1
 end
 local function readData(self, flags)
-	if connections[self.inDex] and connections[self.inDex]["data"][1] then
+	if connections[self.inDex] and connections[self.inDex]["data"][1] ~= nil then
 		local data = connections[self.inDex]["data"]
 		flags = flags or ""
 		if not string.find(flags, "-k") then
@@ -266,6 +267,8 @@ function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
 	if type(gAddress) == "string" or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
 		gAddress = DNSCache[gAddress] or GERTi.resolveDNS(gAddress)
+	elseif gAddress == 0 then
+		gAddress = "0.0"
 	end
 	if not gAddress then
 		return false
@@ -314,8 +317,12 @@ function GERTi.resolveDNS(remoteHost)
 	if modules["DNS"] then
 		DNSSocket:write("DNSResolve", remoteHost)
 		waitWithCancel(3, function () return (DNSSocket:read("-k")) end)
-		DNSCache[remoteHost] = DNSSocket:read()[1]
-		return DNSCache[remoteHost]
+		if DNSSocket:read("-k") then
+			DNSCache[remoteHost] = DNSSocket:read()[1]
+			return DNSCache[remoteHost]
+		else
+			return nil 
+		end
 	else
 		return nil
 	end

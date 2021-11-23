@@ -2,13 +2,13 @@
 ## Configuration files for both programs. They are created on each run if they do not exist.
  **For GERTUpdateServer.lua:** Located at `"/etc/GERTUpdater.cfg"`<br>
   The first line is a serialized table of config options for the program. For now, it will always be empty because there are no config options. This is for future options.<br>
- All remaining lines designate paths for modules. The program resolves the module name from the path, and this path is assumed to be absolute: *ensure that it leads with a / and ends with the extension of the module.*<br>
+ All remaining lines designate paths for modules. Each module will occupy a pair of two lines. The first line will contain the name of the module and is used to access the module on GitHub. For example, GERTiClient.lua, or Modules/DNS.lua. The second line is the file path on the local machine where the module will be stored, and this path is assumed to be absolute: *ensure that it leads with a / and ends with the extension of the module.*<br>
  Each line contains a module path, and the filename resolved using fs.name() is considered the module name.
  >As it stands, it is not possible to add or remove new modules through the API, they must be added manually into this file. This is a future feature, but one considered less integral to the program's function, so I have delayed adding it.
 
  **For GERTCUpdater.lua:** Located at `"/usr/lib/GERTUpdater.cfg"`<br>
  The first line is a serialized table of config options for the program. As of right now, the only option is "AutoUpdate", which is false by default. If true, the program will install updates as soon as it receives the event from the concerned program that it is ready to install its update. More details on this behaviour later.<br>
- The rest is identical to `GERTUpdateServer.lua`, each line is a path.
+ The rest is identical to `GERTUpdateServer.lua`, each pair of lines is a name and path.
  >It **is** possible to add and remove modules through the API by calling `InstallNewModule()` and `RemoveModule()`.
 
  **Cache File:** This is used by `GERTCUpdater.lua` and `SafeUpdater.lua` to safe updates between power loss. It is located under `"/.SafeUpdateCache.srl"` at the root directory.<br>
@@ -61,7 +61,7 @@ Accepts one variable: a `path`.
 ### **`GCU.GetRemoteVersion(moduleName,socket):`**
 This function requests the `versionHeader` of `moduleName` from the update server.<br>
 Accepts two variables: `moduleName` and `socket`.
-- `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
+- `moduleName` is the name of the module, which will frequently begin with Modules/ if it is not part of a base GERTi installation (f.e. Modules/DNS.lua).
 - `socket` can be provided to cause the function to piggyback off of an existing socket. Useful for advanced users, who might have multiple program update servers. For your own safety, it is recommended to pcall() this function if a custom socket is used as the function assumes a valid socket and cannot handle an invalid socket object. **This feature is not yet standard in all functions, this will change eventually.**
 
 
@@ -84,7 +84,7 @@ If the function fails, it returns 2 parameters:
 ### **`GCU.CheckForUpdate(moduleName):`**
 Returns information about the module/modules provided.<br>
 Accepts one variable: `moduleName`.
-- `moduleName` is the name of the module. Any function that requires `moduleName` can also be passed the full path: it will sanitise the input into a `moduleName`.
+- `moduleName` is the name of the module, which will frequently begin with Modules/ if it is not part of a base GERTi installation (f.e. Modules/DNS.lua).
 - Alternatively, you can pass a `table` in the format of `table.[moduleName]=modulePath` and the function will evaluate each module and its provided path.
 - **Passing nothing to the function will make the function evaluate every module set in the configuration file.**
 

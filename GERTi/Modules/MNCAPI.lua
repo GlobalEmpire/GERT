@@ -1,8 +1,9 @@
--- GERT v1.5 Build 9
+-- GERTi API v1.5 Build 10
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
+local filesystem = require("filesystem")
 local serialize = require("serialization")
 local mTable, tTable, nodes, connections, cPend
 local iAdd = 0.0
@@ -207,6 +208,9 @@ function MNCAPI.loadTables(nTable, cTable, cPTable)
 	nodes = nTable
 	connections = cTable
 	cPend = cPTable
+	if filesystem.exists("/etc/rc.d/DNS.lua") then
+		DNSSocket = MNCAPI.openSocket(0.0, 53)
+	end
 	print("MNCAPI Loaded")
 end
 function MNCAPI.registerNetworkService(name, port)
