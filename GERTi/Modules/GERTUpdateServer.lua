@@ -9,9 +9,15 @@ local updatePort = 941
 local updateSockets = {}
 local mainRemoteDirectory = "https://raw.githubusercontent.com/leothehero/GERT/Development/GERTi/Modules/" --"https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
+local defaultModulePath = "/usr/lib/"
 local config = {}
 local storedPaths = {}
 local GERTUpdaterAPI = {}
+
+if not fs.isDirectory(defaultModulePath) then
+    fs.makeDirectory(defaultModulePath)
+end
+
 
 local function CreateConfigFile ()
     local file = io.open(configPath, "w")
@@ -69,6 +75,10 @@ end
 
 GERTUpdaterAPI.SyncNewModule = function(moduleName,modulePath)
     local config, storedPaths = ParseConfig()
+    moduleName = fs.name(moduleName)
+    if not modulePath then
+        modulePath = defaultModulePath..moduleName
+    end
     if storedPaths[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
