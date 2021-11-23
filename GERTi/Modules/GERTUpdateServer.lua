@@ -7,7 +7,7 @@ local srl = require("serialization")
 
 local updatePort = 941
 local updateSockets = {}
-local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
+local mainRemoteDirectory = "https://raw.githubusercontent.com/leothehero/GERT/Development/GERTi/Modules/" --"https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
 local config = {}
 local storedPaths = {}
@@ -22,7 +22,7 @@ end
 local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
     configFile:write(srl.serialize(config))
-    for name,path in pairs(storedPaths) do 
+    for name,path in pairs(storedPaths) do
         configFile:write("\n"..name)
         configFile:write("\n"..path)
     end
