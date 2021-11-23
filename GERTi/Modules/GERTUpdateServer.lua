@@ -37,9 +37,9 @@ local function writeConfig (config,storedPaths)
     storedPaths["GERTiClient.lua"] = nil
     storedPaths["MNCAPI.lua"] = nil
     storedPaths["GERTiMNC.lua"] = nil
-    configFile:write(srl.serialize(config))
+    configFile:write(srl.serialize(config) .. "\n")
     for name,path in pairs(storedPaths) do
-        configFile:write(name .. "|" .. path)
+        configFile:write(name .. "|" .. path .. "\n")
     end
     configFile:close()
 end
