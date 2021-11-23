@@ -31,10 +31,12 @@ end
 
 local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
+    storedPaths["GERTiClient.lua"] = nil
+    storedPaths["MNCAPI.lua"] = nil
+    storedPaths["GERTiMNC.lua"] = nil
     configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do
-        configFile:write("\n"..name)
-        configFile:write("\n"..path)
+        configFile:write(name .. "|" .. path)
     end
     configFile:close()
 end
@@ -55,6 +57,7 @@ local function ParseConfig ()
         end
         storedPaths["GERTiMNC.lua"] = "/etc/rc.d/GERTiMNC.lua"
         storedPaths["GERTiClient.lua"] = "/modules/GERTiClient.lua"
+        storedPaths["MNCAPI.lua"] = "/lib/GERTiClient.lua"
         lineData = configFile:read("*l")
     end
     configFile:close()
@@ -90,6 +93,7 @@ GERTUpdaterAPI.SyncNewModule = function(moduleName,modulePath)
     end
     storedPaths[moduleName] = modulePath
     writeConfig(config,storedPaths)
+    return true
 end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
