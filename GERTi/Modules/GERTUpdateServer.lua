@@ -37,6 +37,7 @@ local function writeConfig (config,storedPaths)
     storedPaths["GERTiClient.lua"] = nil
     storedPaths["MNCAPI.lua"] = nil
     storedPaths["GERTiMNC.lua"] = nil
+    storedPaths["GERTUpdateServer.lua"] = storedPaths["GERTUpdateServer.lua"] or "/usr/lib/GERTUpdateServer.lua"
     configFile:write(srl.serialize(config) .. "\n")
     for name,path in pairs(storedPaths) do
         configFile:write(name .. "|" .. path .. "\n")
@@ -101,7 +102,7 @@ end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
     local config, storedPaths = ParseConfig()
-    if not storedPaths[moduleName] or moduleName == "GERTiMNC.lua" or moduleName == "GERTiClient.lua" then
+    if not storedPaths[moduleName] or moduleName == "GERTiMNC.lua" or moduleName == "GERTiClient.lua" or moduleName == "MNCAPI.lua" or moduleName == "GERTUpdateServer.lua" then
         return false
     end
     fs.remove(storedPaths[moduleName])
@@ -125,6 +126,9 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
         file:close()
     end
     local completeRemoteURL = mainRemoteDirectory .. moduleName
+    if moduleName == "GERTiMNC.lua" or moduleName == "GERTiClient.lua" then
+        completeRemoteURL = mainRemoteDirectory .. "../" .. moduleName
+    end
     local success, fullFile = pcall(function() 
         local remoteFile = internet.request(completeRemoteURL)
         local fullFile = ""
