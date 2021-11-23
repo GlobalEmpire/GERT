@@ -22,11 +22,14 @@ if not fs.isDirectory(unloadableModulePath) then
     fs.makeDirectory(unloadableModulePath)
 end
 
-
 local function CreateConfigFile ()
     local file = io.open(configPath, "w")
     file:write(srl.serialize(config))
     file:close()
+end
+
+if not fs.exists(configPath) then
+    CreateConfigFile()
 end
 
 local function writeConfig (config,storedPaths)
@@ -45,7 +48,7 @@ local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     config = srl.unserialize(configFile:read("*l"))
     local lineData = configFile:read("*l")
-    while lineData ~= "" do
+    while lineData ~= "" and lineData ~= nil do
         local temporaryDataTable = {}
         for element in string.gmatch(lineData, "([^".."|".."]+)") do
             table.insert(temporaryDataTable,element)
