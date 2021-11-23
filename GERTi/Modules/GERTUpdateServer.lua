@@ -9,13 +9,17 @@ local updatePort = 941
 local updateSockets = {}
 local mainRemoteDirectory = "https://raw.githubusercontent.com/leothehero/GERT/Development/GERTi/Modules/" --"https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
-local defaultModulePath = "/usr/lib/"
+local loadableModulePath = "/usr/lib/"
+local unloadableModulePath = "/modules/"
 local config = {}
 local storedPaths = {}
 local GERTUpdaterAPI = {}
 
-if not fs.isDirectory(defaultModulePath) then
-    fs.makeDirectory(defaultModulePath)
+if not fs.isDirectory(loadableModulePath) then
+    fs.makeDirectory(loadableModulePath)
+end
+if not fs.isDirectory(unloadableModulePath) then
+    fs.makeDirectory(unloadableModulePath)
 end
 
 
@@ -49,6 +53,8 @@ local function ParseConfig ()
         else
             storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[1]
         end
+        storedPaths["GERTiMNC.lua"] = "/etc/rc.d/GERTiMNC.lua"
+        storedPaths["GERTiClient.lua"] = "/modules/GERTiClient.lua"
         lineData = configFile:read("*l")
     end
     configFile:close()
@@ -77,7 +83,7 @@ GERTUpdaterAPI.SyncNewModule = function(moduleName,modulePath)
     local config, storedPaths = ParseConfig()
     moduleName = fs.name(moduleName)
     if not modulePath then
-        modulePath = defaultModulePath..moduleName
+        modulePath = loadableModulePath..moduleName
     end
     if storedPaths[moduleName] then
         return false, 4 -- 4 means module already installed. 
@@ -88,7 +94,7 @@ end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
     local config, storedPaths = ParseConfig()
-    if not storedPaths[moduleName] then
+    if not storedPaths[moduleName] or moduleName == "GERTiMNC.lua" or moduleName == "GERTiClient.lua" then
         return false
     end
     fs.remove(storedPaths[moduleName])
