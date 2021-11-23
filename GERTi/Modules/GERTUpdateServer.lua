@@ -58,11 +58,11 @@ local function ParseConfig ()
         else
             storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[1]
         end
-        storedPaths["GERTiMNC.lua"] = "/etc/rc.d/GERTiMNC.lua"
-        storedPaths["GERTiClient.lua"] = "/modules/GERTiClient.lua"
-        storedPaths["MNCAPI.lua"] = "/lib/GERTiClient.lua"
         lineData = configFile:read("*l")
     end
+    storedPaths["GERTiMNC.lua"] = "/etc/rc.d/GERTiMNC.lua"
+    storedPaths["GERTiClient.lua"] = "/modules/GERTiClient.lua"
+    storedPaths["MNCAPI.lua"] = "/lib/GERTiClient.lua"
     configFile:close()
     return config,storedPaths
 end
