@@ -121,8 +121,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
     local fileStorage = ""
     if localCacheExists then
         local file = io.open(storedPaths[moduleName], "r")
-        versionHeader = file:read("*l")
-        fileStorage = versionHeader .. file:read("*a")
+        versionHeader = tostring(file:read("*l"))
         file:close()
     end
     local completeRemoteURL = mainRemoteDirectory .. moduleName
@@ -142,10 +141,10 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
         if remoteVersionHeader ~= versionHeader then 
             local storageDrive = fs.get(storedPaths[moduleName])
             local remainingSpace = fs.size(storedPaths[moduleName]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
-            local fileLen = string.len(fileStorage)
+            local fileLen = string.len(fullFile)
             if fileLen < remainingSpace-200 then
                 local CacheFile = io.open(storedPaths[moduleName],"w")
-                CacheFile:write(fileStorage)
+                CacheFile:write(fullFile)
                 CacheFile:close()
                 return true, -1, versionHeader -- this means that the file was downloaded
             else
