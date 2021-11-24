@@ -34,6 +34,7 @@ local function ParseConfig ()
     config = srl.unserialize(configFile:read("*l"))
     local tempName = configFile:read("*l")
     local tempPath = configFile:read("*l")
+    local storedPaths = {}
     while tempPath ~= "" and tempPath do
         storedPaths[tempName] = tempPath
         tempName = configFile:read("*l")
@@ -410,7 +411,7 @@ GERTUpdaterAPI.AutoUpdate = function()
 end
 
 GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
-    config,storedPaths = ParseConfig()
+    local config,storedPaths = ParseConfig()
     config[setting] = newValue
     local configFile = io.open(configPath,"r")
     local _ = configFile:read("*l")
