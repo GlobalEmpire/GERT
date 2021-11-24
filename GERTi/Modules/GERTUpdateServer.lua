@@ -147,7 +147,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
                 local CacheFile = io.open(storedPaths[moduleName],"w")
                 CacheFile:write(fullFile)
                 CacheFile:close()
-                return true, -1, versionHeader -- this means that the file was downloaded
+                return true, -1, remoteVersionHeader -- this means that the file was downloaded
             else
                 return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
             end
