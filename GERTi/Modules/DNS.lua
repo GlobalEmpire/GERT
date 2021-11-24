@@ -1,4 +1,4 @@
--- DNS v1.5 Build 10
+-- DNS v1.5 Build 11
 local event = require("event")
 local filesystem = require("filesystem")
 local MNCAPI
@@ -41,6 +41,10 @@ end
 
 function start()
     if filesystem.exists("/lib/GERTiClient.lua") then
+		while not package.loaded["GERTiClient"] do
+			os.sleep(1)
+		end
+		os.sleep(1)
 		MNCAPI = require("GERTiClient")
     else
         return
