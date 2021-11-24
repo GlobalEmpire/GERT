@@ -153,7 +153,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                 data = socket:read()
                 if type(data[1]) == "table" then
                     if data[1][1] == true then
-                        size, state, version = data[1][2], data[1][3] or 0, data[1][4] or ""
+                        size, state, version = data[1][2], data[1][3], data[1][4]
                         if not hadSocket then
                             socket:close()
                         end                    
@@ -162,7 +162,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                         if not hadSocket then
                             socket:close()
                         end
-                        return false, -4, size -- -4 means Server Responded False
+                        return false, -4, data[1][2] -- -4 means Server Responded False
                     end
                 else
                     if not hadSocket then
@@ -284,7 +284,6 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
             local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
             if not success then
-                print(1)
                 return success, 1, infoTable
             end
         end
