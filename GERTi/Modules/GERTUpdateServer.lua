@@ -214,14 +214,16 @@ end
 GERTUpdaterAPI.listeners = {}
 
 GERTUpdaterAPI.StartHandlers = function()
-    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket)
-    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket)
-    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData)    
+    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.listen("GERTConnectionID",CompleteSocket) or GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID
+    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.listen("GERTConnectionClose",CloseSocket) or GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID
+    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.listen("GERTData",HandleData) or GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID
+    return GERTUpdaterAPI.listeners
 end
 GERTUpdaterAPI.StopHandlers = function()
-    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.ignore("GERTConnectionID",CompleteSocket)
-    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.ignore("GERTConnectionClose",CloseSocket)
-    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.ignore("GERTData",HandleData)
+    GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID = event.ignore("GERTConnectionID",CompleteSocket) or GERTUpdaterAPI.listeners.GERTUpdateSocketOpenerID
+    GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID = event.ignore("GERTConnectionClose",CloseSocket) or GERTUpdaterAPI.listeners.GERTUpdateSocketCloserID
+    GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID = event.ignore("GERTData",HandleData) or GERTUpdaterAPI.listeners.GERTUpdateSocketHandlerID
+    return GERTUpdaterAPI.listeners
 end
 
 GERTUpdaterAPI.StartHandlers()
