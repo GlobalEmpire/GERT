@@ -126,7 +126,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
         if not serverPresence then
             if not hadSocket then
-                socket:close()
+                if socket then socket:close() end
             end
             return false, -1 -- -1 means could not establish socket
         end
@@ -190,7 +190,7 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local socket = GERTi.openSocket(updateAddress,updatePort)
     local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
     if not serverPresence then
-        socket:close()
+        if socket then socket:close() end
         return false, 1 -- 1 means could not establish socket
     end
     if type(moduleName) == "table" then
@@ -283,6 +283,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
             local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
             if not success then
+                print(1)
                 return success, 1, infoTable
             end
         end
