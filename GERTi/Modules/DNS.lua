@@ -41,6 +41,10 @@ end
 
 function start()
     if filesystem.exists("/lib/GERTiClient.lua") then
+		while not package.loaded["GERTiClient"] do
+			os.sleep(1)
+		end
+		os.sleep(1)
 		MNCAPI = require("GERTiClient")
     else
         return
