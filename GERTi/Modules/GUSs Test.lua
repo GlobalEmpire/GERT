@@ -80,10 +80,11 @@ print(srl.serialize(CLT))
 ----
 
 print("Listener Handler Check")
-print(GUS.listeners)
-print(GUS.StartHandlers())
-print(GUS.StartHandlers())
-print(GUS.StopHandlers())
-print(GUS.StopHandlers())
-print(GUS.StartHandlers())
-print(GUS.StartHandlers())
+print(srl.serialize(GUS.listeners))
+print(srl.serialize(GUS.StartHandlers()))
+print(srl.serialize(GUS.StartHandlers()))
+print(srl.serialize(GUS.StopHandlers()))
+print(srl.serialize(GUS.StopHandlers()))
+print(srl.serialize(GUS.StartHandlers()))
+print(srl.serialize(GUS.StartHandlers()))
+
