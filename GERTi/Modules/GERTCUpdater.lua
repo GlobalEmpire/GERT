@@ -1,4 +1,4 @@
--- GUS Core Component - Beta 1
+-- GUS Core Component - Beta 1.1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -17,7 +17,6 @@ local moduleFolder = "/lib/"
 local cacheFolder = "/.moduleCache/"
 local config = {}
 local configPath = "/etc/GERTUpdater.cfg"
-local storedPaths = {}
 local GERTUpdaterAPI = {}
 
 local function eventBeep (freq,rep)
@@ -186,6 +185,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
 end
 
 GERTUpdaterAPI.CheckForUpdate = function (moduleName)
+    local config, storedPaths = ParseConfig()
     moduleName = moduleName or storedPaths
     local infoTable = {}
     local socket = GERTi.openSocket(updateAddress,updatePort)
@@ -282,6 +282,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     end
     if type(moduleName) == "string" then
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
+            print(moduleName)
             local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
             if not success then
                 return success, 1, infoTable
@@ -380,6 +381,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     if parsedData[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
+    print(moduleName)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
         parsedData[moduleName] = moduleFolder .. "moduleName"
