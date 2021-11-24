@@ -123,7 +123,8 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     if not socket then
         hadSocket = false
         socket = GERTi.openSocket(updateAddress,updatePort)
-        local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
+        local serverPresence = false
+        if socket then serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end) end
         if not serverPresence then
             if not hadSocket then
                 if socket then socket:close() end
