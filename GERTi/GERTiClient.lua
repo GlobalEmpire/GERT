@@ -1,4 +1,4 @@
--- GERTi Client v1.5 Build 10
+-- GERTi Client v1.5 Build 11
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -337,7 +337,7 @@ function GERTi.getAddress()
 	return iAdd
 end
 function GERTi.getAllServices()
-	MNCSocket:write("Identify Services")
+	MNCSocket:write("List Services")
 	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
 	return MNCSocket:read()
 end
