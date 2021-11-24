@@ -70,6 +70,7 @@ end
 
 local function CompleteSocket(_,originAddress,connectionID)
     if connectionID == updatePort then
+        os.sleep()
         updateSockets[originAddress] = GERTi.openSocket(originAddress,connectionID)
     end
     return true
