@@ -12,7 +12,7 @@ end
 
 local args, opts = shell.parse(...)
 local updatePort = 941
-local updateAddress = "MNC"
+local updateAddress = 0.0
 local moduleFolder = "/lib/"
 local cacheFolder = "/.moduleCache/"
 local config = {}
@@ -162,7 +162,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                         if not hadSocket then
                             socket:close()
                         end
-                        return false, size
+                        return false, -4, size -- -4 means Server Responded False
                     end
                 else
                     if not hadSocket then
