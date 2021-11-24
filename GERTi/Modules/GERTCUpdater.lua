@@ -13,7 +13,7 @@ end
 local args, opts = shell.parse(...)
 local updatePort = 941
 local updateAddress = 0.0
-local moduleFolder = "/lib/"
+local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local config = {}
 local configPath = "/etc/GERTUpdater.cfg"
@@ -275,7 +275,7 @@ GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhen
 end
 
 GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
-    if not moduleName then 
+    if not moduleName then
         config, moduleName = ParseConfig()
     end
     if InstallWhenReady == nil then 
@@ -382,11 +382,10 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     if parsedData[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
-    print(moduleName)
+    parsedData[moduleName] = moduleFolder .. "moduleName"
+    writeConfig(config,parsedData)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
-        parsedData[moduleName] = moduleFolder .. "moduleName"
-        writeConfig(config,parsedData)
         AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
