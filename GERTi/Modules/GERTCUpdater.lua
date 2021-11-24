@@ -281,10 +281,10 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
     end
+    local success
     if type(moduleName) == "string" then
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
-            print(moduleName)
-            local success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+            success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
             if not success then
                 return success, 1, infoTable
             end
