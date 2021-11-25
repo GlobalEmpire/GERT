@@ -12,7 +12,7 @@ end
 
 local args, opts = shell.parse(...)
 local updatePort = 941
-local updateAddress = 0.0
+local updateAddress = "MNC"
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
