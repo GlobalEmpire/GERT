@@ -376,15 +376,16 @@ end
 
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
-    local config, parsedData = ParseConfig()
-    if parsedData[moduleName] then
+    print(moduleName)
+    local config, storedPaths = ParseConfig()
+    if storedPaths[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
-    parsedData[moduleName] = moduleFolder .. "moduleName"
-    writeConfig(config,parsedData)
+    storedPaths[moduleName] = moduleFolder .. "moduleName"
+    writeConfig(config,storedPaths)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
-        AddToSafeList(moduleName,parsedData[moduleName],cacheFolder .. moduleName,false)
+        AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
         return result
