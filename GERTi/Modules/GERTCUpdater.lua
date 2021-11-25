@@ -128,6 +128,9 @@ if not fs.isDirectory(cacheFolder) then
 end
 
 GERTUpdaterAPI.GetLocalVersion = function(path)
+    if path == nil then
+        return false, INVALIDARGUMENT
+    end
     local versionHeader = ""
     local localCacheExists = fs.exists(path) and (not fs.isDirectory(path))
     if localCacheExists then
