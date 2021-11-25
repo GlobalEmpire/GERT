@@ -1,4 +1,4 @@
--- GUS Core Component |Beta 1.2.1
+-- GUS Core Component |Beta 1.2.2
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -52,14 +52,20 @@ end
 
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
-    config = srl.unserialize(configFile:read("*l"))
-    local tempName = configFile:read("*l")
-    local tempPath = configFile:read("*l")
+    local config = srl.unserialize(configFile:read("*l"))
+    local lineData = configFile:read("*l")
     local storedPaths = {}
-    while tempPath ~= "" and tempPath do
-        storedPaths[tempName] = tempPath
-        tempName = configFile:read("*l")
-        tempPath = configFile:read("*l")
+    while lineData ~= "" and lineData ~= nil do
+        local temporaryDataTable = {}
+        for element in string.gmatch(lineData, "([^".."|".."]+)") do
+            table.insert(temporaryDataTable,element)
+        end
+        if #temporaryDataTable > 1 then
+            storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[2]
+        else
+            storedPaths[fs.name(temporaryDataTable[1])] = temporaryDataTable[1]
+        end
+        lineData = configFile:read("*l")
     end
     configFile:close()
     return config,storedPaths
@@ -68,9 +74,8 @@ end
 local function writeConfig (config,storedPaths)
     local configFile = io.open(configPath,"w")
     configFile:write(srl.serialize(config))
-    for name,path in pairs(storedPaths) do 
-        configFile:write("\n"..name)
-        configFile:write("\n"..path)
+    for name,path in pairs(storedPaths) do
+        configFile:write("\n" ..name .. "|" .. path)
     end
     configFile:close()
 end
@@ -250,7 +255,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     end
     local storageDrive = fs.get(cacheFolder .. moduleName)
     local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
-    if remoteSize > remainingSpace - 200 then
+    if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for update
     end
     local socket = GERTi.openSocket(updateAddress,updatePort)
