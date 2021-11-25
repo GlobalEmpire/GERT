@@ -94,9 +94,7 @@ end
 
 if not fs.exists(configPath) then -- Creates the config file if it does not exist
     config["AutoUpdate"] = false
-    writeConfig(config,storedPaths)
-else
-    config,storedPaths = ParseConfig()
+    writeConfig(config,{})
 end
 
 if not fs.isDirectory(cacheFolder) then
@@ -256,7 +254,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     until loop
     socket:close()
     file:close()
-    if fs.size(file) == remoteSize then
+    if fs.size(cacheFolder .. moduleName) == remoteSize then
         return true
     else
         return false, 4 -- 4 means connection interrupted
@@ -395,6 +393,7 @@ end
 
 GERTUpdaterAPI.UninstallModule = function(moduleName)
     local config, StoredPaths = ParseConfig()
+     moduleName = fs.name(moduleName)
     if not StoredPaths[moduleName] then
         return false
     end
