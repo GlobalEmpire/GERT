@@ -444,6 +444,7 @@ GERTUpdaterAPI.UninstallModule = function(moduleName)
 end
 
 GERTUpdaterAPI.AutoUpdate = function()
+    local config,storedPaths = ParseConfig()
     return config["AutoUpdate"]
 end
 
