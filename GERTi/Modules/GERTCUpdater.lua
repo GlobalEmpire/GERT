@@ -263,7 +263,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     local loop = false
     repeat
         socket:write("RequestCache",moduleName) 
-        local response = event.pullFiltered(10, DownloadFilter)
+        local response = event.pullFiltered(5, DownloadFilter)
         if not response then
             socket:close()
             return false, TIMEOUT -- 2 means timeout
