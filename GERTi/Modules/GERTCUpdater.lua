@@ -455,7 +455,7 @@ GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
     local tempConfig = configFile:read("*a")
     configFile:close()
     local configFile = io.open(configPath,"w")
-    configFile:write(srl.unserialize(config) .. "\n")
+    configFile:write(srl.serialize(config) .. "\n")
     configFile:write(tempConfig)
     configFile:close()
     return true
