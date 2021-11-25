@@ -1,4 +1,4 @@
--- GUS Core Component - Beta 1.2
+-- GUS Core Component |Beta 1.2.1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -18,6 +18,27 @@ local cacheFolder = "/.moduleCache/"
 local config = {}
 local configPath = "/etc/GERTUpdater.cfg"
 local GERTUpdaterAPI = {}
+
+--Error Codes
+local INVALIDARGUMENT = 0
+local NOSOCKET = -1
+local TIMEOUT = -2
+local NOSPACE = -3
+local INTERRUPTED = -4
+local NOLOCALFILE = -5
+local UNKNOWN = -6
+local SERVERRESPONSEFALSE = -7
+
+local UPTODATE = -10
+
+
+--Op Codes
+local ALLGOOD = 0
+
+local ALREADYINSTALLED = 10
+
+
+
 
 local function eventBeep (freq,rep)
     return function () computer.beep(freq,rep) end
@@ -116,7 +137,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
-        return false, 0 -- 0 means moduleName not provided or invalid type
+        return false, INVALIDARGUMENT
     end
     if not socket then
         hadSocket = false
@@ -127,7 +148,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
             if not hadSocket then
                 if socket then socket:close() end
             end
-            return false, -1 -- -1 means could not establish socket
+            return false, NOSOCKET
         end
     end
     socket:write("ModuleUpdate",moduleName)
@@ -136,7 +157,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
         if not hadSocket then
             socket:close()
         end
-        return false, -2 -- -2 means timeout
+        return false, TIMEOUT
     end
     local data = socket:read()
     if type(data[1]) == "table" then 
@@ -145,8 +166,8 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
             if not response then
                 if not hadSocket then
                     socket:close()
-                end            
-                return false, -2 -- -2 means timeout
+                end
+                return false, TIMEOUT
             else
                 data = socket:read()
                 if type(data[1]) == "table" then
@@ -160,26 +181,26 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
                         if not hadSocket then
                             socket:close()
                         end
-                        return false, -4, data[1][2] -- -4 means Server Responded False
+                        return false, SERVERRESPONSEFALSE, data[1][2]
                     end
                 else
                     if not hadSocket then
                         socket:close()
-                    end                
-                    return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
+                    end
+                    return false, UNKNOWN, data[1]
                 end
             end
         else
             if not hadSocket then
                 socket:close()
             end
-            return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
+            return false, UNKNOWN, data[1]
         end
     else
         if not hadSocket then
             socket:close()
         end
-        return false, -3, data[1] -- -3 means unknown error, passing back unexpected output
+        return false, UNKNOWN, data[1]
     end
 end
 
@@ -191,7 +212,7 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
     if not serverPresence then
         if socket then socket:close() end
-        return false, 1 -- 1 means could not establish socket
+        return false, NOSOCKET
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in pairs(moduleName) do
@@ -230,22 +251,22 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     local storageDrive = fs.get(cacheFolder .. moduleName)
     local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
     if remoteSize > remainingSpace - 200 then
-        return false, 3 -- 3 means insufficient space for update
+        return false, NOSPACE -- insufficient space for update
     end
     local socket = GERTi.openSocket(updateAddress,updatePort)
     local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
     if not serverPresence then
         socket:close()
-        return false, 1 -- 1 means could not establish socket
+        return false, NOSOCKET
     end
     local file = io.open(cacheFolder .. moduleName, "wb")
     local loop = false
     repeat
-        socket:write("RequestCache",moduleName)
+        socket:write("RequestCache",moduleName) 
         local response = event.pullFiltered(10, DownloadFilter)
         if not response then
             socket:close()
-            return false, 2 -- 2 means timeout
+            return false, TIMEOUT -- 2 means timeout
         elseif response == "GERTConnectionClose" then
             loop = true
         else
@@ -257,7 +278,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     if fs.size(cacheFolder .. moduleName) == remoteSize then
         return true
     else
-        return false, 4 -- 4 means connection interrupted
+        return false, INTERRUPTED -- connection interrupted
     end
 end
 
@@ -285,7 +306,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
             success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
             if not success then
-                return success, 1, infoTable
+                return success, NOSOCKET, infoTable
             end
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
@@ -295,8 +316,8 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
             else
                 return success, code
             end
-        else
-            return false, -1 -- Already Up To Date
+        elseif infoTable[1] == infoTable[3] then
+            return false, UPTODATE -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
         local resultTable = {}
@@ -312,7 +333,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         if counter then
             local success, tempLocalTable = GERTUpdaterAPI.CheckForUpdate(tempTable)
             if not success then
-                return success,1, tempLocalTable -- 1 means could not validate infoTable information
+                return success, NOSOCKET, tempLocalTable
             end
             for k,v in pairs(tempLocalTable) do
                 infoTable[k] = v
@@ -336,23 +357,23 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         end
         return true, resultTable
     else
-        return false, 2, 1 -- 2 means Incorrect Argument, third parameter defines which
+        return false, INVALIDARGUMENT, 1
     end
 end
 
 GERTUpdaterAPI.InstallUpdate = function (moduleName)
     local parsedData = ParseSafeList()
     if not moduleName then
-        return false, 1 -- 1 means no Arg 1
+        return false, INVALIDARGUMENT
     elseif not parsedData[moduleName] then
-        return false, 2 -- 2 means there's no local update to install
+        return false, NOLOCALFILE
     end
     local success = fs.copy(parsedData[moduleName][2],parsedData[moduleName][1])
     if success then
         RemoveFromSafeList(moduleName)
-        return true, 0
+        return true, ALLGOOD
     else
-        return false, 3 -- 3 means unknown error
+        return false, UNKNOWN
     end
 end
 
@@ -381,7 +402,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
-        return false, 4 -- 4 means module already installed. 
+        return true, ALREADYINSTALLED
     end
     storedPaths[moduleName] = moduleFolder .. moduleName
     writeConfig(config,storedPaths)
@@ -390,7 +411,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
         AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
-        return result
+        return table.unpack(result)
     end
 end
 
