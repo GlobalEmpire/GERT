@@ -375,8 +375,10 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     end
 end
 
-GERTUpdaterAPI.InstallUpdate = function (moduleName)
-    local parsedData = ParseSafeList()
+GERTUpdaterAPI.InstallUpdate = function (moduleName,parsedData)
+    if not parsedData then
+        parsedData = ParseSafeList()
+    end
     if not moduleName then
         return false, INVALIDARGUMENT
     elseif not parsedData[moduleName] then
@@ -463,7 +465,7 @@ GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
     local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
-        resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName)
+        resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName,parsedData)
     end
     return resultTable
 end
