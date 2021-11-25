@@ -262,9 +262,9 @@ local function DownloadModuleToCache (moduleName,remoteSize)
 end
 
 GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
-    local error, success = pcall(AddToSafeList(moduleName,currentPath,cachePath,installWhenReady))
-    if not(error and success) then
-        return error, success
+    local success = AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
+    if not success then
+        return success
     end
     if installWhenReady then
         event.push("UpdateAvailable",moduleName)
@@ -383,7 +383,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     if storedPaths[moduleName] then
         return false, 4 -- 4 means module already installed. 
     end
-    storedPaths[moduleName] = moduleFolder .. "moduleName"
+    storedPaths[moduleName] = moduleFolder .. moduleName
     writeConfig(config,storedPaths)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result == true then
