@@ -1,4 +1,4 @@
--- GUS Boot Component - Beta 1.1
+-- GUS Boot Component - Beta 1.2
 local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")
@@ -22,7 +22,10 @@ local function ParseSafeList ()
     local rawData = file:read("*a")
     file:close()
     local parsedData = srl.unserialize(rawData)
-    return parsedData or false
+    for _ in ipairs(parsedData) do
+        return parsedData
+    end
+    return false
 end
 
 local function RemoveFromSafeList (moduleName,parsedData)
