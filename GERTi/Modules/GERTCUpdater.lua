@@ -280,6 +280,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     until loop
     socket:close()
     file:close()
+    print(fs.size(cacheFolder .. moduleName), remoteSize,fs.size(cacheFolder .. moduleName) == remoteSize)
     if fs.size(cacheFolder .. moduleName) == remoteSize then
         return true
     else
@@ -402,14 +403,14 @@ local function InstallEventHandler (event,moduleName)
 end
 
 
-GERTUpdaterAPI.InstallNewModule = function(moduleName)
+GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
     print(moduleName)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
         return true, ALREADYINSTALLED
     end
-    storedPaths[moduleName] = moduleFolder .. moduleName
+    storedPaths[moduleName] = modulePath or moduleFolder .. moduleName
     writeConfig(config,storedPaths)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result[1] == true then
