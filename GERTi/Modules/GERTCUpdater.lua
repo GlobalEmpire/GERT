@@ -423,7 +423,7 @@ end
 
 GERTUpdaterAPI.UninstallModule = function(moduleName)
     local config, StoredPaths = ParseConfig()
-     moduleName = fs.name(moduleName)
+    moduleName = fs.name(moduleName)
     if not StoredPaths[moduleName] then
         return false
     end
