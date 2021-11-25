@@ -1,4 +1,4 @@
--- GUS Core Component |Beta 1.2.5
+-- GUS Core Component |Beta 1.2.6
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -308,11 +308,9 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     end
     local success
     if type(moduleName) == "string" then
-        if not(type(infoTable) == "table" and type(infoTable[1]) == "string") then
-            success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
-            if not success then
-                return success, NOSOCKET, infoTable
-            end
+        success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+        if not success then
+            return success, NOSOCKET, infoTable
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(moduleName,infoTable[4])
