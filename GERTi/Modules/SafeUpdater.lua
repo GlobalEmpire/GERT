@@ -1,4 +1,4 @@
--- GUS Boot Component - Beta 1.2
+-- GUS Boot Component - |Release 1
 local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")

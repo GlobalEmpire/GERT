@@ -1,4 +1,4 @@
--- GUS Server Component |Beta 1.2.2
+-- GUS Server Component |Release 1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -7,7 +7,7 @@ local srl = require("serialization")
 
 local updatePort = 941
 local updateSockets = {}
-local mainRemoteDirectory = "https://raw.githubusercontent.com/leothehero/GERT/Development/GERTi/Modules/" --"https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
+local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
 local loadableModulePath = "/usr/lib/"
 local unloadableModulePath = "/modules/"
@@ -37,7 +37,6 @@ local function writeConfig (config,storedPaths)
     storedPaths["GERTiClient.lua"] = nil
     storedPaths["MNCAPI.lua"] = nil
     storedPaths["GERTiMNC.lua"] = nil
-    storedPaths["GERTUpdateServer.lua"] = storedPaths["GERTUpdateServer.lua"] or "/usr/lib/GERTUpdateServer.lua"
     configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do
         configFile:write("\n" ..name .. "|" .. path)
@@ -64,6 +63,7 @@ local function ParseConfig ()
     storedPaths["GERTiMNC.lua"] = "/etc/rc.d/GERTiMNC.lua"
     storedPaths["GERTiClient.lua"] = "/modules/GERTiClient.lua"
     storedPaths["MNCAPI.lua"] = "/lib/GERTiClient.lua"
+    storedPaths["GERTUpdateServer.lua"] = storedPaths["GERTUpdateServer.lua"] or "/usr/lib/GERTUpdateServer.lua"
     configFile:close()
     return config,storedPaths
 end

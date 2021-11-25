@@ -1,4 +1,4 @@
--- GUS Core Component |Beta 1.2.8
+-- GUS Core Component |Release 1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
