@@ -378,6 +378,7 @@ end
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName)
     print(moduleName)
+    moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
         return false, 4 -- 4 means module already installed. 
