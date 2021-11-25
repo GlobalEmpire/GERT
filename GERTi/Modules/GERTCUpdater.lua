@@ -305,6 +305,11 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     local config, storedPaths = ParseConfig()
     if not moduleName then
         config, moduleName = ParseConfig()
+    else
+        moduleName = fs.name(moduleName)
+    end
+    if not storedPaths[moduleName] then
+        return false, NOLOCALFILE
     end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
