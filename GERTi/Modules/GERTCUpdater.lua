@@ -386,7 +386,7 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName)
     storedPaths[moduleName] = moduleFolder .. moduleName
     writeConfig(config,storedPaths)
     local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
-    if result == true then
+    if result[1] == true then
         AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
         return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
