@@ -273,6 +273,7 @@ GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhen
 end
 
 GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
+    local config, storedPaths = ParseConfig()
     if not moduleName then
         config, moduleName = ParseConfig()
     end
