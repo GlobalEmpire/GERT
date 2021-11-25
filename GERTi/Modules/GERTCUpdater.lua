@@ -1,4 +1,4 @@
--- GUS Core Component |Beta 1.2.7
+-- GUS Core Component |Beta 1.2.8
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -15,7 +15,6 @@ local updatePort = 941
 local updateAddress = 0.0
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
-local config = {}
 local configPath = "/etc/GERTUpdater.cfg"
 local GERTUpdaterAPI = {}
 
@@ -119,6 +118,7 @@ local function RemoveFromSafeList (moduleName)
 end
 
 if not fs.exists(configPath) or fs.size(configPath) == 0 then -- Creates the config file if it does not exist
+    local config = {}
     config["AutoUpdate"] = false
     writeConfig(config,{})
 end
@@ -449,10 +449,9 @@ GERTUpdaterAPI.AutoUpdate = function()
 end
 
 GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
-    local config,storedPaths = ParseConfig()
-    config[setting] = newValue
     local configFile = io.open(configPath,"r")
-    local _ = configFile:read("*l")
+    local config = srl.unserialize(configFile:read("*l"))
+    config[setting] = newValue
     local tempConfig = configFile:read("*a")
     configFile:close()
     local configFile = io.open(configPath,"w")
