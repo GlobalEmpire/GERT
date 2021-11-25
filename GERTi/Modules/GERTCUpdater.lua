@@ -28,7 +28,7 @@ local INTERRUPTED = -4
 local NOLOCALFILE = -5
 local UNKNOWN = -6
 local SERVERRESPONSEFALSE = -7
-
+local MODULENOTCONFIGUREDCLIENT = -8
 local UPTODATE = -10
 
 
@@ -214,6 +214,9 @@ end
 
 GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local config, storedPaths = ParseConfig()
+    if moduleName and not(storedPaths[moduleName]) then
+        return false, MODULENOTCONFIGUREDCLIENT
+    end
     moduleName = moduleName or storedPaths
     local infoTable = {}
     local socket = GERTi.openSocket(updateAddress,updatePort)
@@ -309,7 +312,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
         moduleName = fs.name(moduleName)
     end
     if not storedPaths[moduleName] then
-        return false, NOLOCALFILE
+        return false, MODULENOTCONFIGUREDCLIENT
     end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
