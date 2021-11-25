@@ -1,4 +1,4 @@
--- GUS Server Component |Beta 1.2
+-- GUS Server Component |Beta 1.2.2
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -38,9 +38,9 @@ local function writeConfig (config,storedPaths)
     storedPaths["MNCAPI.lua"] = nil
     storedPaths["GERTiMNC.lua"] = nil
     storedPaths["GERTUpdateServer.lua"] = storedPaths["GERTUpdateServer.lua"] or "/usr/lib/GERTUpdateServer.lua"
-    configFile:write(srl.serialize(config) .. "\n")
+    configFile:write(srl.serialize(config))
     for name,path in pairs(storedPaths) do
-        configFile:write(name .. "|" .. path .. "\n")
+        configFile:write("\n" ..name .. "|" .. path)
     end
     configFile:close()
 end
@@ -143,7 +143,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName)
             local storageDrive = fs.get(storedPaths[moduleName])
             local remainingSpace = fs.size(storedPaths[moduleName]) + (storageDrive.spaceTotal()-storageDrive.spaceUsed())
             local fileLen = string.len(fullFile)
-            if fileLen < remainingSpace-200 then
+            if fileLen < remainingSpace-1000 then
                 local CacheFile = io.open(storedPaths[moduleName],"w")
                 CacheFile:write(fullFile)
                 CacheFile:close()
