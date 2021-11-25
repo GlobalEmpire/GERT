@@ -267,7 +267,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     local file = io.open(cacheFolder .. moduleName, "wb")
     local loop = false
     repeat
-        socket:write("RequestCache",moduleName) 
+        socket:write("RequestCache",moduleName)
         local response = event.pullFiltered(5, DownloadFilter)
         if not response then
             socket:close()
@@ -280,7 +280,6 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     until loop
     socket:close()
     file:close()
-    print(fs.size(cacheFolder .. moduleName), remoteSize,fs.size(cacheFolder .. moduleName) == remoteSize)
     if fs.size(cacheFolder .. moduleName) == remoteSize then
         return true
     else
@@ -404,7 +403,6 @@ end
 
 
 GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
-    print(moduleName)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
