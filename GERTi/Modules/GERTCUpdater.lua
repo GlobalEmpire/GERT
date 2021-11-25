@@ -118,7 +118,7 @@ local function RemoveFromSafeList (moduleName)
     return true
 end
 
-if not fs.exists(configPath) then -- Creates the config file if it does not exist
+if not fs.exists(configPath) or fs.size(configPath) == 0 then -- Creates the config file if it does not exist
     config["AutoUpdate"] = false
     writeConfig(config,{})
 end
