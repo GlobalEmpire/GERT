@@ -1,4 +1,4 @@
--- GERT v1.4.1
+-- GERTi MNC v1.5 Build 10
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -6,29 +6,17 @@ local filesystem = require("filesystem")
 local GERTe
 local os = require("os")
 local serialize = require("serialization")
-local mTable, tTable, gAddress, gKey
 
-local nodes = {}
-local connections = {}
+local mTable, tTable, gAddress, gKey
+local nodes = {} -- add = modem address of the node, receiveM = modem card responsible for receiving data from the node, tier = tier of the node, port = modem port, neighbors = table of nodes neighboring the key node
+local connections = {} -- origin = origination GERT address, dest = destination GERT address, ID = connection ID, nextHop = modem address of the next node in the connection, sendM = modem necessary to forward on data, port = port used by sendM
 local cPend = {}
-local rPend = {}
 local addressP1 = 0
 local addressP2 = 1
 local timerID ={}
 local savedAddresses = {}
-local directory = "/etc/GERTaddresses.gert"
-
-local function waitWithCancel(timeout, cancelCheck)
-	local now = computer.uptime()
-	local deadline = now + timeout
-	while now < deadline do
-		event.pull(deadline - now, "modem_message")
-		local response = cancelCheck()
-		if response then return response end
-		now = computer.uptime()
-	end
-	return cancelCheck()
-end
+local addressFile = "/etc/GERTaddresses.gert"
+local networkFile = "/etc/networkTables.gert"
 
 local function storeChild(rAddress, receiveM, port, tier)
 	local childGA
@@ -39,7 +27,7 @@ local function storeChild(rAddress, receiveM, port, tier)
 		childGA = addressP1.."."..addressP2
 		childGA = tonumber(childGA)
 		savedAddresses[rAddress] = childGA
-		local f = io.open(directory, "a")
+		local f = io.open(addressFile, "a")
 		f:write(addressP1.."."..addressP2.."\n")
 		f:write(rAddress.."\n")
 		f:close()
@@ -57,15 +45,37 @@ local function storeChild(rAddress, receiveM, port, tier)
 		end
 	end
 
-	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}} -- Store modem address of the endpoint, modem address of the modem used to contact it, the tier, and the transmission port used to contact the client.
+	nodes[childGA] = {["add"] = rAddress, ["receiveM"] = receiveM, ["tier"] = tonumber(tier), ["port"] = tonumber(port), ["neighbors"]={}}
 	return childGA
 end
 
-local function storeConnection(origin, ID, dest, nextHop, sendM, port) -- GERT address of the connection origin, Connection ID, GERT address of the destination, next node in the connection, modem used to reach the next node, and the port used to reach the next mode
+local function storeConnection(origin, ID, dest, nextHop, sendM, port)
 	local connectDex
 	ID = math.floor(ID)
 	connectDex = origin.."|"..dest.."|"..ID
 	connections[connectDex] = {["origin"]=origin, ["dest"]=dest, ["ID"]=ID, ["nextHop"]=nextHop, ["sendM"] = sendM, ["port"]=port}
+	if dest == 0.0 then
+		connections[connectDex]["data"] = (connections[connectDex]["data"] or {})
+		connections[connectDex]["order"] = 1
+	end
+end
+
+local function storeData(connectDex, order, ...)
+	local data = table.pack(...)
+	data["n"]=nil
+	if #data == 1 then
+		data = data[1]
+	end
+	if #connections[connectDex]["data"] > 20 then
+		table.remove(connections[connectDex]["data"], 1)
+	end
+	if order >= connections[connectDex]["order"] then
+		table.insert(connections[connectDex]["data"], data)
+		connections[connectDex]["order"] = order
+	else
+		table.insert(connections[connectDex]["data"], #connections[connectDex]["data"], data)
+	end
+	computer.pushSignal("GERTData", connections[connectDex]["origin"], connections[connectDex]["ID"])
 end
 
 local function transInfo(sendTo, localM, port, ...)
@@ -77,8 +87,9 @@ local function transInfo(sendTo, localM, port, ...)
 end
 
 local handler = {}
-handler.CloseConnection = function(receiveM, sendM, port, connectDex)
+handler.CloseConnection = function(_, _, _, connectDex)
 	if connections[connectDex]["nextHop"] == 1 then
+		computer.pushSignal("GERTConnectionClose", connections[connectDex]["origin"], connections[connectDex]["dest"], connections[connectDex]["ID"])
 		connections[connectDex] = nil
 		return
 	else
@@ -90,14 +101,16 @@ handler.CloseConnection = function(receiveM, sendM, port, connectDex)
 	end
 end
 
-handler.Data = function (_, _, _, data, connectDex, order, origin)
-	if string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
+handler.Data = function (_, _, _, connectDex, order, ...)
+	if connections[connectDex]["dest"] == 0.0 then
+		storeData(connectDex, order, ...)
+	elseif string.find(connectDex, ":") and GERTe and string.sub(connectDex, 1, string.find(connectDex, ":")) ~= gAddress then
 		local pipeDex = string.find(connectDex, "|")
-		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), data)
+		GERTe.transmitTo(string.sub(connectDex, 1, pipeDex), string.sub(connectDex, pipeDex+1, string.find(connectDex, "|", pipeDex)), ...)
 	elseif string.find(connectDex, ":") then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connections[connectDex]["origin"].."|"..connections[connectDex]["dest"].."|"..connections[connectDex]["ID"], order, ...)
 	elseif connections[connectDex] then
-		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", data, connectDex, order)
+		transInfo(connections[connectDex]["nextHop"], connections[connectDex]["sendM"], connections[connectDex]["port"], "Data", connectDex, order, ...)
 	end
 end
 
@@ -108,17 +121,18 @@ handler.NewNode = function (receiveM, sendM, port, gAddres, nTier)
 end
 
 local function sendOK(bHop, receiveM, recPort, dest, origin, ID)
-	if dest==iAdd then
-		storeConnection(origin, ID, dest)
-		computer.pushSignal("GERTConnectionID", origin, ID)
+	if dest==0 or dest == "0.0" then
+		storeConnection(origin, ID, tonumber(dest), 1, receiveM, recPort)
+		computer.pushSignal("GERTConnectionID", origin, math.floor(ID))
 	end
-	if origin ~= iAdd then
-		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, tostring(ID))
+	if origin ~= 0 then
+		transInfo(bHop, receiveM, recPort, "RouteOpen", dest, origin, math.floor(ID))
 	end
 end
 
 handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	dest = tostring(dest)
+	ID = math.floor(ID)
 	if (dest == "0.0" or dest == "0") or (string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)~= tostring(gAddress) and GERTe) then -- If a GERTc address is entered, the GERTe component points to another endpoint, and GERTe is enabled, open the connection. Also handles MNC connections
 		return sendOK(sendM, receiveM, port, dest, origin, ID)
 	elseif string.find(dest, ":") and string.sub(dest, 1, string.find(dest, ":")-1)== tostring(gAddress) then -- If a GERTc address is entered and the GERTe component points to the MNC, strip out the GERTe component and route it like normal
@@ -126,7 +140,7 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 	end
 	dest = tonumber(dest)
 	if nodes[dest]["neighbors"][0.0] then
-		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, tostring(ID))
+		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "OpenRoute", dest, nil, origin, math.floor(ID))
 	elseif nodes[dest] then -- Make sure that the destination exists. If it doesn't, don't do anything
 		local inter = ""
 		local interTier = math.huge
@@ -138,14 +152,14 @@ handler.OpenRoute = function (receiveM, sendM, port, dest, _, origin, ID)
 		end
 		local nextHop = tonumber(string.sub(inter, 1, string.find(inter, "|")-1)) -- Pull out the first intermediary
 		inter = string.sub(inter, string.find(inter, "|")+1)
-		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, tostring(ID))
+		transInfo(nodes[nextHop]["add"], nodes[nextHop]["receiveM"], nodes[nextHop]["port"], "OpenRoute", dest, inter, origin, math.floor(ID))
 	end
-	cPend[dest..origin..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
+	cPend[dest.."|"..origin.."|"..ID]={["bHop"]=sendM, ["port"]=port, ["receiveM"]=receiveM}
 end
 
 handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, childTier, childTable)
 	childTable = serialize.unserialize(childTable)
-	childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
+	local childGA = storeChild(originatorAddress, receiveM, port, childTier) -- Store the node in the nodes table and retrieve the GERTi address of the node for sending it back.
 	transInfo(sendM, receiveM, port, "RegisterComplete", originatorAddress, childGA)
 	local shortest = math.huge
 	for key, value in pairs(childTable) do -- Load the node's neighbors into the nodes table
@@ -166,14 +180,16 @@ end
 handler.RemoveNeighbor = function (_, _, _, origin) -- Checks to see if the nodes table contains the appropriate client, and removes it if so. This also removes the node from other nodes' neighbor tables
 	if nodes[origin] ~= nil then
 		for key, value in pairs(nodes[origin]["neighbors"]) do
-			nodes[key]["neighbors"][origin] = nil
+			if key ~= 0 then
+				nodes[key]["neighbors"][origin] = nil
+			end
 		end
 		nodes[origin] = nil
 	end
 end
 
 handler.RouteOpen = function (receiveM, sendM, port, dest, origin, ID)
-	local cDex = dest..origin..ID
+	local cDex = dest.."|"..origin.."|"..math.floor(ID)
 	if cPend[cDex] then
 		sendOK(cPend[cDex]["bHop"], cPend[cDex]["receiveM"], cPend[cDex]["port"], dest, origin, ID)
 		storeConnection(origin, ID, dest, sendM, receiveM, port)
@@ -220,9 +236,9 @@ local function safedown()
 end
 
 local function loadAddress() -- load GERTi address file to restore cached GERTi addresses
-	if filesystem.exists(directory) then
+	if filesystem.exists(addressFile) then
 		print("Address file located; loading now.")
-		local f = io.open(directory, "r")
+		local f = io.open(addressFile, "r")
 		local newGAddress = f:read("*l")
 		local newRAddress = f:read("*l")
 		local highest = 0
@@ -242,9 +258,9 @@ local function loadAddress() -- load GERTi address file to restore cached GERTi 
 end
 
 local function loadTables() -- reload the network tables if they have been cached after an improper restart
-	if filesystem.exists("/etc/networkTables.gert") then
+	if filesystem.exists(networkFile) then
 		print("Reloading cached network tables")
-		local f = io.open("/etc/networkTables.gert", r)
+		local f = io.open(networkFile, "r")
 		nodes = serialize.unserialize(f:read("*l"))
 		connections = serialize.unserialize(f:read("*l"))
 		f:close()
@@ -253,7 +269,7 @@ end
 
 -- Function that runs on a timer to cache the nodes and connections table. In this manner, they can be recovered successfully if the MNC is abruptly powered off
 local function cacheNetworkTables()
-	local f = io.open("/etc/networkTables.gert", "w")
+	local f = io.open(networkFile, "w")
 	f:write(serialize.serialize(nodes).."\n")
 	f:write(serialize.serialize(connections))
 	f:close()
@@ -263,6 +279,7 @@ function realStart()
 ------------------------ Startup procedure
 	if (component.isAvailable("modem")) then
 		mTable = {}
+		nodes[0.0] = {["add"] = component.modem.address, ["receiveM"] = component.modem.address, ["tier"] = 0, ["port"] = 4378, ["neighbors"]={}}
 		for address, value in component.list("modem") do
 			mTable[address] = component.proxy(address)
 			mTable[address].open(4378)
@@ -273,6 +290,7 @@ function realStart()
 	end
 	if (component.isAvailable("tunnel")) then
 		tTable = {}
+		nodes[0.0] = {["add"] = component.tunnel.address, ["receiveM"] = component.tunnel.address, ["tier"] = 0, ["port"] = 0, ["neighbors"]={}}
 		for address, value in component.list("tunnel") do
 			tTable[address] = component.proxy(address)
 		end
@@ -281,7 +299,7 @@ function realStart()
 		io.stderr:write("This program requires a network card or linked card to run.")
 		os.exit(1)
 	end
-	
+
 	if filesystem.exists("/lib/GERTeAPI.lua") then
 		GERTe = require("GERTeAPI")
 	end
@@ -302,6 +320,10 @@ function realStart()
 	loadTables()
 	table.insert(timerID, event.timer(30, cacheNetworkTables, math.huge))
 	event.listen("shutdown", safedown)
+	if filesystem.exists("/lib/GERTiClient.lua") then
+		local MNCAPI = require("GERTiClient")
+		MNCAPI.loadTables(nodes, connections, cPend)
+	end
 	print("Setup Complete!")
 end
 
