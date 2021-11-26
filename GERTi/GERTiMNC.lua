@@ -168,7 +168,7 @@ handler.RegisterNode = function (receiveM, sendM, port, originatorAddress, child
 			nodes[childGA]["shortest"]= {tier=value["tier"], add=key}
 			shortest = value["tier"]
 		end
-		if key ~= 0 then -- Do not attempt to access the MNC in the nodes table
+		if key ~= 0 and nodes[key] then -- Do not attempt to access the MNC in the nodes table and validate each key
 			nodes[key]["neighbors"][childGA]= math.floor(value["tier"])
 			if childTier < nodes[key]["shortest"]["tier"] then
 				nodes[key]["shortest"] = {tier=childTier, add=childGA}
