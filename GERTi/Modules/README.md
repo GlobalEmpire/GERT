@@ -1,4 +1,4 @@
-# GERT Update Suite
+# GERT Update Suite **(WIP)**
 ## Configuration files for both programs. They are created on each run if they do not exist.
  **For GERTUpdateServer.lua:** Located at `"/etc/GERTUpdater.cfg"`<br>
   The first line is a serialized table of config options for the program. For now, it will always be empty because there are no config options. This is for future options.<br>

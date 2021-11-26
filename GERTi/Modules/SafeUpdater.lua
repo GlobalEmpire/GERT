@@ -1,4 +1,4 @@
--- GUS Boot Component - Beta 1 
+-- GUS Boot Component - |Release 1
 local event = require("event")
 local fs = require("filesystem")
 local srl = require("serialization")
@@ -22,7 +22,10 @@ local function ParseSafeList ()
     local rawData = file:read("*a")
     file:close()
     local parsedData = srl.unserialize(rawData)
-    return parsedData or false
+    for _ in ipairs(parsedData) do
+        return parsedData
+    end
+    return false
 end
 
 local function RemoveFromSafeList (moduleName,parsedData)
@@ -65,7 +68,7 @@ function start()
     bootBeep(1500)
     os.sleep(0.3)
     io.stderr:write("INITIATING GERT UPDATE SUITE SECURE DAEMON\n")
-    os.sleep(0.3)
+    os.sleep(1)
     io.stderr:write(string.rep("╤",width))
     io.stderr:write(string.rep("╧",width))
     for name, Information in pairs(parsedData) do
@@ -84,7 +87,8 @@ function start()
     os.sleep(0.3)
     io.stderr:write(string.rep("╤",width))
     io.stderr:write(string.rep("╧",width))
-    os.sleep(0.2)
+    os.sleep(0.5)
     io.stdout:write("Resuming Boot\n")
+    os.sleep(1.5)
 end
 
