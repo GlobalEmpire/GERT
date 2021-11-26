@@ -7,7 +7,7 @@ local srl = require("serialization")
 
 local updatePort = 941
 local updateSockets = {}
-local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT/Development/GERTi/Modules/"
+local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/"
 local configPath = "/etc/GERTUpdateServer.cfg"
 local loadableModulePath = "/usr/lib/"
 local unloadableModulePath = "/modules/"
