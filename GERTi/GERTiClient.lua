@@ -265,7 +265,7 @@ end
 
 function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
-	if type(gAddress) == "string" or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
+	if (type(gAddress) == "string" and not tonumber(gAddress)) or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
 		gAddress = DNSCache[gAddress] or GERTi.resolveDNS(gAddress)
 	elseif gAddress == 0 then
 		gAddress = "0.0"
