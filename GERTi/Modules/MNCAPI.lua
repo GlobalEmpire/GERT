@@ -1,4 +1,4 @@
--- GERTi API v1.5 Build 10
+-- MNC API v1.5 Build 12
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
@@ -150,7 +150,7 @@ end
 function MNCAPI.resolveDNS(remoteHost)
 	if modules["DNS"] then
 		DNSSocket:write("DNSResolve", remoteHost)
-		waitWithCancel(3, function () return (DNSSocket:read("-k")) end)
+		waitWithCancel(3, function () return (#DNSSocket:read("-k")>=1) end)
 		DNSCache[remoteHost] = DNSSocket:read()[1]
 		return DNSCache[remoteHost]
 	else
