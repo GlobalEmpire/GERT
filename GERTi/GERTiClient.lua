@@ -1,4 +1,4 @@
--- GERTi Client v1.5 Build 12
+-- GERTi Client v1.5 Build 13
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
