@@ -1,4 +1,4 @@
--- GERTi Client v1.5 Build 11
+-- GERTi Client v1.5 Build 12
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -316,8 +316,8 @@ end
 function GERTi.resolveDNS(remoteHost)
 	if modules["DNS"] then
 		DNSSocket:write("DNSResolve", remoteHost)
-		waitWithCancel(3, function () return (DNSSocket:read("-k")) end)
-		if DNSSocket:read("-k") then
+		waitWithCancel(3, function () return (#DNSSocket:read("-k")>=1) end)
+		if #DNSSocket:read("-k")>=1 then
 			DNSCache[remoteHost] = DNSSocket:read()[1]
 			return DNSCache[remoteHost]
 		else
@@ -338,7 +338,7 @@ function GERTi.getAddress()
 end
 function GERTi.getAllServices()
 	MNCSocket:write("List Services")
-	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
+	waitWithCancel(3, function () return (#MNCSocket:read("-k")>=1) end)
 	return MNCSocket:read()
 end
 function GERTi.getConnections()
@@ -376,7 +376,7 @@ end
 
 function GERTi.isServicePresent(name)
 	MNCSocket:write("Get Service Port", name)
-	waitWithCancel(3, function () return (MNCSocket:read("-k")) end)
+	waitWithCancel(3, function () return (#MNCSocket:read("-k")>=1) end)
 	return MNCSocket:read()
 end
 function GERTi.removeDNSRecord(hostname)
