@@ -1,0 +1,11 @@
+{
+    "Lua.diagnostics.globals": [
+        "_",
+        "realStart",
+        "start",
+        "stop"
+    ],
+    "Lua.diagnostics.disable": [
+        "undefined-field"
+    ]
+}
