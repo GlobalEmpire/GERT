@@ -4,7 +4,7 @@ shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/G
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/GERTUpdateServer.lua /usr/lib/GERTUpdateServer.lua -f")
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/DNS.lua /etc/rc.d/DNS.lua -f")
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/RecommendedConfig-GUSs.cfg /etc/GERTUpdateServer.cfg")
-local tempfile = io.open(".autorun","a")
+local tempfile = io.open("/.autorun","a")
 tempfile:write("\nrequire('GERTUpdateServer')")
 tempfile:close()
 shell.execute("rc GERTiMNC enable")
