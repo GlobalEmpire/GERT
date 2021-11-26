@@ -11,7 +11,6 @@ local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT
 local configPath = "/etc/GERTUpdateServer.cfg"
 local loadableModulePath = "/usr/lib/"
 local unloadableModulePath = "/modules/"
-local config = {}
 local storedPaths = {}
 local GERTUpdaterAPI = {}
 
@@ -24,7 +23,7 @@ end
 
 local function CreateConfigFile ()
     local file = io.open(configPath, "w")
-    file:write(srl.serialize(config))
+    file:write(srl.serialize({}))
     file:close()
 end
 
@@ -46,7 +45,7 @@ end
 
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
-    config = srl.unserialize(configFile:read("*l"))
+    local config = srl.unserialize(configFile:read("*l"))
     local lineData = configFile:read("*l")
     while lineData ~= "" and lineData ~= nil do
         local temporaryDataTable = {}
@@ -112,14 +111,15 @@ GERTUpdaterAPI.RemoveModule = function(moduleName)
     return true
 end
 
-GERTUpdaterAPI.CheckLatest = function(moduleName)
-    local config, storedPaths = ParseConfig()
+GERTUpdaterAPI.CheckLatest = function(moduleName, config, storedPaths)
+    if not config then
+        config, storedPaths = ParseConfig()
+    end
     if not storedPaths[moduleName] then
         return false, 2 -- 2 means it is not set up to update this module
     end
     local versionHeader = ""
     local localCacheExists = fs.exists(storedPaths[moduleName])
-    local fileStorage = ""
     if localCacheExists then
         local file = io.open(storedPaths[moduleName], "r")
         versionHeader = tostring(file:read("*l"))
@@ -227,6 +227,31 @@ GERTUpdaterAPI.StopHandlers = function()
     return GERTUpdaterAPI.listeners
 end
 
+local eventTimers = {}
+GERTUpdaterAPI.StartTimers = function ()
+    if eventTimers.hourly then
+        event.cancel(eventTimers.hourly)
+    end
+    eventTimers.hourly = event.timer(3600,function () GERTUpdaterAPI.CheckLatest("GERTUpdateServer.lua") end, math.huge)
+    if eventTimers.daily then
+        event.cancel(eventTimers.daily)
+    end
+    local config, storedPaths = ParseConfig()
+    eventTimers.daily = event.timer(86400,function () for k,v in ipairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
+end
+
+GERTUpdaterAPI.StopTimers = function ()
+    if eventTimers.hourly then
+        eventTimers.hourly = event.cancel(eventTimers.hourly)
+    end
+    if eventTimers.daily then
+        eventTimers.daily = event.cancel(eventTimers.daily)
+    end
+end
+
+
+
 GERTUpdaterAPI.StartHandlers()
+GERTUpdaterAPI.StartTimers()
 
 return GERTUpdaterAPI
