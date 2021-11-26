@@ -1,4 +1,4 @@
--- GUS Core Component |Release 1
+-- GUS Core Component - DNS compat|Release 1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -12,7 +12,10 @@ end
 
 local args, opts = shell.parse(...)
 local updatePort = 941
-local updateAddress = "MNC"
+local updateAddress = 0.0
+if GERTi.isServicePresent("DNS")[1] then
+    updateAddress = GERTi.resolveDNS("MNC")
+end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
