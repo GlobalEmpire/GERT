@@ -1,4 +1,4 @@
--- GUS Core Component - DNS compat|Release 1
+-- GUS Core Component - DNS compat|Release 1.1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
@@ -275,16 +275,20 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     end
     local file = io.open(cacheFolder .. moduleName, "wb")
     local loop = false
+    socket:write("RequestCache",moduleName)
     repeat
-        socket:write("RequestCache",moduleName)
         local response = event.pullFiltered(5, DownloadFilter)
         if not response then
             socket:close()
-            return false, TIMEOUT -- 2 means timeout
+            return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
+            if #socket:read("-k") > 1 then
+                file:write(socket:read()[1])
+            end
             loop = true
         else
             file:write(socket:read()[1])
+            socket:write("ReadyForContinue")
         end
     until loop
     socket:close()

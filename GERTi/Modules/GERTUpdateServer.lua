@@ -1,4 +1,4 @@
--- GUS Server Component |Release 1
+-- GUS Server Component |Release 1.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -166,7 +166,7 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
     local config, storedPaths = ParseConfig()
     local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
-    while chunk do
+    while chunk ~= nil and chunk ~= "" do
         updateSockets[originAddress]:write(chunk)
         local success = event.pull(10, "GERTData", originAddress, updatePort)
         if not success then
