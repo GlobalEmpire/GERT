@@ -1,4 +1,4 @@
--- GUS Core Component - DNS compat|Release 1.1
+-- GUS Core Component - DNS compat|Release 1
 local computer = require("computer")
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
