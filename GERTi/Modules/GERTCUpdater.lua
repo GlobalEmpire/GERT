@@ -314,7 +314,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
     else
         moduleName = fs.name(moduleName)
     end
-    if not storedPaths[moduleName] then
+    if type(moduleName) == "string" and not storedPaths[moduleName] then
         return false, MODULENOTCONFIGUREDCLIENT
     end
     if InstallWhenReady == nil then 
