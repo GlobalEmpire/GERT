@@ -1,4 +1,4 @@
--- GUS Server Component |Release 1
+-- GUS Server Component |Release 1.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -43,7 +43,7 @@ local function writeConfig (config,storedPaths)
     configFile:close()
 end
 
-local function ParseConfig ()
+local function ParseConfig()
     local configFile = io.open(configPath, "r")
     local config = srl.unserialize(configFile:read("*l"))
     local lineData = configFile:read("*l")
@@ -166,7 +166,7 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
     local config, storedPaths = ParseConfig()
     local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
-    while chunk do
+    while chunk ~= nil and chunk ~= "" do
         updateSockets[originAddress]:write(chunk)
         local success = event.pull(10, "GERTData", originAddress, updatePort)
         if not success then
@@ -236,8 +236,7 @@ GERTUpdaterAPI.StartTimers = function ()
     if eventTimers.daily then
         event.cancel(eventTimers.daily)
     end
-    local config, storedPaths = ParseConfig()
-    eventTimers.daily = event.timer(86400,function () for k,v in ipairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
+    eventTimers.daily = event.timer(86400,function () local config, storedPaths = ParseConfig() for k,v in pairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
 end
 
 GERTUpdaterAPI.StopTimers = function ()
