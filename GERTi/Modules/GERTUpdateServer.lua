@@ -43,7 +43,7 @@ local function writeConfig (config,storedPaths)
     configFile:close()
 end
 
-local function ParseConfig ()
+local function ParseConfig()
     local configFile = io.open(configPath, "r")
     local config = srl.unserialize(configFile:read("*l"))
     local lineData = configFile:read("*l")
@@ -236,8 +236,7 @@ GERTUpdaterAPI.StartTimers = function ()
     if eventTimers.daily then
         event.cancel(eventTimers.daily)
     end
-    local config, storedPaths = ParseConfig()
-    eventTimers.daily = event.timer(86400,function () for k,v in ipairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
+    eventTimers.daily = event.timer(86400,function () local config, storedPaths = ParseConfig() for k,v in pairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
 end
 
 GERTUpdaterAPI.StopTimers = function ()
