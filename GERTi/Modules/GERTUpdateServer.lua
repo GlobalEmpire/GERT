@@ -1,4 +1,4 @@
--- GUS Server Component |Release 1
+-- GUS Server Component |Release 1.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
