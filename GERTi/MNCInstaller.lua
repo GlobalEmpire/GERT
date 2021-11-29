@@ -8,7 +8,6 @@ end
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/GERTUpdateServer.lua /usr/lib/GERTUpdateServer.lua -f")
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/DNS.lua /etc/rc.d/DNS.lua -f")
 shell.execute("wget https://raw.githubusercontent.com/GlobalEmpire/GERT/master/GERTi/Modules/RecommendedConfig-GUSs.cfg /etc/GERTUpdateServer.cfg")
-local fullAutoRun = ""
 local autorunList = {"/autorun","/autorun.lua","/.autorun","/.autorun.lua"}
 local autorunDirectory = "/autorun"
 for k,v in ipairs(autorunList) do
@@ -16,7 +15,10 @@ for k,v in ipairs(autorunList) do
         autorunDirectory = v
     end
 end
-if not string.find("require('GERTUpdateServer')") then
+local tempfile = io.open(autorunDirectory,"r")
+local fullAutoRun = tempfile:read("*a")
+tempfile:close()
+if not string.find(fullAutoRun,"require('GERTUpdateServer')") then
     local tempfile = io.open("/.autorun","a")
     tempfile:write("\nrequire('GERTUpdateServer')")
     tempfile:close()
