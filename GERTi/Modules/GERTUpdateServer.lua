@@ -1,4 +1,4 @@
--- GUS Server Component |Release 1.1
+-- GUS Server Component - The Cleanliness Update|Release 1.2
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local internet = require("internet")
@@ -11,8 +11,26 @@ local mainRemoteDirectory = "https://raw.githubusercontent.com/GlobalEmpire/GERT
 local configPath = "/etc/GERTUpdateServer.cfg"
 local loadableModulePath = "/usr/lib/"
 local unloadableModulePath = "/modules/"
-local storedPaths = {}
 local GERTUpdaterAPI = {}
+
+--Error Codes
+local INVALIDARGUMENT = 0
+local NOSOCKET = -1
+local TIMEOUT = -2
+local NOSPACE = -3
+local INTERRUPTED = -4
+local NOLOCALFILE = -5
+local UNKNOWN = -6
+local SERVERRESPONSEFALSE = -7
+local MODULENOTCONFIGURED = -8
+local CANNOTCHANGE = -9
+local UPTODATE = -10
+local NOREMOTERESPONSE = -11
+
+--Op Codes
+local ALLGOOD = 0
+local DOWNLOADED = 1
+local ALREADYINSTALLED = 10
 
 if not fs.isDirectory(loadableModulePath) then
     fs.makeDirectory(loadableModulePath)
@@ -23,7 +41,10 @@ end
 
 local function CreateConfigFile ()
     local file = io.open(configPath, "w")
-    file:write(srl.serialize({}))
+    local config = {}
+    config.DailyCheck = true
+    config.StartImmediately = true
+    file:write(srl.serialize(config))
     file:close()
 end
 
@@ -47,6 +68,7 @@ local function ParseConfig()
     local configFile = io.open(configPath, "r")
     local config = srl.unserialize(configFile:read("*l"))
     local lineData = configFile:read("*l")
+    local storedPaths = {}
     while lineData ~= "" and lineData ~= nil do
         local temporaryDataTable = {}
         for element in string.gmatch(lineData, "([^".."|".."]+)") do
@@ -93,22 +115,22 @@ GERTUpdaterAPI.SyncNewModule = function(moduleName,modulePath)
         modulePath = loadableModulePath..moduleName
     end
     if storedPaths[moduleName] then
-        return false, 4 -- 4 means module already installed. 
+        return true, ALREADYINSTALLED
     end
     storedPaths[moduleName] = modulePath
     writeConfig(config,storedPaths)
-    return true
+    return true, ALLGOOD
 end
 
 GERTUpdaterAPI.RemoveModule = function(moduleName)
     local config, storedPaths = ParseConfig()
     if not storedPaths[moduleName] or moduleName == "GERTiMNC.lua" or moduleName == "GERTiClient.lua" or moduleName == "MNCAPI.lua" or moduleName == "GERTUpdateServer.lua" then
-        return false
+        return false, CANNOTCHANGE
     end
     fs.remove(storedPaths[moduleName])
     storedPaths[moduleName] = nil
     writeConfig(config,storedPaths)
-    return true
+    return true, ALLGOOD
 end
 
 GERTUpdaterAPI.CheckLatest = function(moduleName, config, storedPaths)
@@ -116,7 +138,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName, config, storedPaths)
         config, storedPaths = ParseConfig()
     end
     if not storedPaths[moduleName] then
-        return false, 2 -- 2 means it is not set up to update this module
+        return false, MODULENOTCONFIGURED
     end
     local versionHeader = ""
     local localCacheExists = fs.exists(storedPaths[moduleName])
@@ -147,23 +169,26 @@ GERTUpdaterAPI.CheckLatest = function(moduleName, config, storedPaths)
                 local CacheFile = io.open(storedPaths[moduleName],"w")
                 CacheFile:write(fullFile)
                 CacheFile:close()
-                return true, -1, remoteVersionHeader -- this means that the file was downloaded
+                return true, DOWNLOADED, remoteVersionHeader -- The file was downloaded
             else
-                return false, 3 -- 3 means Insufficient Space To Download File On MNC. Contact Admin if returned
+                return false, NOSPACE --Insufficient Space To Download File On MNC. Contact Admin if returned
             end
         end
-        return true, 0, versionHeader -- 0 means up to date
+        return true, ALLGOOD, versionHeader -- 0 means up to date
     else
-        local eCode = 1
+        local eCode = NOSOCKET
         if localCacheExists then
-            eCode = -2
+            eCode = NOREMOTERESPONSE
         end
-        return localCacheExists, eCode, versionHeader -- 1 means that it could not establish a connection. This line here will return true if the cache file exists, false otherwise
+        return localCacheExists, eCode, versionHeader
     end
 end
 
-local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout
+local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout or invalid modulename
     local config, storedPaths = ParseConfig()
+    if storedPaths[moduleName] == nil then
+        return false, MODULENOTCONFIGURED
+    end
     local fileToSend = io.open(storedPaths[moduleName], "rb")
     local chunk = fileToSend:read(8000)
     while chunk ~= nil and chunk ~= "" do
@@ -172,7 +197,7 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
         if not success then
             updateSockets[originAddress]:close()
             fileToSend:close()
-            return false
+            return false, TIMEOUT
         end
         chunk = fileToSend:read(8000)
     end
@@ -180,7 +205,7 @@ local function SendCachedFile (originAddress,moduleName) -- returns true if succ
     os.sleep(0.5)
     updateSockets[originAddress]:close()
     updateSockets[originAddress] = nil
-    return true
+    return true, ALLGOOD
 end
 
 local function HandleData(_,originAddress,connectionID,data)
@@ -197,7 +222,7 @@ local function HandleData(_,originAddress,connectionID,data)
                     updateSockets[originAddress]:write(false,errorState)
                 end
             elseif data[1][1] == "RequestCache" then
-                local success, information = pcall(SendCachedFile(originAddress,data[1][2]))
+                local success, information = SendCachedFile(originAddress,data[1][2])
                 if not success then
                     event.push("GERTupdater Send Error", information)
                 end
@@ -205,6 +230,19 @@ local function HandleData(_,originAddress,connectionID,data)
         end
     end
 end
+
+GERTUpdaterAPI.GetSetting = function(setting)
+    local config,storedPaths = ParseConfig()
+    return config[setting]
+end
+
+GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
+    local config, storedPaths = ParseConfig()
+    config[setting] = newValue
+    writeConfig(config,storedPaths)
+    return true
+end
+
 
 if fs.exists(configPath) then
     ParseConfig()
@@ -237,6 +275,7 @@ GERTUpdaterAPI.StartTimers = function ()
         event.cancel(eventTimers.daily)
     end
     eventTimers.daily = event.timer(86400,function () local config, storedPaths = ParseConfig() for k,v in pairs(storedPaths) do GERTUpdaterAPI.CheckLatest(k,config,storedPaths) end end, math.huge)
+    return eventTimers
 end
 
 GERTUpdaterAPI.StopTimers = function ()
@@ -246,11 +285,17 @@ GERTUpdaterAPI.StopTimers = function ()
     if eventTimers.daily then
         eventTimers.daily = event.cancel(eventTimers.daily)
     end
+    return eventTimers
+end
+
+local config,storedPaths = ParseConfig()
+if config.StartImmediately then
+    GERTUpdaterAPI.StartHandlers()
+end
+if config.DailyCheck then
+    GERTUpdaterAPI.StartTimers()
 end
 
 
-
-GERTUpdaterAPI.StartHandlers()
-GERTUpdaterAPI.StartTimers()
 
 return GERTUpdaterAPI
