@@ -44,6 +44,7 @@ local function CreateConfigFile ()
     local config = {}
     config.DailyCheck = true
     config.StartImmediately = true
+    config.SETDNS = true
     file:write(srl.serialize(config))
     file:close()
 end
@@ -295,7 +296,9 @@ end
 if config.DailyCheck then
     GERTUpdaterAPI.StartTimers()
 end
-
+if config.SETDNS then
+    GERTi.updateDNSRecord("GUS",0.0)
+end
 
 
 return GERTUpdaterAPI

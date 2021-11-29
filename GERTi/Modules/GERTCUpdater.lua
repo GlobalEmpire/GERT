@@ -14,7 +14,7 @@ end
 local updatePort = 941
 local updateAddress = 0.0
 if GERTi.isServicePresent("DNS")[1] then
-    updateAddress = GERTi.resolveDNS("MNC")
+    updateAddress = GERTi.resolveDNS("GUS")
 end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
