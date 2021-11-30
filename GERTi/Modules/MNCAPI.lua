@@ -1,4 +1,4 @@
--- MNC API v1.5 Build 13
+-- MNC API v1.5 Build 14
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
@@ -102,7 +102,9 @@ end
 function MNCAPI.openSocket(gAddress, outID)
 	local receiveM, cDex
 	if (type(gAddress) == "string" and not tonumber(gAddress)) or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
-		gAddress = DNSCache[gAddress] or MNCAPI.resolveDNS(gAddress)
+		gAddress = tonumber(DNSCache[gAddress]) or tonumber(MNCAPI.resolveDNS(gAddress))
+	else
+		gAddress = tonumber(gAddress)
 	end
 	if not gAddress then
 		return false
@@ -199,7 +201,7 @@ function MNCAPI.getNeighbors()
 	return nodes
 end
 function MNCAPI.getVersion()
-	return "v1.5", "1.5 Build 8"
+	return "v1.5", "1.5 Build 14"
 end
 function MNCAPI.isServicePresent(name)
 	return modules[name]
