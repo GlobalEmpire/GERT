@@ -1,4 +1,4 @@
--- GERTi Client v1.5 Build 13
+-- GERTi Client v1.5 Build 14
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -266,9 +266,11 @@ end
 function GERTi.openSocket(gAddress, outID)
 	local port, add, receiveM
 	if (type(gAddress) == "string" and not tonumber(gAddress)) or (math.floor(gAddress) == gAddress and gAddress ~= 0) then
-		gAddress = DNSCache[gAddress] or GERTi.resolveDNS(gAddress)
+		gAddress = tonumber(DNSCache[gAddress]) or tonumber(GERTi.resolveDNS(gAddress))
 	elseif gAddress == 0 then
 		gAddress = "0.0"
+	else
+		gAddress = tonumber(gAddress)
 	end
 	if not gAddress then
 		return false
@@ -371,7 +373,7 @@ function GERTi.getNeighbors()
 	return nodes
 end
 function GERTi.getVersion()
-	return "v1.5", "1.5 Build 8"
+	return "v1.5", "1.5 Build 14"
 end
 
 function GERTi.isServicePresent(name)
