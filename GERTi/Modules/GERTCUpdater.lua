@@ -1,5 +1,4 @@
--- GUS Core Component - The Cleanliness Update|Release 1.2
-local computer = require("computer")
+-- GUS Core Component - The Cleanliness Update|R1.2.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local event = require("event")
@@ -14,7 +13,10 @@ end
 local updatePort = 941
 local updateAddress = 0.0
 if GERTi.isServicePresent("DNS")[1] then
-    updateAddress = GERTi.resolveDNS("GUS")
+    local temp = GERTi.resolveDNS("GUS")
+    if temp then
+        updateAddress = temp
+    end
 end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
