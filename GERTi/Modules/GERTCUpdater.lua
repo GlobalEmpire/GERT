@@ -1,5 +1,4 @@
--- GUS Core Component - DNS compat|Release 1
-local computer = require("computer")
+-- GUS Core Component - The Cleanliness Update|R1.2.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local event = require("event")
@@ -10,11 +9,14 @@ if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
     shell.execute("rc SafeUpdater enable")
 end
 
-local args, opts = shell.parse(...)
+
 local updatePort = 941
 local updateAddress = 0.0
 if GERTi.isServicePresent("DNS")[1] then
-    updateAddress = GERTi.resolveDNS("MNC")
+    local temp = GERTi.resolveDNS("GUS")
+    if temp then
+        updateAddress = temp
+    end
 end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
@@ -30,28 +32,19 @@ local INTERRUPTED = -4
 local NOLOCALFILE = -5
 local UNKNOWN = -6
 local SERVERRESPONSEFALSE = -7
-local MODULENOTCONFIGUREDCLIENT = -8
+local MODULENOTCONFIGURED = -8
+local CANNOTCHANGE = -9
 local UPTODATE = -10
-
+local NOREMOTERESPONSE = -11
 
 --Op Codes
 local ALLGOOD = 0
-
+local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
 
 
 
-
-local function eventBeep (freq,rep)
-    return function () computer.beep(freq,rep) end
-end
-
-if not opts.n then
-    event.listen("UpdateAvailable", eventBeep(1000))
-    event.listen("ReadyForInstall", eventBeep(1500))
-    event.listen("InstallComplete", eventBeep(2000,0.5))
-end
-
+--Program Starts Here
 local function ParseConfig ()
     local configFile = io.open(configPath, "r")
     local config = srl.unserialize(configFile:read("*l"))
@@ -122,7 +115,8 @@ end
 
 if not fs.exists(configPath) or fs.size(configPath) == 0 then -- Creates the config file if it does not exist
     local config = {}
-    config["AutoUpdate"] = false
+    config.AutoUpdate = false
+    config.DailyCheck = true
     writeConfig(config,{})
 end
 
@@ -218,7 +212,7 @@ end
 GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local config, storedPaths = ParseConfig()
     if moduleName and not(storedPaths[moduleName]) then
-        return false, MODULENOTCONFIGUREDCLIENT
+        return false, MODULENOTCONFIGURED
     end
     moduleName = moduleName or storedPaths
     local infoTable = {}
@@ -275,16 +269,20 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     end
     local file = io.open(cacheFolder .. moduleName, "wb")
     local loop = false
+    socket:write("RequestCache",moduleName)
     repeat
-        socket:write("RequestCache",moduleName)
         local response = event.pullFiltered(5, DownloadFilter)
         if not response then
             socket:close()
-            return false, TIMEOUT -- 2 means timeout
+            return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
+            if #socket:read("-k") > 1 then
+                file:write(socket:read()[1])
+            end
             loop = true
         else
             file:write(socket:read()[1])
+            socket:write("ReadyForContinue")
         end
     until loop
     socket:close()
@@ -307,15 +305,17 @@ GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhen
     return true
 end
 
-GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
-    local config, storedPaths = ParseConfig()
+GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
+    if not config then
+        config, storedPaths = ParseConfig()
+    end
     if not moduleName then
         config, moduleName = ParseConfig()
     else
         moduleName = fs.name(moduleName)
     end
-    if not storedPaths[moduleName] then
-        return false, MODULENOTCONFIGUREDCLIENT
+    if type(moduleName) == "string" and not storedPaths[moduleName] then
+        return false, MODULENOTCONFIGURED
     end
     if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
@@ -372,7 +372,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady)
                 resultTable[name] = {false, -1} -- Already Up To Date
             end
         end
-        return true, resultTable
+        return true, ALLGOOD, resultTable
     else
         return false, INVALIDARGUMENT, 1
     end
@@ -434,33 +434,27 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
 end
 
 GERTUpdaterAPI.UninstallModule = function(moduleName)
-    local config, StoredPaths = ParseConfig()
+    local config, storedPaths = ParseConfig()
     moduleName = fs.name(moduleName)
-    if not StoredPaths[moduleName] then
-        return false
+    if not storedPaths[moduleName] then
+        return false, MODULENOTCONFIGURED
     end
-    fs.remove(StoredPaths[moduleName])
+    fs.remove(storedPaths[moduleName])
     RemoveFromSafeList(moduleName)
-    StoredPaths[moduleName] = nil
-    writeConfig(config,StoredPaths)
-    return true
+    storedPaths[moduleName] = nil
+    writeConfig(config,storedPaths)
+    return true, ALLGOOD
 end
 
-GERTUpdaterAPI.AutoUpdate = function()
+GERTUpdaterAPI.GetSetting = function(setting)
     local config,storedPaths = ParseConfig()
-    return config["AutoUpdate"]
+    return config[setting]
 end
 
 GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
-    local configFile = io.open(configPath,"r")
-    local config = srl.unserialize(configFile:read("*l"))
+    local config, storedPaths = ParseConfig()
     config[setting] = newValue
-    local tempConfig = configFile:read("*a")
-    configFile:close()
-    local configFile = io.open(configPath,"w")
-    configFile:write(srl.serialize(config) .. "\n")
-    configFile:write(tempConfig)
-    configFile:close()
+    writeConfig(config,storedPaths)
     return true
 end
 
@@ -471,6 +465,26 @@ GERTUpdaterAPI.UpdateAllInCache = function()
         resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName,parsedData)
     end
     return resultTable
+end
+
+local eventTimers = {}
+GERTUpdaterAPI.StartTimers = function ()
+    if eventTimers.daily then
+        event.cancel(eventTimers.daily)
+    end
+    eventTimers.daily = event.timer(86400,GERTUpdaterAPI.UpdateAllInCache, math.huge)
+    return eventTimers
+end
+GERTUpdaterAPI.StopTimers = function ()
+    if eventTimers.daily then
+        eventTimers.daily = event.cancel(eventTimers.daily)
+    end
+    return eventTimers
+end
+
+local config,storedPaths = ParseConfig()
+if config.DailyCheck then
+    GERTUpdaterAPI.StartTimers()
 end
 
 
