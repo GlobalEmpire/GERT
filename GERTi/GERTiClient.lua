@@ -1,4 +1,4 @@
--- GERTi Client v1.5 Build 14
+-- GERTi Client v1.5.1 Build 1
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -312,23 +312,6 @@ function GERTi.broadcast(data)
 		component.modem.broadcast(4378, "Data", -1, 0, data, iAdd)
 	end
 end
-function GERTi.registerModule(modulename, port)
-	modules[modulename] = port
-end
-function GERTi.resolveDNS(remoteHost)
-	if modules["DNS"] then
-		DNSSocket:write("DNSResolve", remoteHost)
-		waitWithCancel(3, function () return (#DNSSocket:read("-k")>=1) end)
-		if #DNSSocket:read("-k")>=1 then
-			DNSCache[remoteHost] = DNSSocket:read()[1]
-			return DNSCache[remoteHost]
-		else
-			return nil 
-		end
-	else
-		return nil
-	end
-end
 function GERTi.send(dest, data)
 	if nodes[dest] and (type(data) ~= "table" and type(data) ~= "function") then
 		transInfo(nodes[dest]["add"], nodes[dest]["receiveM"], nodes[dest]["port"], "Data", -1, 0, data, iAdd)
@@ -373,17 +356,36 @@ function GERTi.getNeighbors()
 	return nodes
 end
 function GERTi.getVersion()
-	return "v1.5", "1.5 Build 14"
+	return "v1.5.1", "1.5.1 Build 1"
 end
-
+function GERTi.flushDNS()
+	DNSCache = {}
+end
 function GERTi.isServicePresent(name)
 	MNCSocket:write("Get Service Port", name)
 	waitWithCancel(3, function () return (#MNCSocket:read("-k")>=1) end)
 	return MNCSocket:read()
 end
+function GERTi.registerModule(modulename, port)
+	modules[modulename] = port
+end
 function GERTi.removeDNSRecord(hostname)
 	if DNSSocket then
 		DNSSocket:write("Remove Name", hostname, iAdd)
+	end
+end
+function GERTi.resolveDNS(remoteHost)
+	if modules["DNS"] then
+		DNSSocket:write("DNSResolve", remoteHost)
+		waitWithCancel(3, function () return (#DNSSocket:read("-k")>=1) end)
+		if #DNSSocket:read("-k")>=1 then
+			DNSCache[remoteHost] = DNSSocket:read()[1]
+			return DNSCache[remoteHost]
+		else
+			return nil 
+		end
+	else
+		return nil
 	end
 end
 function GERTi.updateDNSRecord(hostname)
@@ -393,6 +395,9 @@ function GERTi.updateDNSRecord(hostname)
 end
 -- Startup Procedure
 event.listen("modem_message", receivePacket)
+if computer.getArchitecture()=="Lua 5.2" then
+	print("Warning! Lua 5.2 is not supported with GERTi! Please switch the CPU to Lua 5.3 by holding it and right clicking. The Lua architecture can be validated by going to the Lua interpreter and reading the copyright")
+end
 if tTable then
 	for key, value in pairs(tTable) do
 		tTable[key].send("NewNode")

@@ -1,4 +1,4 @@
--- GERTi MNC v1.5 Build 10
+-- GERTi MNC v1.5.1 Build 1
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -17,6 +17,7 @@ local timerID ={}
 local savedAddresses = {}
 local addressFile = "/etc/GERTaddresses.gert"
 local networkFile = "/etc/networkTables.gert"
+local moduleFile = "/etc/modules.gert"
 
 local function storeChild(rAddress, receiveM, port, tier)
 	local childGA
@@ -277,6 +278,10 @@ end
 
 function realStart()
 ------------------------ Startup procedure
+	if computer.getArchitecture()=="Lua 5.2" then
+		print("Warning! Lua 5.2 is not permitted on the MNC! Please switch the CPU to Lua 5.3 by holding it and right clicking. The Lua architecture can be validated by going to the Lua interpreter and reading the copyright. The MNC will exit now")
+		os.exit(1)
+	end
 	if (component.isAvailable("modem")) then
 		mTable = {}
 		nodes[0.0] = {["add"] = component.modem.address, ["receiveM"] = component.modem.address, ["tier"] = 0, ["port"] = 4378, ["neighbors"]={}}
@@ -323,6 +328,18 @@ function realStart()
 	if filesystem.exists("/lib/GERTiClient.lua") then
 		local MNCAPI = require("GERTiClient")
 		MNCAPI.loadTables(nodes, connections, cPend)
+		if filesystem.exists(moduleFile) then
+			local file = io.open(moduleFile, "r")
+			local fileLine=file:read("l")
+			local moduleName = string.sub(fileLine, 1, string.find(fileLine, "|"))
+			local modulePort = string.sub(fileLine, string.find(fileLine, "|")+1)
+			while moduleName do
+				MNCAPI.registerModule(moduleName, modulePort)
+				fileLine=file:read("l")
+				moduleName = string.sub(fileLine, 1, string.find(fileLine, "|")-1)
+				modulePort = string.sub(fileLine, string.find(fileLine, "|")+1)
+			end
+		end
 	end
 	print("Setup Complete!")
 end

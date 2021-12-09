@@ -1,4 +1,4 @@
--- MNC API v1.5 Build 14
+-- MNC API v1.5.1 Build 1
 local MNCAPI = {}
 local component = require("component")
 local computer = require("computer")
@@ -12,7 +12,7 @@ local sockets = {}
 local networkServices = {}
 local DNSCache = {}
 local DNSSocket
-local modules = {}
+local moduleFile = "/etc/modules.gert"
 if (component.isAvailable("modem")) then
 	mTable = {}
 	for address, value in component.list("modem") do
@@ -146,11 +146,15 @@ function MNCAPI.broadcast(data)
 		component.modem.broadcast(4378, "Data", -1, 0, data, iAdd)
 	end
 end
-function MNCAPI.registerModule(modulename, port)
-	modules[modulename] = port
+function MNCAPI.registerModule(modulename, port, doFile)
+	networkServices[modulename] = port
+	if filesystem.exists(moduleFile) and doFile then
+		local file = io.open(moduleFile, "a")
+		file:write(modulename.."|"..port.."\n")
+	end
 end
 function MNCAPI.resolveDNS(remoteHost)
-	if modules["DNS"] then
+	if networkServices["DNS"] then
 		DNSSocket:write("DNSResolve", remoteHost)
 		waitWithCancel(3, function () return (#DNSSocket:read("-k")>=1) end)
 		DNSCache[remoteHost] = DNSSocket:read()[1]
@@ -169,7 +173,7 @@ function MNCAPI.getAddress()
 	return iAdd
 end
 function MNCAPI.getAllServices()
-	return modules
+	return networkServices
 end
 function MNCAPI.getConnections()
 	local tempTable = {}
@@ -195,7 +199,7 @@ function MNCAPI.getHostname()
 	return "MNC"
 end
 function MNCAPI.getLoadedModules()
-	return modules
+	return networkServices
 end
 function MNCAPI.getNeighbors()
 	return nodes
@@ -203,8 +207,16 @@ end
 function MNCAPI.getVersion()
 	return "v1.5", "1.5 Build 14"
 end
+function MNCAPI.flushDNS()
+	if DNSSocket then
+		for key, value in pairs(DNSCache) do
+			DNSSocket:write("Remove Name", key, value)
+		end
+	end
+	DNSCache = {}
+end
 function MNCAPI.isServicePresent(name)
-	return modules[name]
+	return networkServices[name]
 end
 function MNCAPI.loadTables(nTable, cTable, cPTable)
 	nodes = nTable
@@ -216,7 +228,7 @@ function MNCAPI.loadTables(nTable, cTable, cPTable)
 	print("MNCAPI Loaded")
 end
 function MNCAPI.registerNetworkService(name, port)
-	networkServices[name] = port
+	MNCAPI.registerModule(name, port)
 end
 function MNCAPI.removeDNSRecord(hostname)
 	if DNSSocket then
@@ -229,6 +241,10 @@ function MNCAPI.updateDNSRecord(hostname, address)
 	end
 end
 -- Startup Procedure
+if computer.getArchitecture()=="Lua 5.2" then
+	print("Warning! Lua 5.2 is not permitted on the MNC! Please switch the CPU to Lua 5.3 by holding it and right clicking. The Lua architecture can be validated by going to the Lua interpreter and reading the copyright. The MNC will exit now")
+	os.exit(1)
+end
 local function checkConnection(_, origin, ID)
 	if ID == 500 then
 		local newSocket = MNCAPI.openSocket(origin, ID)
