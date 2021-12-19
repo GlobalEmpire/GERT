@@ -1,4 +1,4 @@
--- GERTi Client v1.5.1 Build 1
+-- GERTi Client v1.5.1 Build 2
 local GERTi = {}
 local component = require("component")
 local computer = require("computer")
@@ -324,7 +324,13 @@ end
 function GERTi.getAllServices()
 	MNCSocket:write("List Services")
 	waitWithCancel(3, function () return (#MNCSocket:read("-k")>=1) end)
-	return MNCSocket:read()
+	local networkServices = serialize.unserialize(MNCSocket:read()[1])
+	for key, value in networkServices do
+		if not modules[key] then
+			modules[key] = value
+		end
+	end
+	return modules
 end
 function GERTi.getConnections()
 	local tempTable = {}
@@ -416,7 +422,7 @@ if serialTable ~= "{}" then
 	if not iAdd then
 		io.stderr:write("Unable to contact the MNC. Functionality will be impaired.")
 		event.ignore("modem_message", receivePacket)
-		os.exit(1)
+		return
 	end
 end
 if tTable then

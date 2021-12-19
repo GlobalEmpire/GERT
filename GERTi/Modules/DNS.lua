@@ -1,10 +1,11 @@
--- DNS v1.5 Build 11
+-- DNS v1.5.1 Build 2
 local event = require("event")
 local filesystem = require("filesystem")
+local serialize = require("serialization")
 local MNCAPI
 local DNSEntries = {}
 local sockets = {}
-
+local DNSFile = "/etc/DNSBindings.gert"
 local function checkConnection(_, origin, ID)
 	if ID == 53 then
 		local newSocket = MNCAPI.openSocket(origin, ID)
@@ -38,7 +39,15 @@ local function closeSockets(_, origin, dest, ID)
 		sockets[origin] = nil
 	end
 end
+local function safedown()
+	storeBindings()
+end
 
+function storeBindings()
+	local file = io.open(DNSFile, "w")
+	file:write(serialize.serialize(DNSEntries))
+	file:close()
+end
 function start()
     if filesystem.exists("/lib/GERTiClient.lua") then
 		while not package.loaded["GERTiClient"] do
@@ -52,9 +61,15 @@ function start()
     if MNCAPI.getEdition() ~= "MNCAPI" then
         return
     end
+	if filesystem.exists(DNSFile) then
+		local file = io.open(DNSFile, "r")
+		DNSEntries = serialize.unserialize(file:read("l"))
+		file:close()
+	end
     event.listen("GERTConnectionID", checkConnection)
     event.listen("GERTData", checkData)
     event.listen("GERTConnectionClose", closeSockets)
+	event.listen("shutdown", safedown)
 	MNCAPI.registerNetworkService("DNS", 53)
 	DNSEntries["MNC"] = 0.0
 end
