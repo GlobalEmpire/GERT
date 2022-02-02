@@ -98,7 +98,7 @@ FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file
 end
 
 
-FTPInternal.SendFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename
+FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename
     --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
     if not StepComplete then
         return false, socket
@@ -181,14 +181,18 @@ FTPCore.DownloadFile = function (FileDetails)
     return StepComplete,result
 end
 
-FTPCore.SendFile = function (FileDetails)
+FTPCore.UploadFile = function (FileDetails)
     local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
     local StepComplete,result = FTPInternal.ProbeForSend(FileDetails, StepComplete, socket) -- result here contains "user" and "auth" from the other side. Use for verification?
-    local StepComplete,result = FTPInternal.SendFile(FileDetails, StepComplete, StepComplete and result)
+    local StepComplete,result = FTPInternal.UploadFile(FileDetails, StepComplete, (StepComplete and socket) or result)
     if socket.close then
         socket:close()
     end
     return StepComplete,result
+end
+
+FTPCore.DownloadDaemon = function (timeout,address,port)
+    event.pull("GERTConnectionID",timeout)
 end
 
 return FTPCore, FTPInternal
