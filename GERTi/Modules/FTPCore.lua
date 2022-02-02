@@ -12,7 +12,7 @@ local INTERRUPTED = -4
 local NOLOCALFILE = -5
 local UNKNOWN = -6
 local SERVERRESPONSEFALSE = -7
-local MODULENOTCONFIGURED = -8
+local NOREMOTEFILE = -8
 local CANNOTCHANGE = -9
 local UPTODATE = -10
 local NOREMOTERESPONSE = -11
@@ -36,6 +36,9 @@ local function CreateValidSocket (address,port)
     return socket
 end
 
+
+
+
 FTPCore.CheckData = function (file,address,port,user,auth)
     local socket,code = CreateValidSocket(address,port)
     if not socket then
@@ -57,41 +60,45 @@ FTPCore.CheckData = function (file,address,port,user,auth)
 end
 
 FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Provide file as relative path on server, destination as where it goes, address of the server.
-    local remoteData = FTPCore.CheckData(file,address,port,user,auth)
+    local remoteData, code = FTPCore.CheckData(file,address,port,user,auth)
+    if not remoteData then
+        return false, code
+    end
     local remoteSize = remoteData[2]
-    file = fs.name(file)
-    local storageDrive = fs.get(destination .. "/" .. file)
+    if remoteSize == 0 then
+        return false, NOREMOTEFILE
+    end
+    local filename = fs.name(file)
+    local storageDrive = fs.get(destination .. "/" .. filename)
     local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
     if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for download
     end
-    local socket = GERTi.openSocket(updateAddress,updatePort)
-    local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
-    if not serverPresence then
-        socket:close()
-        return false, NOSOCKET
+    local socket,code = CreateValidSocket(address,port)
+    if not socket then
+        return false, code
     end
-    local file = io.open(cacheFolder .. moduleName, "wb")
-    local loop = false
-    socket:write("RequestCache",moduleName)
+    local destfile = io.open(destination .. "/" .. filename, "wb")
+    local done = false
+    socket:write("FTPREADYTORECEIVE",file,user,auth)
     repeat
-        local response = event.pullFiltered(5, DownloadFilter)
+        local response = event.pullFiltered(5, function (event, iAdd, dAdd, CID) if (iAdd == address or dAdd == address) and (dAdd == port or CID == port) then if event == "GERTConnectionClose" or event == "GERTData" then return true end end return false end)
         if not response then
             socket:close()
             return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
             if #socket:read("-k") > 1 then
-                file:write(socket:read()[1])
+                destfile:write(socket:read()[1])
             end
-            loop = true
+            done = true
         else
-            file:write(socket:read()[1])
-            socket:write("ReadyForContinue")
+            destfile:write(socket:read()[1])
+            socket:write("FTPREADYTOCONTINUERECEIVE")
         end
-    until loop
+    until done
     socket:close()
-    file:close()
-    if fs.size(cacheFolder .. moduleName) == remoteSize then
+    destfile:close()
+    if fs.size(destination .. "/" .. filename) == remoteSize then
         return true
     else
         return false, INTERRUPTED -- connection interrupted

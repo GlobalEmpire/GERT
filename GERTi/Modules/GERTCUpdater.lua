@@ -241,14 +241,6 @@ FTPCore.CheckForUpdate = function (moduleName)
     return true, infoTable
 end
 
-local function DownloadFilter (event, iAdd, dAdd, CID)
-    if (iAdd == updateAddress or dAdd == updateAddress) and (dAdd == updatePort or CID == updatePort) then
-        if event == "GERTConnectionClose" or event == "GERTData" then
-            return true
-        end
-    end
-    return false
-end
 
 
 
