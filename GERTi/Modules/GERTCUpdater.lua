@@ -22,6 +22,7 @@ end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
+local GUSFunc = {}
 
 --Error Codes
 local INVALIDARGUMENT = 0
@@ -124,7 +125,23 @@ if not fs.isDirectory(cacheFolder) then
     fs.makeDirectory(cacheFolder)
 end
 
-FTPCore.GetRemoteVersion = function(moduleName,socket)
+GUSFunc.GetLocalVersion = function(path)
+    if path == nil then
+        return false, INVALIDARGUMENT
+    end
+    local versionHeader = ""
+    local localCacheExists = fs.exists(path) and (not fs.isDirectory(path))
+    if localCacheExists then
+        local file = io.open(path, "r")
+        versionHeader = file:read("*l")
+        file:close()
+    else
+        return false, NOLOCALFILE
+    end
+    return versionHeader
+end
+
+GUSFunc.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
@@ -166,7 +183,7 @@ FTPCore.GetRemoteVersion = function(moduleName,socket)
                         size, state, version = data[1][2], data[1][3], data[1][4]
                         if not hadSocket then
                             socket:close()
-                        end                    
+                        end
                         return true, state, size, version
                     else
                         if not hadSocket then
@@ -234,51 +251,6 @@ local function DownloadFilter (event, iAdd, dAdd, CID)
 end
 
 
-local function DownloadModuleToCache (moduleName,remoteSize)
-    if not remoteSize then
-        local a, b, d = 0,0,0
-        a,b,remoteSize,d = FTPCore.GetRemoteVersion(moduleName)
-        if not a then
-            return a, b, remoteSize, d
-        end
-    end
-    local storageDrive = fs.get(cacheFolder .. moduleName)
-    local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
-    if remoteSize > remainingSpace - 1000 then
-        return false, NOSPACE -- insufficient space for update
-    end
-    local socket = GERTi.openSocket(updateAddress,updatePort)
-    local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
-    if not serverPresence then
-        socket:close()
-        return false, NOSOCKET
-    end
-    local file = io.open(cacheFolder .. moduleName, "wb")
-    local loop = false
-    socket:write("RequestCache",moduleName)
-    repeat
-        local response = event.pullFiltered(5, DownloadFilter)
-        if not response then
-            socket:close()
-            return false, TIMEOUT
-        elseif response == "GERTConnectionClose" then
-            if #socket:read("-k") > 1 then
-                file:write(socket:read()[1])
-            end
-            loop = true
-        else
-            file:write(socket:read()[1])
-            socket:write("ReadyForContinue")
-        end
-    until loop
-    socket:close()
-    file:close()
-    if fs.size(cacheFolder .. moduleName) == remoteSize then
-        return true
-    else
-        return false, INTERRUPTED -- connection interrupted
-    end
-end
 
 FTPCore.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     local success = AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
@@ -313,7 +285,7 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
             return success, NOSOCKET, infoTable
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            local success, code = DownloadModuleToCache(moduleName,infoTable[4])
+            local success, code = FTPCore.DownloadFile(moduleName,infoTable[4])
             if success then
                 return FTPCore.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
@@ -345,7 +317,7 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
             if information[1] ~= information[3] and information[4] ~= 0 then
-                local success, code = DownloadModuleToCache(name,information[4])
+                local success, code = FTPCore.DownloadFile(name,information[4])
                 if success then
                     resultTable[name] = table.pack(FTPCore.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
                     for k,v in ipairs(information) do
