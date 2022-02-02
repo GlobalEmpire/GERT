@@ -148,7 +148,7 @@ FTPInternal.ProbeForSend = function (FileDetails, StepComplete, socket)
     end
     local fileData = {}
     fileData.insert(fs.size(FileDetails.file))
-    socket:write("FTPSENDPROBE",table.unpack(fileData))
+    socket:write("FTPSENDPROBE",SRL.serialize(fileData))
     local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
     if success == "GERTConnectionClose" then
         return false, INTERRUPTED
@@ -191,8 +191,21 @@ FTPCore.UploadFile = function (FileDetails)
     return StepComplete,result
 end
 
-FTPCore.DownloadDaemon = function (timeout,address,port)
-    event.pull("GERTConnectionID",timeout)
+FTPCore.DownloadDaemon = function (timeout,port,address)
+    local success, eventAddress, eventPort = event.pull(timeout,"GERTConnectionID",address,port)
+    if not success then
+        return false, TIMEOUT
+    end
+    local socket = GERTi.openSocket(eventAddress,eventPort) -- here i would add an event for "Connection Established" if I were integrating an API
+    repeat
+        local success = event.pullFiltered(function (eventName, iAdd, dAdd, CID) if (iAdd == eventAddress or dAdd == eventAddress) and (dAdd == eventPort or CID == eventPort) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
+    until success == "GERTConnectionClose" or socket:read("-k")[1] == "FTPSENDPROBE"
+    if not success then
+        return false, TIMEOUT
+    elseif success == "GERTConnectionClose" then
+        socket:close()
+        return false, INTERRUPTED
+    end
 end
 
 return FTPCore, FTPInternal
