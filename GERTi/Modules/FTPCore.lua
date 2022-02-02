@@ -22,44 +22,44 @@ local ALLGOOD = 0
 local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
 
-
+local FTPInternal = {}
 local FTPCore = {}
 
-local function CreateValidSocket (address,port)
-    local socket = GERTi.openSocket(address,port)
+FTPInternal.CreateValidSocket = function (FileDetails)
+    local socket = GERTi.openSocket(FileDetails.address,FileDetails.port)
     local serverPresence = false
-    if socket then serverPresence = event.pullFiltered(5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==address and CID==port end) end
+    if socket then serverPresence = event.pullFiltered(5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==FileDetails.address and CID==FileDetails.port end) end
     if not serverPresence then
         socket:close()
         return false, NOSOCKET
     end
-    return socket
+    return true, socket
 end
 
 
 
 
-FTPCore.CheckData = function (file,address,port,user,auth)
-    local socket,code = CreateValidSocket(address,port)
-    if not socket then
-        return false, code
+FTPInternal.CheckData = function (FileDetails,StepComplete,socket)
+    if not StepComplete then
+        return StepComplete, socket
     end
-    socket:write("FTPGETFILEDATA",file,user,auth)
+    --file,address,port,user,auth
+    socket:write("FTPGETFILEDATA",FileDetails.file,FileDetails.user,FileDetails.auth)
     local response = event.pullFiltered(5,function (eventName) return eventName=="modem_message" and #socket:read("-k")~=0 end)
     if not response then
         socket:close()
         return false, TIMEOUT
     end
     local data = socket:read()
-    socket:close()
-    if data[1] == file then
+    if data[1] == FileDetails.file then
         return data -- In sequence: {File name as passed as parameter | File Size}
     else
         return false, UNKNOWN
     end
 end
 
-FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Provide file as relative path on server, destination as where it goes, address of the server.
+FTPInternal.DownloadFile = function () --Provide file as relative path on server, destination as where it goes, address of the server.
+    --file,destination,address,port,user,auth
     local remoteData, code = FTPCore.CheckData(file,address,port,user,auth)
     if not remoteData then
         return false, code
@@ -73,10 +73,6 @@ FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Prov
     local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
     if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for download
-    end
-    local socket, code = CreateValidSocket(address,port)
-    if not socket then
-        return false, code
     end
     local destfile = io.open(destination .. "/" .. filename, "wb")
     local done = false
@@ -106,7 +102,7 @@ FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Prov
 end
 
 
-FTPCore.SendFile = function (file,directory,address,port,user,auth) -- returns true if successful, false if timeout or invalid modulename
+FTPInternal.SendFile = function (file,directory,address,port,user,auth) -- returns true if successful, false if timeout or invalid modulename
     --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
     local fileLocation = directory .. "/" .. file
 
@@ -129,3 +125,17 @@ FTPCore.SendFile = function (file,directory,address,port,user,auth) -- returns t
     updateSockets[originAddress] = nil
     return true, ALLGOOD
 end
+
+FTPCore.DownloadFile = function (FileDetails)
+    --[[parameters = {"file","destination","address","port","user","auth"}
+    file: obligatory; is the relative File Path as is stored in whatever is sending the file (taking into account scope)
+    destination: obligatory; where the file will end up on the downloading device. NOTE! The destination must be a valid file location, or the program will error. There is no default!
+    address: obligatory; this is the connector's address
+    ]]
+    local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
+    local StepComplete,result = FTPInternal.CheckData(FileDetails,StepComplete,socket)
+    local StepComplete,result = FTPInternal.DownloadFile(FileDetails,socket,StepComplete,result)
+end
+
+
+return FTPCore
