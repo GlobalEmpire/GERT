@@ -184,7 +184,7 @@ end
 FTPCore.SendFile = function (FileDetails)
     local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
     local StepComplete,result = FTPInternal.ProbeForSend(FileDetails, StepComplete, socket) -- result here contains "user" and "auth" from the other side. Use for verification?
-    local StepComplete,result = FTPInternal.SendFile(FileDetails, StepComplete, socket)
+    local StepComplete,result = FTPInternal.SendFile(FileDetails, StepComplete, result and socket)
     if socket.close then
         socket:close()
     end
