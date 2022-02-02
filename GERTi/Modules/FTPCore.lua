@@ -79,17 +79,19 @@ FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file
             return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
             if #socket:read("-k") > 1 then
-                destfile:write(socket:read()[1])
+                destfile:write(socket:read()[2])
             end
-            loopDone = true
-        else
-            destfile:write(socket:read()[1])
+            loopDone = INTERRUPTED
+        elseif #socket:read("-k")[1] == "FTPDATASENT" then
+            destfile:write(socket:read()[2])
             socket:write("FTPREADYTOCONTINUERECEIVE")
+        elseif #socket:read("-k")[1] == "FTPDATAFIN" then
+            destfile:write(socket:read()[2])
         end
     until loopDone
     destfile:close()
-    if fs.size(destination .. "/" .. filename) == remoteSize then
-        return true
+    if fs.size(FileDetails.destination) == remoteSize then
+        return true, loopDone
     else
         return false, INTERRUPTED -- connection interrupted
     end
