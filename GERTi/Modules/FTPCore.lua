@@ -198,7 +198,7 @@ FTPCore.DownloadDaemon = function (timeout,port,address)
     end
     local socket = GERTi.openSocket(eventAddress,eventPort) -- here i would add an event for "Connection Established" if I were integrating an API
     repeat
-        local success = event.pullFiltered(function (eventName, iAdd, dAdd, CID) if (iAdd == eventAddress or dAdd == eventAddress) and (dAdd == eventPort or CID == eventPort) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
+        success = event.pullFiltered(function (eventName, iAdd, dAdd, CID) if (iAdd == eventAddress or dAdd == eventAddress) and (dAdd == eventPort or CID == eventPort) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
     until success == "GERTConnectionClose" or socket:read("-k")[1] == "FTPSENDPROBE"
     if not success then
         return false, TIMEOUT
@@ -206,6 +206,8 @@ FTPCore.DownloadDaemon = function (timeout,port,address)
         socket:close()
         return false, INTERRUPTED
     end
+    local socketData = socket:read()
+    socketData[2] = SRL.unserialize(socketData[2])
 end
 
 return FTPCore, FTPInternal
