@@ -74,7 +74,7 @@ FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Prov
     if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for download
     end
-    local socket,code = CreateValidSocket(address,port)
+    local socket, code = CreateValidSocket(address,port)
     if not socket then
         return false, code
     end
@@ -103,4 +103,29 @@ FTPCore.DownloadFile = function (file,destination,address,port,user,auth) --Prov
     else
         return false, INTERRUPTED -- connection interrupted
     end
+end
+
+
+FTPCore.SendFile = function (file,directory,address,port,user,auth) -- returns true if successful, false if timeout or invalid modulename
+    --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
+    local fileLocation = directory .. "/" .. file
+
+    local fileToSend = io.open(fileLocation, "rb")
+
+    local chunk = fileToSend:read(8000)
+    while chunk ~= nil and chunk ~= "" do
+        updateSockets[originAddress]:write(chunk)
+        local success = event.pull(10, "GERTData", originAddress, updatePort)
+        if not success then
+            updateSockets[originAddress]:close()
+            fileToSend:close()
+            return false, TIMEOUT
+        end
+        chunk = fileToSend:read(8000)
+    end
+    fileToSend:close()
+    os.sleep(0.5)
+    updateSockets[originAddress]:close()
+    updateSockets[originAddress] = nil
+    return true, ALLGOOD
 end
