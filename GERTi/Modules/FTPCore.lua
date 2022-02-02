@@ -27,7 +27,7 @@ local ALREADYINSTALLED = 10
 local FTPInternal = {}
 local FTPCore = {}
 
-FTPInternal.CreateValidSocket = function (FileDetails)
+FTPInternal.CreateValidSocket = function (FileDetails) -- Turn into local function not in FTPInternal
     local socket = GERTi.openSocket(FileDetails.address,FileDetails.port)
     local serverPresence = false
     if socket then serverPresence = event.pullFiltered(5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==FileDetails.address and CID==FileDetails.port end) end
@@ -39,7 +39,7 @@ FTPInternal.CreateValidSocket = function (FileDetails)
 end
 
 
-FTPInternal.CheckData = function (FileDetails,StepComplete,socket)
+FTPInternal.CheckData = function (FileDetails,StepComplete,socket) -- Move to secondary example API module
     if not StepComplete then
         return false, socket
     end
@@ -57,7 +57,7 @@ FTPInternal.CheckData = function (FileDetails,StepComplete,socket)
     end
 end
 
-FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file as relative path on server, destination as where it goes, address of the server.
+FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file as relative path on server, destination as where it goes, address of the server. -- Switch to FTPCore
     if not FileData then
         return false, socket
     end
@@ -98,7 +98,7 @@ FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file
 end
 
 
-FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename
+FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename -- Switch to FTPCore
     --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
     if not StepComplete then
         return false, socket
@@ -142,7 +142,7 @@ FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns t
     return true, lastState
 end
 
-FTPInternal.ProbeForSend = function (FileDetails, StepComplete, socket)
+FTPInternal.ProbeForSend = function (FileDetails, StepComplete, socket) -- Move to API Example
     if not StepComplete then
         return false, socket
     end
@@ -166,7 +166,7 @@ FTPInternal.ProbeForSend = function (FileDetails, StepComplete, socket)
     end
 end
 
-FTPCore.DownloadFile = function (FileDetails)
+FTPCore.DownloadFile = function (FileDetails)-- Move to API Example
     --[[parameters = {"file","destination","address","port","user","auth"}
     file: obligatory; is the relative File Path as is stored in whatever is sending the file (taking into account scope)
     destination: obligatory; where the file will end up on the downloading device. NOTE! The destination must be a valid file location, or the program will error. There is no default!
@@ -181,7 +181,7 @@ FTPCore.DownloadFile = function (FileDetails)
     return StepComplete,result
 end
 
-FTPCore.UploadFile = function (FileDetails)
+FTPCore.UploadFile = function (FileDetails)-- Move to API Example
     local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
     local StepComplete,result = FTPInternal.ProbeForSend(FileDetails, StepComplete, socket) -- result here contains "user" and "auth" from the other side. Use for verification?
     local StepComplete,result = FTPInternal.UploadFile(FileDetails, StepComplete, (StepComplete and socket) or result)
@@ -191,7 +191,7 @@ FTPCore.UploadFile = function (FileDetails)
     return StepComplete,result
 end
 
-FTPCore.DownloadDaemon = function (timeout,port,address)
+FTPCore.DownloadDaemon = function (timeout,port,address)-- Move to API Example
     local success, eventAddress, eventPort = event.pull(timeout,"GERTConnectionID",address,port)
     if not success then
         return false, TIMEOUT
