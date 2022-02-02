@@ -1,9 +1,10 @@
--- GUS Core Component - The Cleanliness Update|R1.2.1
+-- GUS Core - Separation Update (Release 2 Beta 1) |R2B1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
+local FTPCore = require("FTPCore")
 local rc = require("rc")
 if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
     shell.execute("rc SafeUpdater enable")
@@ -21,7 +22,6 @@ end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
-local GERTUpdaterAPI = {}
 
 --Error Codes
 local INVALIDARGUMENT = 0
@@ -124,21 +124,7 @@ if not fs.isDirectory(cacheFolder) then
     fs.makeDirectory(cacheFolder)
 end
 
-GERTUpdaterAPI.GetLocalVersion = function(path)
-    if path == nil then
-        return false, INVALIDARGUMENT
-    end
-    local versionHeader = ""
-    local localCacheExists = fs.exists(path) and (not fs.isDirectory(path))
-    if localCacheExists then
-        local file = io.open(path, "r")
-        versionHeader = file:read("*l")
-        file:close()
-    end
-    return versionHeader
-end
-
-GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
+FTPCore.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
@@ -209,7 +195,7 @@ GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-GERTUpdaterAPI.CheckForUpdate = function (moduleName)
+FTPCore.CheckForUpdate = function (moduleName)
     local config, storedPaths = ParseConfig()
     if moduleName and not(storedPaths[moduleName]) then
         return false, MODULENOTCONFIGURED
@@ -224,14 +210,14 @@ GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in pairs(moduleName) do
-            local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
-            local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
+            local localVersion,localSize = FTPCore.GetLocalVersion(modulePath),fs.size(modulePath)
+            local success, statusCode, remoteSize, remoteVersion = FTPCore.GetRemoteVersion(moduleName,socket)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
         end
     else
         local modulePath = storedPaths[moduleName]
-        local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
-        local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
+        local localVersion,localSize = FTPCore.GetLocalVersion(modulePath),fs.size(modulePath)
+        local success, statusCode, remoteSize, remoteVersion = FTPCore.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
     end
     socket:close()
@@ -251,7 +237,7 @@ end
 local function DownloadModuleToCache (moduleName,remoteSize)
     if not remoteSize then
         local a, b, d = 0,0,0
-        a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
+        a,b,remoteSize,d = FTPCore.GetRemoteVersion(moduleName)
         if not a then
             return a, b, remoteSize, d
         end
@@ -294,7 +280,7 @@ local function DownloadModuleToCache (moduleName,remoteSize)
     end
 end
 
-GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
+FTPCore.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     local success = AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
     if not success then
         return success
@@ -305,7 +291,7 @@ GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhen
     return true
 end
 
-GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
+FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
     if not config then
         config, storedPaths = ParseConfig()
     end
@@ -322,14 +308,14 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,
     end
     local success
     if type(moduleName) == "string" then
-        success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
+        success, infoTable = FTPCore.CheckForUpdate(moduleName)
         if not success then
             return success, NOSOCKET, infoTable
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             local success, code = DownloadModuleToCache(moduleName,infoTable[4])
             if success then
-                return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
+                return FTPCore.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
                 return success, code
             end
@@ -348,7 +334,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,
             end
         end
         if counter then
-            local success, tempLocalTable = GERTUpdaterAPI.CheckForUpdate(tempTable)
+            local success, tempLocalTable = FTPCore.CheckForUpdate(tempTable)
             if not success then
                 return success, NOSOCKET, tempLocalTable
             end
@@ -361,7 +347,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,
             if information[1] ~= information[3] and information[4] ~= 0 then
                 local success, code = DownloadModuleToCache(name,information[4])
                 if success then
-                    resultTable[name] = table.pack(GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
+                    resultTable[name] = table.pack(FTPCore.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
                     for k,v in ipairs(information) do
                         table.insert(resultTable[name],v)
                     end
@@ -378,7 +364,7 @@ GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,
     end
 end
 
-GERTUpdaterAPI.InstallUpdate = function (moduleName,parsedData)
+FTPCore.InstallUpdate = function (moduleName,parsedData)
     if not parsedData then
         parsedData = ParseSafeList()
     end
@@ -396,7 +382,7 @@ GERTUpdaterAPI.InstallUpdate = function (moduleName,parsedData)
     end
 end
 
-GERTUpdaterAPI.InstallStatus = function(moduleName)
+FTPCore.InstallStatus = function(moduleName)
     local parsedData = ParseSafeList()
     if not moduleName then
         return parsedData
@@ -412,11 +398,11 @@ GERTUpdaterAPI.InstallStatus = function(moduleName)
 end
 
 local function InstallEventHandler (event,moduleName)
-    event.push("InstallModule",moduleName,GERTUpdaterAPI.InstallUpdate(moduleName))
+    event.push("InstallModule",moduleName,FTPCore.InstallUpdate(moduleName))
 end
 
 
-GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
+FTPCore.InstallNewModule = function(moduleName,modulePath)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
@@ -424,16 +410,16 @@ GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
     end
     storedPaths[moduleName] = modulePath or moduleFolder .. moduleName
     writeConfig(config,storedPaths)
-    local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
+    local result = table.pack(FTPCore.DownloadUpdate(moduleName))
     if result[1] == true then
         AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
-        return GERTUpdaterAPI.InstallUpdate(moduleName)
+        return FTPCore.InstallUpdate(moduleName)
     else
         return table.unpack(result)
     end
 end
 
-GERTUpdaterAPI.UninstallModule = function(moduleName)
+FTPCore.UninstallModule = function(moduleName)
     local config, storedPaths = ParseConfig()
     moduleName = fs.name(moduleName)
     if not storedPaths[moduleName] then
@@ -446,36 +432,36 @@ GERTUpdaterAPI.UninstallModule = function(moduleName)
     return true, ALLGOOD
 end
 
-GERTUpdaterAPI.GetSetting = function(setting)
+FTPCore.GetSetting = function(setting)
     local config,storedPaths = ParseConfig()
     return config[setting]
 end
 
-GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
+FTPCore.ChangeConfigSetting = function(setting,newValue)
     local config, storedPaths = ParseConfig()
     config[setting] = newValue
     writeConfig(config,storedPaths)
     return true
 end
 
-GERTUpdaterAPI.UpdateAllInCache = function()
+FTPCore.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
     local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
-        resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName,parsedData)
+        resultTable[moduleName] = FTPCore.InstallUpdate(moduleName,parsedData)
     end
     return resultTable
 end
 
 local eventTimers = {}
-GERTUpdaterAPI.StartTimers = function ()
+FTPCore.StartTimers = function ()
     if eventTimers.daily then
         event.cancel(eventTimers.daily)
     end
-    eventTimers.daily = event.timer(86400,GERTUpdaterAPI.UpdateAllInCache, math.huge)
+    eventTimers.daily = event.timer(86400,FTPCore.UpdateAllInCache, math.huge)
     return eventTimers
 end
-GERTUpdaterAPI.StopTimers = function ()
+FTPCore.StopTimers = function ()
     if eventTimers.daily then
         eventTimers.daily = event.cancel(eventTimers.daily)
     end
@@ -484,9 +470,9 @@ end
 
 local config,storedPaths = ParseConfig()
 if config.DailyCheck then
-    GERTUpdaterAPI.StartTimers()
+    FTPCore.StartTimers()
 end
 
 
 event.listen("InstallReady",InstallEventHandler)
-return GERTUpdaterAPI
+return FTPCore
