@@ -5,6 +5,7 @@ local event = require("event")
 local SRL = require("serialization")
 
 --Error Codes
+
 local INVALIDARGUMENT = 0
 local NOSOCKET = -1
 local TIMEOUT = -2
@@ -18,7 +19,6 @@ local CANNOTCHANGE = -9
 local UPTODATE = -10
 local NOREMOTERESPONSE = -11
 local STUCK = -12
-
 --Op Codes
 local ALLGOOD = 0
 local DOWNLOADED = 1
