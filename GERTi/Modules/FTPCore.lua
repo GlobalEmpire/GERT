@@ -41,9 +41,8 @@ end
 
 FTPInternal.CheckData = function (FileDetails,StepComplete,socket)
     if not StepComplete then
-        return StepComplete, socket
+        return false, socket
     end
-    --file,address,port,user,auth
     socket:write("FTPGETFILEDATA",FileDetails.file,FileDetails.user,FileDetails.auth)
     local response = event.pullFiltered(5,function (eventName) return eventName=="modem_message" and #socket:read("-k")~=0 end)
     if not response then
@@ -58,41 +57,36 @@ FTPInternal.CheckData = function (FileDetails,StepComplete,socket)
     end
 end
 
-FTPInternal.DownloadFile = function () --Provide file as relative path on server, destination as where it goes, address of the server.
-    --file,destination,address,port,user,auth
-    local remoteData, code = FTPCore.CheckData(file,address,port,user,auth)
-    if not remoteData then
-        return false, code
+FTPInternal.DownloadFile = function (FileDetails,FileData,socket) --Provide file as relative path on server, destination as where it goes, address of the server.
+    if not FileData then
+        return false, socket
     end
-    local remoteSize = remoteData[2]
+    local remoteSize = FileData[2]
     if remoteSize == 0 then
         return false, NOREMOTEFILE
     end
-    local filename = fs.name(file)
-    local storageDrive = fs.get(destination .. "/" .. filename)
+    local storageDrive = fs.get(FileDetails.destination)
     local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
     if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for download
     end
-    local destfile = io.open(destination .. "/" .. filename, "wb")
-    local done = false
-    socket:write("FTPREADYTORECEIVE",file,user,auth)
+    local destfile = io.open(FileDetails.destination, "wb")
+    local loopDone = false
+    socket:write("FTPREADYTORECEIVE",FileDetails.file,FileDetails.user,FileDetails.auth)
     repeat
-        local response = event.pullFiltered(5, function (event, iAdd, dAdd, CID) if (iAdd == address or dAdd == address) and (dAdd == port or CID == port) then if event == "GERTConnectionClose" or event == "GERTData" then return true end end return false end)
+        local response = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
         if not response then
-            socket:close()
             return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
             if #socket:read("-k") > 1 then
                 destfile:write(socket:read()[1])
             end
-            done = true
+            loopDone = true
         else
             destfile:write(socket:read()[1])
             socket:write("FTPREADYTOCONTINUERECEIVE")
         end
-    until done
-    socket:close()
+    until loopDone
     destfile:close()
     if fs.size(destination .. "/" .. filename) == remoteSize then
         return true
@@ -133,8 +127,8 @@ FTPCore.DownloadFile = function (FileDetails)
     address: obligatory; this is the connector's address
     ]]
     local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
-    local StepComplete,result = FTPInternal.CheckData(FileDetails,StepComplete,socket)
-    local StepComplete,result = FTPInternal.DownloadFile(FileDetails,socket,StepComplete,result)
+    local FileData,result = FTPInternal.CheckData(FileDetails,StepComplete,socket)
+    local StepComplete,result = FTPInternal.DownloadFile(FileDetails,FileData,result or socket)
 end
 
 
