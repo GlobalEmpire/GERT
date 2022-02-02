@@ -2,6 +2,7 @@
 local fs = require("filesystem")
 local GERTi = require("GERTiClient")
 local event = require("event")
+local SRL = require("serialization")
 
 --Error Codes
 local INVALIDARGUMENT = 0
@@ -143,6 +144,30 @@ FTPInternal.SendFile = function (FileDetails,StepComplete,socket) -- returns tru
     return true, lastState
 end
 
+FTPInternal.ProbeForSend = function (FileDetails, StepComplete, socket)
+    if not StepComplete then
+        return false, socket
+    end
+    local fileData = {}
+    fileData.insert(fs.size(FileDetails.file))
+    socket:write("FTPSENDPROBE",table.unpack(fileData))
+    local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
+    if success == "GERTConnectionClose" then
+        return false, INTERRUPTED
+    elseif not success then
+        return false, TIMEOUT
+    end
+    while #socket:read("-k") == 0 do
+        os.sleep() -- \\\\This might need a lengthening to 0.1, if OC is weird.\\\\
+    end
+    local returnData = socket:read()
+    if returnData[1] == "FTPREADYTORECEIVE" then
+        return true, returnData
+    else
+        return false, returnData
+    end
+end
+
 FTPCore.DownloadFile = function (FileDetails)
     --[[parameters = {"file","destination","address","port","user","auth"}
     file: obligatory; is the relative File Path as is stored in whatever is sending the file (taking into account scope)
@@ -160,7 +185,12 @@ end
 
 FTPCore.SendFile = function (FileDetails)
     local StepComplete,socket = FTPInternal.CreateValidSocket(FileDetails)
+    local StepComplete,result = FTPInternal.ProbeForSend(FileDetails, StepComplete, socket) -- result here contains "user" and "auth" from the other side. Use for verification?
     local StepComplete,result = FTPInternal.SendFile(FileDetails, StepComplete, socket)
+    if socket.close then
+        socket:close()
+    end
+    return StepComplete,result
 end
 
 return FTPCore
