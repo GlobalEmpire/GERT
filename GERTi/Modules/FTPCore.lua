@@ -1,4 +1,4 @@
--- FTP Core - Separation Update (Release 1 Beta 1) |R1B1
+-- FTP Core - Separation Update (Release 1)|R1
 local fs = require("filesystem")
 local GERTi = require("GERTiClient")
 local event = require("event")
@@ -44,29 +44,20 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
     local loopDone = false
     socket:write("FTPREADYTORECEIVE",FileDetails.file,FileDetails.user,FileDetails.auth)
     repeat
-        local response = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) print(type(iAdd),type(FileDetails.address),type(dAdd),type(FileDetails.port), eventName,iAdd,dAdd,CID,iAdd == FileDetails.address,FileDetails.address,CID == FileDetails.port) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
-        os.sleep(0.5)
-        print(1)
+        local response = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
         if not response then
-            print(2)
             return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
-            print(3)
             if type(socket:read("-k")) == "table" and #socket:read("-k")[1] > 1 then
-                print(4)
                 destfile:write(socket:read()[1][2])
             end
-            print(5)
             loopDone = INTERRUPTED
         elseif socket:read("-k")[1][1] == "FTPDATASENT" then
-            print(6)
             destfile:write(socket:read()[1][2])
             socket:write("FTPREADYTOCONTINUERECEIVE")
         elseif socket:read("-k")[1][1] == "FTPDATAFIN" then
-            print(7)
             loopDone = ALLGOOD
         end
-        print(8)
     until loopDone
     destfile:close()
     return fs.size(FileDetails.destination) == remoteSize, loopDone
@@ -86,7 +77,7 @@ FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true 
     socket:read()
     while chunk ~= nil and chunk ~= "" do
         socket:write(sendState,chunk)
-        local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) print(eventName,iAdd,dAdd,CID,iAdd == FileDetails.address,CID == FileDetails.port) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
+        local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
         if success == "GERTConnectionClose" then
             fileToSend:close()
             return false, INTERRUPTED
