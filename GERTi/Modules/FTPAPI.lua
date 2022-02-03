@@ -24,7 +24,7 @@ local ALLGOOD = 0
 local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
 
-local CreateValidSocket = function (FileDetails)
+local SocketWithTimeout = function (FileDetails)
     local socket = GERTi.openSocket(FileDetails.address,FileDetails.port)
     local serverPresence = false
     if socket then serverPresence = event.pullFiltered(5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==FileDetails.address and CID==FileDetails.port end) end
@@ -84,7 +84,7 @@ FTPAPI.DownloadFile = function (FileDetails)-- Move to API Example
     destination: obligatory; where the file will end up on the downloading device. NOTE! The destination must be a valid file location, or the program will error. There is no default!
     address: obligatory; this is the connector's address
     ]]
-    local StepComplete,socket = CreateValidSocket(FileDetails)
+    local StepComplete,socket = SocketWithTimeout(FileDetails)
     local FileData,result = FTPAPI.CheckData(FileDetails,StepComplete,socket)
     local StepComplete,result = FTPCore.DownloadFile(FileDetails,FileData,result or socket)
     if socket.close then
@@ -94,7 +94,7 @@ FTPAPI.DownloadFile = function (FileDetails)-- Move to API Example
 end
 
 FTPAPI.UploadFile = function (FileDetails)-- Move to API Example
-    local StepComplete,socket = CreateValidSocket(FileDetails)
+    local StepComplete,socket = SocketWithTimeout(FileDetails)
     local StepComplete,result = FTPAPI.ProbeForSend(FileDetails, StepComplete, socket) -- result here contains "user" and "auth" from the other side. Use for verification?
     local StepComplete,result = FTPCore.UploadFile(FileDetails, StepComplete, (StepComplete and socket) or result)
     if socket.close then
