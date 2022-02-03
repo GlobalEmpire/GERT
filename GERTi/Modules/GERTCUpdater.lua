@@ -291,21 +291,26 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
         port = updatePort
     }
     local success
-    local socket = SocketWithTimeout()
     if type(moduleName) == "string" then
         success, infoTable = GUSFunc.CheckForUpdate(moduleName)
         if not success then
             return success, NOSOCKET, infoTable
         end
+        local success, socket = SocketWithTimeout()
+        if not success then
+            return success, socket
+        end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
             FileDetails.file, FileDetails.destination = moduleName, storedPaths[moduleName]
-            local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4])
+            local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4],socket)
+            socket:close()
             if success then
                 return GUSFunc.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
                 return success, code
             end
         elseif infoTable[1] == infoTable[3] then
+            socket:close()
             return false, UPTODATE -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
@@ -328,11 +333,15 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
                 infoTable[k] = v
             end
         end
+        local success, socket = SocketWithTimeout()
+        if not success then
+            return success, socket
+        end
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
             if information[1] ~= information[3] and information[4] ~= 0 then -- checks for version mismatch, and then size > 0
                 FileDetails.file, FileDetails.destination = name, storedPaths[name]
-                local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4])
+                local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4],socket)
                 if success then
                     resultTable[name] = table.pack(GUSFunc.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
                     for k,v in ipairs(information) do
@@ -345,6 +354,7 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
                 resultTable[name] = {false, -1} -- Already Up To Date
             end
         end
+        socket:close()
         return true, ALLGOOD, resultTable
     else
         return false, INVALIDARGUMENT, 1
