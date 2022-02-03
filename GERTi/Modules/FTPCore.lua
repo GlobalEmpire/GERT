@@ -104,7 +104,7 @@ FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true 
             chunk = nil
         end
     end
-    socket:write("FTPDATAFIN",fs.size(FileDetails.file))-- maybe add a hash?
+    socket:write("FTPDATAFIN",fs.size(FileDetails.file))-- maybe add a final md5 hash or something for integrity? hash stored as string, size as number, to differentiate which you've gotten.
     fileToSend:close()
     return true, lastState
 end
