@@ -24,7 +24,6 @@ local ALLGOOD = 0
 local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
 
-local FTPInternal = {}
 local FTPCore = {}
 
 
@@ -69,7 +68,7 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
 end
 
 
-FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename -- Switch to FTPCore
+FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename -- Switch to FTPCore
     --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
     if not StepComplete then
         return false, socket
@@ -79,6 +78,7 @@ FTPInternal.UploadFile = function (FileDetails,StepComplete,socket) -- returns t
     local sendState = "FTPDATASENT"
     local lastState = ALLGOOD
     local loopStuck = 0
+    socket:read()
     while chunk ~= nil and chunk ~= "" do
         socket:write(sendState,chunk)
         local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
