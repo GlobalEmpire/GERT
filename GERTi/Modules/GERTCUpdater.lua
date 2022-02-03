@@ -43,6 +43,22 @@ local ALLGOOD = 0
 local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
 
+--\\\\ if GERTiTools gets more stuff, replace this with it.
+local SocketWithTimeout = function (Details,Timeout) -- Timeout defaults to 5 seconds. Details must be a keyed array with the address under "address" and the port/CID under "port"
+    local socket = GERTi.openSocket(Details.address,Details.port)
+    local serverPresence = false
+    if socket then serverPresence = event.pullFiltered(Timeout or 5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==Details.address and CID==Details.port end) end
+    if not serverPresence then
+        socket:close()
+        return false, NOSOCKET
+    end
+    return true, socket
+end
+
+
+--\\\\
+
+
 
 
 --Program Starts Here
@@ -270,19 +286,19 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
     if InstallWhenReady == nil then
         InstallWhenReady = config["AutoUpdate"]
     end
+    local FileDetails = {
+        address = updateAddress,
+        port = updatePort
+    }
     local success
+    local socket = SocketWithTimeout()
     if type(moduleName) == "string" then
         success, infoTable = GUSFunc.CheckForUpdate(moduleName)
         if not success then
             return success, NOSOCKET, infoTable
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            local FileDetails = {
-                file = moduleName, --adjust the system to make this include the true directory of the module, i.e. /usr/lib or /modules, by requesting it from the server beforehand. This is to allow graceful bypassing.
-                destination = storedPaths[moduleName],
-                address = updateAddress,
-                port = updatePort
-            }
+            FileDetails.file, FileDetails.destination = moduleName, storedPaths[moduleName]
             local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4])
             if success then
                 return GUSFunc.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
