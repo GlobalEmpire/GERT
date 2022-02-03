@@ -31,7 +31,10 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
     if not FileData then
         return false, socket
     end
-    local remoteSize = FileData[2]
+    local remoteSize = FileData
+    if type(remoteSize) == "table" then
+        remoteSize = remoteSize[2]
+    end
     if remoteSize == 0 then
         return false, NOREMOTEFILE
     end
