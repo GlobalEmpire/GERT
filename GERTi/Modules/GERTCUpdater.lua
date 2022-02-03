@@ -212,7 +212,7 @@ GUSFunc.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-FTPCore.CheckForUpdate = function (moduleName)
+GUSFunc.CheckForUpdate = function (moduleName)
     local config, storedPaths = ParseConfig()
     if moduleName and not(storedPaths[moduleName]) then
         return false, MODULENOTCONFIGURED
@@ -227,14 +227,14 @@ FTPCore.CheckForUpdate = function (moduleName)
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in pairs(moduleName) do
-            local localVersion,localSize = FTPCore.GetLocalVersion(modulePath),fs.size(modulePath)
-            local success, statusCode, remoteSize, remoteVersion = FTPCore.GetRemoteVersion(moduleName,socket)
+            local localVersion,localSize = GUSFunc.GetLocalVersion(modulePath),fs.size(modulePath)
+            local success, statusCode, remoteSize, remoteVersion = GUSFunc.GetRemoteVersion(moduleName,socket)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
         end
     else
         local modulePath = storedPaths[moduleName]
-        local localVersion,localSize = FTPCore.GetLocalVersion(modulePath),fs.size(modulePath)
-        local success, statusCode, remoteSize, remoteVersion = FTPCore.GetRemoteVersion(moduleName,socket)
+        local localVersion,localSize = GUSFunc.GetLocalVersion(modulePath),fs.size(modulePath)
+        local success, statusCode, remoteSize, remoteVersion = GUSFunc.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
     end
     socket:close()
@@ -244,7 +244,7 @@ end
 
 
 
-FTPCore.Register = function (moduleName,currentPath,cachePath,installWhenReady)
+GUSFunc.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     local success = AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
     if not success then
         return success
@@ -255,7 +255,7 @@ FTPCore.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     return true
 end
 
-FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
+GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
     if not config then
         config, storedPaths = ParseConfig()
     end
@@ -267,19 +267,26 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
     if type(moduleName) == "string" and not storedPaths[moduleName] then
         return false, MODULENOTCONFIGURED
     end
-    if InstallWhenReady == nil then 
+    if InstallWhenReady == nil then
         InstallWhenReady = config["AutoUpdate"]
     end
     local success
     if type(moduleName) == "string" then
-        success, infoTable = FTPCore.CheckForUpdate(moduleName)
+        success, infoTable = GUSFunc.CheckForUpdate(moduleName)
         if not success then
             return success, NOSOCKET, infoTable
         end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            local success, code = FTPCore.DownloadFile(moduleName,infoTable[4])
+            local FileDetails = {
+                file = moduleName, --adjust the system to make this include the true directory of the module, i.e. /usr/lib or /modules, by requesting it from the server beforehand. This is to allow graceful bypassing.
+                destination = storedPaths[moduleName],
+                address = updateAddress,
+                port = updatePort
+            }
+            local success, code = FTPCore.DownloadFile(FileDetails)
+            --GUSFunc.DownloadFile(moduleName,infoTable[4])
             if success then
-                return FTPCore.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
+                return GUSFunc.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
                 return success, code
             end
@@ -298,7 +305,7 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
             end
         end
         if counter then
-            local success, tempLocalTable = FTPCore.CheckForUpdate(tempTable)
+            local success, tempLocalTable = GUSFunc.CheckForUpdate(tempTable)
             if not success then
                 return success, NOSOCKET, tempLocalTable
             end
@@ -309,9 +316,9 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
             if information[1] ~= information[3] and information[4] ~= 0 then
-                local success, code = FTPCore.DownloadFile(name,information[4])
+                local success, code = GUSFunc.DownloadFile(name,information[4])
                 if success then
-                    resultTable[name] = table.pack(FTPCore.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
+                    resultTable[name] = table.pack(GUSFunc.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
                     for k,v in ipairs(information) do
                         table.insert(resultTable[name],v)
                     end
@@ -328,7 +335,7 @@ FTPCore.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
     end
 end
 
-FTPCore.InstallUpdate = function (moduleName,parsedData)
+GUSFunc.InstallUpdate = function (moduleName,parsedData)
     if not parsedData then
         parsedData = ParseSafeList()
     end
@@ -346,7 +353,7 @@ FTPCore.InstallUpdate = function (moduleName,parsedData)
     end
 end
 
-FTPCore.InstallStatus = function(moduleName)
+GUSFunc.InstallStatus = function(moduleName)
     local parsedData = ParseSafeList()
     if not moduleName then
         return parsedData
@@ -362,11 +369,11 @@ FTPCore.InstallStatus = function(moduleName)
 end
 
 local function InstallEventHandler (event,moduleName)
-    event.push("InstallModule",moduleName,FTPCore.InstallUpdate(moduleName))
+    event.push("InstallModule",moduleName,GUSFunc.InstallUpdate(moduleName))
 end
 
 
-FTPCore.InstallNewModule = function(moduleName,modulePath)
+GUSFunc.InstallNewModule = function(moduleName,modulePath)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
@@ -374,16 +381,16 @@ FTPCore.InstallNewModule = function(moduleName,modulePath)
     end
     storedPaths[moduleName] = modulePath or moduleFolder .. moduleName
     writeConfig(config,storedPaths)
-    local result = table.pack(FTPCore.DownloadUpdate(moduleName))
+    local result = table.pack(GUSFunc.DownloadUpdate(moduleName))
     if result[1] == true then
         AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
-        return FTPCore.InstallUpdate(moduleName)
+        return GUSFunc.InstallUpdate(moduleName)
     else
         return table.unpack(result)
     end
 end
 
-FTPCore.UninstallModule = function(moduleName)
+GUSFunc.UninstallModule = function(moduleName)
     local config, storedPaths = ParseConfig()
     moduleName = fs.name(moduleName)
     if not storedPaths[moduleName] then
@@ -396,36 +403,36 @@ FTPCore.UninstallModule = function(moduleName)
     return true, ALLGOOD
 end
 
-FTPCore.GetSetting = function(setting)
+GUSFunc.GetSetting = function(setting)
     local config,storedPaths = ParseConfig()
     return config[setting]
 end
 
-FTPCore.ChangeConfigSetting = function(setting,newValue)
+GUSFunc.ChangeConfigSetting = function(setting,newValue)
     local config, storedPaths = ParseConfig()
     config[setting] = newValue
     writeConfig(config,storedPaths)
     return true
 end
 
-FTPCore.UpdateAllInCache = function()
+GUSFunc.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
     local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
-        resultTable[moduleName] = FTPCore.InstallUpdate(moduleName,parsedData)
+        resultTable[moduleName] = GUSFunc.InstallUpdate(moduleName,parsedData)
     end
     return resultTable
 end
 
 local eventTimers = {}
-FTPCore.StartTimers = function ()
+GUSFunc.StartTimers = function ()
     if eventTimers.daily then
         event.cancel(eventTimers.daily)
     end
-    eventTimers.daily = event.timer(86400,FTPCore.UpdateAllInCache, math.huge)
+    eventTimers.daily = event.timer(86400,GUSFunc.UpdateAllInCache, math.huge)
     return eventTimers
 end
-FTPCore.StopTimers = function ()
+GUSFunc.StopTimers = function ()
     if eventTimers.daily then
         eventTimers.daily = event.cancel(eventTimers.daily)
     end
@@ -434,9 +441,9 @@ end
 
 local config,storedPaths = ParseConfig()
 if config.DailyCheck then
-    FTPCore.StartTimers()
+    GUSFunc.StartTimers()
 end
 
 
 event.listen("InstallReady",InstallEventHandler)
-return FTPCore
+return GUSFunc
