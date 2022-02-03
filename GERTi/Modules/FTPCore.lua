@@ -69,11 +69,7 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
         print(8)
     until loopDone
     destfile:close()
-    if fs.size(FileDetails.destination) == remoteSize then
-        return true, loopDone
-    else
-        return false, INTERRUPTED -- connection interrupted
-    end
+    return fs.size(FileDetails.destination) == remoteSize, loopDone
 end
 
 
@@ -117,7 +113,7 @@ FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true 
             chunk = nil
         end
     end
-    socket:write("FTPDATAFIN")
+    socket:write("FTPDATAFIN",fs.size(FileDetails.file))-- maybe add a hash?
     fileToSend:close()
     return true, lastState
 end
