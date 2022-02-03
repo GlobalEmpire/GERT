@@ -27,7 +27,7 @@ local ALREADYINSTALLED = 10
 local FTPInternal = {}
 local FTPCore = {}
 
-FTPInternal.CreateValidSocket = function (FileDetails) -- Turn into local function not in FTPInternal
+local CreateValidSocket = function (FileDetails)
     local socket = GERTi.openSocket(FileDetails.address,FileDetails.port)
     local serverPresence = false
     if socket then serverPresence = event.pullFiltered(5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==FileDetails.address and CID==FileDetails.port end) end
