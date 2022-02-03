@@ -277,7 +277,7 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
     end
     if not moduleName then
         config, moduleName = ParseConfig()
-    else
+    elseif type(moduleName) == "string" then
         moduleName = fs.name(moduleName)
     end
     if type(moduleName) == "string" and not storedPaths[moduleName] then
@@ -331,12 +331,7 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
             if information[1] ~= information[3] and information[4] ~= 0 then -- checks for version mismatch, and then size > 0
-                local FileDetails = {
-                    file = moduleName, --adjust the system to make this include the true directory of the module, i.e. /usr/lib or /modules, by requesting it from the server beforehand. This is to allow graceful bypassing.
-                    destination = storedPaths[moduleName],
-                    address = updateAddress,
-                    port = updatePort
-                }
+                FileDetails.file, FileDetails.destination = name, storedPaths[name]
                 local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4])
                 if success then
                     resultTable[name] = table.pack(GUSFunc.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
