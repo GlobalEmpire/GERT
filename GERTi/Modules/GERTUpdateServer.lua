@@ -185,7 +185,7 @@ GERTUpdaterAPI.CheckLatest = function(moduleName, config, storedPaths)
     end
 end
 
---[[local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout or invalid modulename
+local function SendCachedFile (originAddress,moduleName) -- returns true if successful, false if timeout or invalid modulename
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] == nil then
         return false, MODULENOTCONFIGURED
@@ -207,7 +207,7 @@ end
     updateSockets[originAddress]:close()
     updateSockets[originAddress] = nil
     return true, ALLGOOD
-end]]
+end
 
 local function HandleData(_,originAddress,connectionID,data)
     local config, storedPaths = ParseConfig()
