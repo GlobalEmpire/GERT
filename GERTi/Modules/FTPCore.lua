@@ -1,8 +1,6 @@
 -- FTP Core - Separation Update (Release 1)|R1
 local fs = require("filesystem")
-local GERTi = require("GERTiClient")
 local event = require("event")
-local SRL = require("serialization")
 
 --Error Codes
 local INVALIDARGUMENT = 0
@@ -43,11 +41,18 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
     if remoteSize > remainingSpace - 1000 then
         return false, NOSPACE -- insufficient space for download
     end
-    local destfile = io.open(FileDetails.destination, "wb")
+    local destfile = io.open("/" .. FileDetails.destination, "wb")
     local loopDone = false
     socket:write("FTPREADYTORECEIVE",FileDetails.file,FileDetails.user,FileDetails.auth)
     repeat
-        local response = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
+        local response = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID)
+            if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then
+                if eventName == "GERTConnectionClose" or eventName == "GERTData" then
+                    return true
+                end
+            end
+            return false
+        end)
         if not response then
             return false, TIMEOUT
         elseif response == "GERTConnectionClose" then
@@ -59,6 +64,7 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
             destfile:write(socket:read()[1][2])
             socket:write("FTPREADYTOCONTINUERECEIVE")
         elseif socket:read("-k")[1][1] == "FTPDATAFIN" then
+            socket:read()
             loopDone = ALLGOOD
         end
     until loopDone
@@ -67,17 +73,16 @@ FTPCore.DownloadFile = function (FileDetails,FileData,socket) --Provide file as 
 end
 
 
-FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename -- Switch to FTPCore
+FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true if successful, false if timeout or invalid modulename
     --Do Auth Processing in a separate function and append it to destination. if not user then user = "public"
     if not StepComplete then
         return false, socket
     end
-    local fileToSend = io.open(FileDetails.file, "rb")
-    local chunk = fileToSend:read(8000)
+    local fileToSend = io.open("/".. FileDetails.file, "rb")
+    local chunk = fileToSend:read(7500)
     local sendState = "FTPDATASENT"
     local lastState = ALLGOOD
     local loopStuck = 0
-    socket:read()
     while chunk ~= nil and chunk ~= "" do
         socket:write(sendState,chunk)
         local success = event.pullFiltered(5, function (eventName, iAdd, dAdd, CID) if (iAdd == FileDetails.address or dAdd == FileDetails.address) and (dAdd == FileDetails.port or CID == FileDetails.port) then if eventName == "GERTConnectionClose" or eventName == "GERTData" then return true end end return false end)
@@ -95,7 +100,7 @@ FTPCore.UploadFile = function (FileDetails,StepComplete,socket) -- returns true 
         elseif returnData == "FTPREADYTOCONTINUERECEIVE" then
             loopStuck = 0
             sendState = "FTPDATASENT"
-            chunk = fileToSend:read(8000)
+            chunk = fileToSend:read(7500)
         elseif returnData == "FTPREPEATDATA" and loopStuck < 5 then --FutureProofing
             sendState = "FTPREPEATINGSEND"
             loopStuck = loopStuck + 1
