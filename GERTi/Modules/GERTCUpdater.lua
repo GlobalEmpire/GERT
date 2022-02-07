@@ -1,10 +1,9 @@
--- GUS Core - Separation Update (Release 2 Beta 1) |R2B1
+-- GUS Core Component - The Cleanliness Update|R1.2.1
 local GERTi = require("GERTiClient")
 local fs = require("filesystem")
 local event = require("event")
 local srl = require("serialization")
 local shell = require("shell")
-local FTPCore = require("FTPCore")
 local rc = require("rc")
 if fs.exists("/etc/rc.d/SafeUpdater.lua") and not rc.loaded.SafeUpdater then
     shell.execute("rc SafeUpdater enable")
@@ -22,7 +21,7 @@ end
 local moduleFolder = "/usr/lib/"
 local cacheFolder = "/.moduleCache/"
 local configPath = "/etc/GERTUpdater.cfg"
-local GUSFunc = {}
+local GERTUpdaterAPI = {}
 
 --Error Codes
 local INVALIDARGUMENT = 0
@@ -42,22 +41,6 @@ local NOREMOTERESPONSE = -11
 local ALLGOOD = 0
 local DOWNLOADED = 1
 local ALREADYINSTALLED = 10
-
---\\\\ if GERTiTools gets more stuff, replace this with it.
-local SocketWithTimeout = function (Details,Timeout) -- Timeout defaults to 5 seconds. Details must be a keyed array with the address under "address" and the port/CID under "port"
-    local socket = GERTi.openSocket(Details.address,Details.port)
-    local serverPresence = false
-    if socket then serverPresence = event.pullFiltered(Timeout or 5,function (eventName,oAdd,CID) return eventName=="GERTConnectionID" and oAdd==Details.address and CID==Details.port end) end
-    if not serverPresence then
-        socket:close()
-        return false, NOSOCKET
-    end
-    return true, socket
-end
-
-
---\\\\
-
 
 
 
@@ -141,7 +124,7 @@ if not fs.isDirectory(cacheFolder) then
     fs.makeDirectory(cacheFolder)
 end
 
-GUSFunc.GetLocalVersion = function(path)
+GERTUpdaterAPI.GetLocalVersion = function(path)
     if path == nil then
         return false, INVALIDARGUMENT
     end
@@ -151,13 +134,11 @@ GUSFunc.GetLocalVersion = function(path)
         local file = io.open(path, "r")
         versionHeader = file:read("*l")
         file:close()
-    else
-        return false, NOLOCALFILE
     end
     return versionHeader
 end
 
-GUSFunc.GetRemoteVersion = function(moduleName,socket)
+GERTUpdaterAPI.GetRemoteVersion = function(moduleName,socket)
     local size, state, version = 0, 0, ""
     local hadSocket = true
     if not(moduleName) or type(moduleName) ~= "string" then
@@ -199,7 +180,7 @@ GUSFunc.GetRemoteVersion = function(moduleName,socket)
                         size, state, version = data[1][2], data[1][3], data[1][4]
                         if not hadSocket then
                             socket:close()
-                        end
+                        end                    
                         return true, state, size, version
                     else
                         if not hadSocket then
@@ -228,7 +209,7 @@ GUSFunc.GetRemoteVersion = function(moduleName,socket)
     end
 end
 
-GUSFunc.CheckForUpdate = function (moduleName)
+GERTUpdaterAPI.CheckForUpdate = function (moduleName)
     local config, storedPaths = ParseConfig()
     if moduleName and not(storedPaths[moduleName]) then
         return false, MODULENOTCONFIGURED
@@ -243,24 +224,77 @@ GUSFunc.CheckForUpdate = function (moduleName)
     end
     if type(moduleName) == "table" then
         for trueModuleName, modulePath in pairs(moduleName) do
-            local localVersion,localSize = GUSFunc.GetLocalVersion(modulePath),fs.size(modulePath)
-            local success, statusCode, remoteSize, remoteVersion = GUSFunc.GetRemoteVersion(moduleName,socket)
+            local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
+            local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
             infoTable[trueModuleName] = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
         end
     else
         local modulePath = storedPaths[moduleName]
-        local localVersion,localSize = GUSFunc.GetLocalVersion(modulePath),fs.size(modulePath)
-        local success, statusCode, remoteSize, remoteVersion = GUSFunc.GetRemoteVersion(moduleName,socket)
+        local localVersion,localSize = GERTUpdaterAPI.GetLocalVersion(modulePath),fs.size(modulePath)
+        local success, statusCode, remoteSize, remoteVersion = GERTUpdaterAPI.GetRemoteVersion(moduleName,socket)
         infoTable = {localVersion,localSize,remoteVersion,remoteSize,statusCode,success}
     end
     socket:close()
     return true, infoTable
 end
 
+local function DownloadFilter (event, iAdd, dAdd, CID)
+    if (iAdd == updateAddress or dAdd == updateAddress) and (dAdd == updatePort or CID == updatePort) then
+        if event == "GERTConnectionClose" or event == "GERTData" then
+            return true
+        end
+    end
+    return false
+end
 
 
+local function DownloadModuleToCache (moduleName,remoteSize)
+    if not remoteSize then
+        local a, b, d = 0,0,0
+        a,b,remoteSize,d = GERTUpdaterAPI.GetRemoteVersion(moduleName)
+        if not a then
+            return a, b, remoteSize, d
+        end
+    end
+    local storageDrive = fs.get(cacheFolder .. moduleName)
+    local remainingSpace = (storageDrive.spaceTotal()-storageDrive.spaceUsed())
+    if remoteSize > remainingSpace - 1000 then
+        return false, NOSPACE -- insufficient space for update
+    end
+    local socket = GERTi.openSocket(updateAddress,updatePort)
+    local serverPresence = event.pullFiltered(5,function (event,oAdd,CID) return event=="GERTConnectionID" and oAdd==updateAddress and CID==updatePort end)
+    if not serverPresence then
+        socket:close()
+        return false, NOSOCKET
+    end
+    local file = io.open(cacheFolder .. moduleName, "wb")
+    local loop = false
+    socket:write("RequestCache",moduleName)
+    repeat
+        local response = event.pullFiltered(5, DownloadFilter)
+        if not response then
+            socket:close()
+            return false, TIMEOUT
+        elseif response == "GERTConnectionClose" then
+            if #socket:read("-k") > 1 then
+                file:write(socket:read()[1])
+            end
+            loop = true
+        else
+            file:write(socket:read()[1])
+            socket:write("ReadyForContinue")
+        end
+    until loop
+    socket:close()
+    file:close()
+    if fs.size(cacheFolder .. moduleName) == remoteSize then
+        return true
+    else
+        return false, INTERRUPTED -- connection interrupted
+    end
+end
 
-GUSFunc.Register = function (moduleName,currentPath,cachePath,installWhenReady)
+GERTUpdaterAPI.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     local success = AddToSafeList(moduleName,currentPath,cachePath,installWhenReady)
     if not success then
         return success
@@ -271,46 +305,35 @@ GUSFunc.Register = function (moduleName,currentPath,cachePath,installWhenReady)
     return true
 end
 
-GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
+GERTUpdaterAPI.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config, storedPaths) -- run with no arguments to do a check and cache download of all modules. If InstallWhenReady is true here or in the defaults then it will install the update when the event is received from the concerned program
     if not config then
         config, storedPaths = ParseConfig()
     end
     if not moduleName then
         config, moduleName = ParseConfig()
-    elseif type(moduleName) == "string" then
+    else
         moduleName = fs.name(moduleName)
     end
     if type(moduleName) == "string" and not storedPaths[moduleName] then
         return false, MODULENOTCONFIGURED
     end
-    if InstallWhenReady == nil then
+    if InstallWhenReady == nil then 
         InstallWhenReady = config["AutoUpdate"]
     end
-    local FileDetails = {
-        address = updateAddress,
-        port = updatePort
-    }
     local success
     if type(moduleName) == "string" then
-        success, infoTable = GUSFunc.CheckForUpdate(moduleName)
+        success, infoTable = GERTUpdaterAPI.CheckForUpdate(moduleName)
         if not success then
             return success, NOSOCKET, infoTable
         end
-        local success, socket = SocketWithTimeout()
-        if not success then
-            return success, socket
-        end
         if infoTable[1] ~= infoTable[3] and infoTable[4] ~= 0 then
-            FileDetails.file, FileDetails.destination = moduleName, storedPaths[moduleName]
-            local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4],socket)
-            socket:close()
+            local success, code = DownloadModuleToCache(moduleName,infoTable[4])
             if success then
-                return GUSFunc.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
+                return GERTUpdaterAPI.Register(moduleName,storedPaths[moduleName], cacheFolder .. moduleName,InstallWhenReady),infoTable -- Queues program to be installed on next reboot
             else
                 return success, code
             end
         elseif infoTable[1] == infoTable[3] then
-            socket:close()
             return false, UPTODATE -- Already Up To Date
         end
     elseif type(moduleName) == "table" then
@@ -325,7 +348,7 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
             end
         end
         if counter then
-            local success, tempLocalTable = GUSFunc.CheckForUpdate(tempTable)
+            local success, tempLocalTable = GERTUpdaterAPI.CheckForUpdate(tempTable)
             if not success then
                 return success, NOSOCKET, tempLocalTable
             end
@@ -333,17 +356,12 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
                 infoTable[k] = v
             end
         end
-        local success, socket = SocketWithTimeout()
-        if not success then
-            return success, socket
-        end
         for name, path in pairs(moduleName) do
             local information = infoTable[name]
-            if information[1] ~= information[3] and information[4] ~= 0 then -- checks for version mismatch, and then size > 0
-                FileDetails.file, FileDetails.destination = name, storedPaths[name]
-                local success, code = FTPCore.DownloadFile(FileDetails,infoTable[4],socket)
+            if information[1] ~= information[3] and information[4] ~= 0 then
+                local success, code = DownloadModuleToCache(name,information[4])
                 if success then
-                    resultTable[name] = table.pack(GUSFunc.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
+                    resultTable[name] = table.pack(GERTUpdaterAPI.Register(name,storedPaths[name], cacheFolder .. name,InstallWhenReady))-- Queues program to be installed on next reboot
                     for k,v in ipairs(information) do
                         table.insert(resultTable[name],v)
                     end
@@ -354,14 +372,13 @@ GUSFunc.DownloadUpdate = function (moduleName,infoTable,InstallWhenReady,config,
                 resultTable[name] = {false, -1} -- Already Up To Date
             end
         end
-        socket:close()
         return true, ALLGOOD, resultTable
     else
         return false, INVALIDARGUMENT, 1
     end
 end
 
-GUSFunc.InstallUpdate = function (moduleName,parsedData)
+GERTUpdaterAPI.InstallUpdate = function (moduleName,parsedData)
     if not parsedData then
         parsedData = ParseSafeList()
     end
@@ -379,7 +396,7 @@ GUSFunc.InstallUpdate = function (moduleName,parsedData)
     end
 end
 
-GUSFunc.InstallStatus = function(moduleName)
+GERTUpdaterAPI.InstallStatus = function(moduleName)
     local parsedData = ParseSafeList()
     if not moduleName then
         return parsedData
@@ -395,11 +412,11 @@ GUSFunc.InstallStatus = function(moduleName)
 end
 
 local function InstallEventHandler (event,moduleName)
-    event.push("InstallModule",moduleName,GUSFunc.InstallUpdate(moduleName))
+    event.push("InstallModule",moduleName,GERTUpdaterAPI.InstallUpdate(moduleName))
 end
 
 
-GUSFunc.InstallNewModule = function(moduleName,modulePath)
+GERTUpdaterAPI.InstallNewModule = function(moduleName,modulePath)
     moduleName = fs.name(moduleName)
     local config, storedPaths = ParseConfig()
     if storedPaths[moduleName] then
@@ -407,16 +424,16 @@ GUSFunc.InstallNewModule = function(moduleName,modulePath)
     end
     storedPaths[moduleName] = modulePath or moduleFolder .. moduleName
     writeConfig(config,storedPaths)
-    local result = table.pack(GUSFunc.DownloadUpdate(moduleName))
+    local result = table.pack(GERTUpdaterAPI.DownloadUpdate(moduleName))
     if result[1] == true then
         AddToSafeList(moduleName,storedPaths[moduleName],cacheFolder .. moduleName,false)
-        return GUSFunc.InstallUpdate(moduleName)
+        return GERTUpdaterAPI.InstallUpdate(moduleName)
     else
         return table.unpack(result)
     end
 end
 
-GUSFunc.UninstallModule = function(moduleName)
+GERTUpdaterAPI.UninstallModule = function(moduleName)
     local config, storedPaths = ParseConfig()
     moduleName = fs.name(moduleName)
     if not storedPaths[moduleName] then
@@ -429,36 +446,36 @@ GUSFunc.UninstallModule = function(moduleName)
     return true, ALLGOOD
 end
 
-GUSFunc.GetSetting = function(setting)
+GERTUpdaterAPI.GetSetting = function(setting)
     local config,storedPaths = ParseConfig()
     return config[setting]
 end
 
-GUSFunc.ChangeConfigSetting = function(setting,newValue)
+GERTUpdaterAPI.ChangeConfigSetting = function(setting,newValue)
     local config, storedPaths = ParseConfig()
     config[setting] = newValue
     writeConfig(config,storedPaths)
     return true
 end
 
-GUSFunc.UpdateAllInCache = function()
+GERTUpdaterAPI.UpdateAllInCache = function()
     local parsedData = ParseSafeList()
     local resultTable = {}
     for moduleName,moduleInformation in pairs(parsedData) do
-        resultTable[moduleName] = GUSFunc.InstallUpdate(moduleName,parsedData)
+        resultTable[moduleName] = GERTUpdaterAPI.InstallUpdate(moduleName,parsedData)
     end
     return resultTable
 end
 
 local eventTimers = {}
-GUSFunc.StartTimers = function ()
+GERTUpdaterAPI.StartTimers = function ()
     if eventTimers.daily then
         event.cancel(eventTimers.daily)
     end
-    eventTimers.daily = event.timer(86400,GUSFunc.UpdateAllInCache, math.huge)
+    eventTimers.daily = event.timer(86400,GERTUpdaterAPI.UpdateAllInCache, math.huge)
     return eventTimers
 end
-GUSFunc.StopTimers = function ()
+GERTUpdaterAPI.StopTimers = function ()
     if eventTimers.daily then
         eventTimers.daily = event.cancel(eventTimers.daily)
     end
@@ -467,9 +484,9 @@ end
 
 local config,storedPaths = ParseConfig()
 if config.DailyCheck then
-    GUSFunc.StartTimers()
+    GERTUpdaterAPI.StartTimers()
 end
 
 
 event.listen("InstallReady",InstallEventHandler)
-return GUSFunc
+return GERTUpdaterAPI
